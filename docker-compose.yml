@@ -1,0 +1,87 @@
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: bordereaux-db
+    environment:
+      POSTGRES_DB: bordereaux
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bordereaux"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Backend API (Development with hot-reload)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bordereaux-backend
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-postgres}@db:5432/bordereaux
+      DEFAULT_SUBSCRIPTION_TIER: ${DEFAULT_SUBSCRIPTION_TIER:-trial}
+      DEV_API_KEY: ${DEV_API_KEY:-dev_bordereaux_key_12345}
+    volumes:
+      # Mount source code for hot-reload in development
+      - ./backend/app:/app/app:ro
+      - ./backend/tests:/app/tests:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Frontend (Development with live files)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bordereaux-frontend
+    volumes:
+      # Mount frontend files for live updates
+      - ./frontend/taskpane.html:/app/taskpane.html:ro
+      - ./frontend/taskpane.js:/app/taskpane.js:ro
+      - ./frontend/config.js:/app/config.js:ro
+      - ./frontend/commands.html:/app/commands.html:ro
+      - ./frontend/commands.js:/app/commands.js:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/taskpane.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Nginx reverse proxy with HTTPS
+  nginx:
+    image: nginx:alpine
+    container_name: bordereaux-nginx
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

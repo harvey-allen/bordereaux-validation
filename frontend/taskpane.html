@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bordereaux Validator</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <script src="./config.js"></script>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 16px; color: #222; }
+      h2 { margin-bottom: 8px; }
+      label { display: block; margin-top: 12px; font-weight: 600; }
+      input, textarea, select, button { width: 100%; margin-top: 6px; padding: 8px; box-sizing: border-box; }
+      textarea { min-height: 140px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      select { appearance: none; background: #fff; cursor: pointer; }
+      button { background: #0f6cbd; border: none; color: #fff; border-radius: 4px; cursor: pointer; }
+      button:disabled { background: #8caec8; cursor: progress; }
+      .status { margin-top: 10px; font-size: 13px; }
+      .hint { font-size: 12px; color: #666; margin-top: 4px; }
+      .section { border-top: 1px solid #ddd; margin-top: 16px; padding-top: 12px; }
+      .section-title { font-size: 14px; font-weight: 600; color: #444; margin-bottom: 8px; }
+      .user-info { font-size: 12px; color: #666; background: #f5f5f5; padding: 8px; border-radius: 4px; margin-top: 8px; }
+      .btn-secondary { background: #666; margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <h2>Bordereaux Validator</h2>
+    <div class="hint">Configure your bordereaux validation settings</div>
+
+    <label for="testPacks">Test Pack</label>
+    <select id="testPacks">
+      <option value="bordereaux">Bordereaux</option>
+    </select>
+
+    <label for="packConfigs">Test Configuration (JSON)</label>
+    <textarea id="packConfigs"></textarea>
+
+    <button id="runValidation">Validate Selected Range</button>
+    <div class="status" id="status"></div>
+
+    <div class="section">
+      <div class="section-title">User Settings</div>
+      <label for="userEmail">Subscription Email</label>
+      <input type="email" id="userEmail" placeholder="your.email@company.com" />
+      <button id="saveEmail" class="btn-secondary">Save & Register</button>
+      <div class="user-info" id="userInfo">Not registered</div>
+    </div>
+
+    <script src="./taskpane.js"></script>
+  </body>
+</html>
