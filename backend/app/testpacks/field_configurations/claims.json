@@ -1,0 +1,3020 @@
+{
+  "Australia": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0008",
+        "field": "Binding authority or coverholder appointment agreement inception date"
+      },
+      {
+        "code": "CR0009",
+        "field": "Binding authority or coverholder appointment agreement expiry date"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Reference"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country"
+      },
+      {
+        "code": "CR0104",
+        "field": "Claim Reference / Number"
+      },
+      {
+        "code": "CR0105",
+        "field": "Claim Status"
+      },
+      {
+        "code": "CR0106",
+        "field": "Refer to Underwriters"
+      },
+      {
+        "code": "CR0107",
+        "field": "Denial"
+      },
+      {
+        "code": "CR0109",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0116",
+        "field": "Location of loss Country"
+      },
+      {
+        "code": "CR0126",
+        "field": "Paid this month - Indemnity"
+      },
+      {
+        "code": "CR0127",
+        "field": "Paid this month - Fees"
+      },
+      {
+        "code": "CR0128",
+        "field": "Previously Paid - Indemnity"
+      },
+      {
+        "code": "CR0129",
+        "field": "Previously Paid - Fees"
+      },
+      {
+        "code": "CR0130",
+        "field": "Reserve - Indemnity"
+      },
+      {
+        "code": "CR0131",
+        "field": "Reserve - Fees"
+      },
+      {
+        "code": "CR0134",
+        "field": "Total Incurred - Indemnity"
+      },
+      {
+        "code": "CR0135",
+        "field": "Total Incurred - Fees"
+      },
+      {
+        "code": "CR0136",
+        "field": "Date Claim First Advised/Date Claim Made"
+      },
+      {
+        "code": "CR0300",
+        "field": "Date Claim Opened"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0015",
+        "field": "TPA Name"
+      },
+      {
+        "code": "CR0016",
+        "field": "Lloyd's Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct, or Type of RI)"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Reg No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0042",
+        "field": "Location of Risk Location ID"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk Address"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of risk State, Province, Territory, Canton"
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk Country"
+      },
+      {
+        "code": "CR0054",
+        "field": "Deductible Amount"
+      },
+      {
+        "code": "CR0055",
+        "field": "Deductible Basis"
+      },
+      {
+        "code": "CR0103",
+        "field": "Sums Insured Amount"
+      },
+      {
+        "code": "CR0110",
+        "field": "Settlement Currency"
+      },
+      {
+        "code": "CR0111",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0112",
+        "field": "Location of loss Address"
+      },
+      {
+        "code": "CR0114",
+        "field": "Location of loss State, Province, Territory, Canton"
+      },
+      {
+        "code": "CR0115",
+        "field": "Location of loss Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0117",
+        "field": "Cause of Loss Code"
+      },
+      {
+        "code": "CR0118",
+        "field": "Loss Description"
+      },
+      {
+        "code": "CR0119",
+        "field": "Date of Loss (From)"
+      },
+      {
+        "code": "CR0120",
+        "field": "Date of Loss to"
+      },
+      {
+        "code": "CR0122",
+        "field": "Claimant Name"
+      },
+      {
+        "code": "CR0132",
+        "field": "Change this month - Indemnity"
+      },
+      {
+        "code": "CR0133",
+        "field": "Change this month - Fees"
+      },
+      {
+        "code": "CR0137",
+        "field": "Date Closed"
+      },
+      {
+        "code": "CR0138",
+        "field": "Lloyd's Cat Code"
+      },
+      {
+        "code": "CR0139",
+        "field": "Catastrophe Name"
+      },
+      {
+        "code": "CR0140",
+        "field": "Paid this month - Expenses"
+      },
+      {
+        "code": "CR0141",
+        "field": "Paid this month - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0142",
+        "field": "Paid this month - Adjusters Fees"
+      },
+      {
+        "code": "CR0143",
+        "field": "Paid this month - Defence Fees"
+      },
+      {
+        "code": "CR0144",
+        "field": "Paid this month - TPA Fees"
+      },
+      {
+        "code": "CR0145",
+        "field": "Previously Paid - Expenses"
+      },
+      {
+        "code": "CR0146",
+        "field": "Previously Paid - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0147",
+        "field": "Previously Paid - Adjusters Fees"
+      },
+      {
+        "code": "CR0148",
+        "field": "Previously Paid - Defence Fees"
+      },
+      {
+        "code": "CR0149",
+        "field": "Previously Paid - TPA Fees"
+      },
+      {
+        "code": "CR0150",
+        "field": "Reserve - Expenses"
+      },
+      {
+        "code": "CR0151",
+        "field": "Reserve - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0152",
+        "field": "Reserve - Adjusters Fees"
+      },
+      {
+        "code": "CR0153",
+        "field": "Reserve - Defence Fees"
+      },
+      {
+        "code": "CR0154",
+        "field": "Reserve - TPA Fees"
+      },
+      {
+        "code": "CR0155",
+        "field": "Total Incurred"
+      },
+      {
+        "code": "CR0156",
+        "field": "% Ceded (Reinsurance)"
+      },
+      {
+        "code": "CR0157",
+        "field": "Plan"
+      },
+      {
+        "code": "CR0158",
+        "field": "Patient Name"
+      },
+      {
+        "code": "CR0159",
+        "field": "Treatment Type"
+      },
+      {
+        "code": "CR0160",
+        "field": "Country of Treatment"
+      },
+      {
+        "code": "CR0161",
+        "field": "Date of Treatment"
+      },
+      {
+        "code": "CR0162",
+        "field": "Expert - Role"
+      },
+      {
+        "code": "CR0163",
+        "field": "Expert Firm / Company Name"
+      },
+      {
+        "code": "CR0164",
+        "field": "Expert Reference No etc."
+      },
+      {
+        "code": "CR0165",
+        "field": "Expert Address"
+      },
+      {
+        "code": "CR0166",
+        "field": "Expert State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0167",
+        "field": "Expert Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0168",
+        "field": "Expert Country"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0317",
+        "field": "Ex gratia payment"
+      },
+      {
+        "code": "CR0362",
+        "field": "Jurisdiction of the claim"
+      },
+      {
+        "code": "CR0364",
+        "field": "General nature of loss"
+      },
+      {
+        "code": "CR0366",
+        "field": "Body functions or structures affected"
+      },
+      {
+        "code": "CR0367",
+        "field": "Severity of loss"
+      },
+      {
+        "code": "CR0368",
+        "field": "Litigation status"
+      },
+      {
+        "code": "CR0369",
+        "field": "Diary date"
+      },
+      {
+        "code": "CR0370",
+        "field": "Peer review date"
+      },
+      {
+        "code": "CR0371",
+        "field": "Date First Reserve Established"
+      },
+      {
+        "code": "CR0372",
+        "field": "Claim First Notification Acknowledgement Date"
+      },
+      {
+        "code": "CR0375",
+        "field": "Gross third party recoveries received"
+      },
+      {
+        "code": "CR0376",
+        "field": "Gross third party recoveries outstanding"
+      },
+      {
+        "code": "CR1257",
+        "field": "Heads of damage Ð past economic loss"
+      },
+      {
+        "code": "CR1258",
+        "field": "Heads of damage Ð future economic loss"
+      },
+      {
+        "code": "CR1259",
+        "field": "Heads of damage - Past medical, hospital"
+      },
+      {
+        "code": "CR1260",
+        "field": "Heads of damage - Future medical, hospital"
+      },
+      {
+        "code": "CR1261",
+        "field": "Heads of damage - Future caring services"
+      },
+      {
+        "code": "CR1262",
+        "field": "Heads of damage - General damages"
+      },
+      {
+        "code": "CR1263",
+        "field": "Heads of damage Ð Interest"
+      },
+      {
+        "code": "CR1264",
+        "field": "Heads of damage - Plaintiff legal costs"
+      },
+      {
+        "code": "CR1265",
+        "field": "Heads of damage - Defendant legal costs"
+      },
+      {
+        "code": "CR1266",
+        "field": "Heads of damage - Investigation costs"
+      },
+      {
+        "code": "CR1267",
+        "field": "Heads of damage Ð other"
+      }
+    ]
+  },
+  "EEA": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0008",
+        "field": "Binding authority or coverholder appointment agreement inception date"
+      },
+      {
+        "code": "CR0009",
+        "field": "Binding authority or coverholder appointment agreement expiry date"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Reference"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country"
+      },
+      {
+        "code": "CR0104",
+        "field": "Claim Reference / Number"
+      },
+      {
+        "code": "CR0105",
+        "field": "Claim Status"
+      },
+      {
+        "code": "CR0106",
+        "field": "Refer to Underwriters"
+      },
+      {
+        "code": "CR0107",
+        "field": "Denial"
+      },
+      {
+        "code": "CR0109",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0116",
+        "field": "Location of loss Country"
+      },
+      {
+        "code": "CR0126",
+        "field": "Paid this month - Indemnity"
+      },
+      {
+        "code": "CR0127",
+        "field": "Paid this month - Fees"
+      },
+      {
+        "code": "CR0128",
+        "field": "Previously Paid - Indemnity"
+      },
+      {
+        "code": "CR0129",
+        "field": "Previously Paid - Fees"
+      },
+      {
+        "code": "CR0130",
+        "field": "Reserve - Indemnity"
+      },
+      {
+        "code": "CR0131",
+        "field": "Reserve - Fees"
+      },
+      {
+        "code": "CR0134",
+        "field": "Total Incurred - Indemnity"
+      },
+      {
+        "code": "CR0135",
+        "field": "Total Incurred - Fees"
+      },
+      {
+        "code": "CR0136",
+        "field": "Date Claim First Advised/Date Claim Made"
+      },
+      {
+        "code": "CR0300",
+        "field": "Date Claim Opened"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0015",
+        "field": "TPA Name"
+      },
+      {
+        "code": "CR0016",
+        "field": "Lloyd's Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct, or Type of RI)"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Reg No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0042",
+        "field": "Location of Risk Location ID"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk Address"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of risk State, Province, Territory, Canton"
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk Country"
+      },
+      {
+        "code": "CR0055",
+        "field": "Deductible Basis"
+      },
+      {
+        "code": "CR0103",
+        "field": "Sums Insured Amount"
+      },
+      {
+        "code": "CR0110",
+        "field": "Settlement Currency"
+      },
+      {
+        "code": "CR0111",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0112",
+        "field": "Location of loss Address"
+      },
+      {
+        "code": "CR0114",
+        "field": "Location of loss State, Province, Territory, Canton"
+      },
+      {
+        "code": "CR0115",
+        "field": "Location of loss Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0117",
+        "field": "Cause of Loss Code"
+      },
+      {
+        "code": "CR0118",
+        "field": "Loss Description"
+      },
+      {
+        "code": "CR0119",
+        "field": "Date of Loss (From)"
+      },
+      {
+        "code": "CR0120",
+        "field": "Date of Loss to"
+      },
+      {
+        "code": "CR0122",
+        "field": "Claimant Name"
+      },
+      {
+        "code": "CR0132",
+        "field": "Change this month - Indemnity"
+      },
+      {
+        "code": "CR0133",
+        "field": "Change this month - Fees"
+      },
+      {
+        "code": "CR0137",
+        "field": "Date Closed"
+      },
+      {
+        "code": "CR0138",
+        "field": "Lloyd's Cat Code"
+      },
+      {
+        "code": "CR0139",
+        "field": "Catastrophe Name"
+      },
+      {
+        "code": "CR0140",
+        "field": "Paid this month - Expenses"
+      },
+      {
+        "code": "CR0141",
+        "field": "Paid this month - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0142",
+        "field": "Paid this month - Adjusters Fees"
+      },
+      {
+        "code": "CR0143",
+        "field": "Paid this month - Defence Fees"
+      },
+      {
+        "code": "CR0144",
+        "field": "Paid this month - TPA Fees"
+      },
+      {
+        "code": "CR0145",
+        "field": "Previously Paid - Expenses"
+      },
+      {
+        "code": "CR0146",
+        "field": "Previously Paid - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0147",
+        "field": "Previously Paid - Adjusters Fees"
+      },
+      {
+        "code": "CR0148",
+        "field": "Previously Paid - Defence Fees"
+      },
+      {
+        "code": "CR0149",
+        "field": "Previously Paid - TPA Fees"
+      },
+      {
+        "code": "CR0150",
+        "field": "Reserve - Expenses"
+      },
+      {
+        "code": "CR0151",
+        "field": "Reserve - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0152",
+        "field": "Reserve - Adjusters Fees"
+      },
+      {
+        "code": "CR0153",
+        "field": "Reserve - Defence Fees"
+      },
+      {
+        "code": "CR0154",
+        "field": "Reserve - TPA Fees"
+      },
+      {
+        "code": "CR0155",
+        "field": "Total Incurred"
+      },
+      {
+        "code": "CR0156",
+        "field": "% Ceded (Reinsurance)"
+      },
+      {
+        "code": "CR0157",
+        "field": "Plan"
+      },
+      {
+        "code": "CR0158",
+        "field": "Patient Name"
+      },
+      {
+        "code": "CR0159",
+        "field": "Treatment Type"
+      },
+      {
+        "code": "CR0160",
+        "field": "Country of Treatment"
+      },
+      {
+        "code": "CR0161",
+        "field": "Date of Treatment"
+      },
+      {
+        "code": "CR0162",
+        "field": "Expert - Role"
+      },
+      {
+        "code": "CR0163",
+        "field": "Expert Firm / Company Name"
+      },
+      {
+        "code": "CR0164",
+        "field": "Expert Reference No etc."
+      },
+      {
+        "code": "CR0165",
+        "field": "Expert Address"
+      },
+      {
+        "code": "CR0166",
+        "field": "Expert State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0167",
+        "field": "Expert Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0168",
+        "field": "Expert Country"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0301",
+        "field": "Date Coverage Confirmed"
+      },
+      {
+        "code": "CR0302",
+        "field": "Date Claim Amount Agreed"
+      },
+      {
+        "code": "CR0303",
+        "field": "Date Claims Paid (Final)"
+      },
+      {
+        "code": "CR0304",
+        "field": "Date fees paid (final)"
+      },
+      {
+        "code": "CR0306",
+        "field": "Date Reopened"
+      },
+      {
+        "code": "CR0307",
+        "field": "Date of Subrogation"
+      },
+      {
+        "code": "CR0311",
+        "field": "Date Claim Denied"
+      },
+      {
+        "code": "CR0312",
+        "field": "Reason for Denial"
+      },
+      {
+        "code": "CR0313",
+        "field": "Amount Claimed"
+      },
+      {
+        "code": "CR0316",
+        "field": "Date claim withdrawn"
+      },
+      {
+        "code": "CR0317",
+        "field": "Ex gratia payment"
+      },
+      {
+        "code": "CR0319",
+        "field": "Claim not paid as within excess"
+      },
+      {
+        "code": "CR0369",
+        "field": "Diary date"
+      },
+      {
+        "code": "CR0370",
+        "field": "Peer review date"
+      },
+      {
+        "code": "CR0371",
+        "field": "Date First Reserve Established"
+      },
+      {
+        "code": "CR0372",
+        "field": "Claim First Notification Acknowledgement Date"
+      }
+    ]
+  },
+  "Hong Kong": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0008",
+        "field": "Binding authority or coverholder appointment agreement inception date"
+      },
+      {
+        "code": "CR0009",
+        "field": "Binding authority or coverholder appointment agreement expiry date"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Reference"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country"
+      },
+      {
+        "code": "CR0104",
+        "field": "Claim Reference / Number"
+      },
+      {
+        "code": "CR0105",
+        "field": "Claim Status"
+      },
+      {
+        "code": "CR0106",
+        "field": "Refer to Underwriters"
+      },
+      {
+        "code": "CR0107",
+        "field": "Denial"
+      },
+      {
+        "code": "CR0109",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0116",
+        "field": "Location of loss Country"
+      },
+      {
+        "code": "CR0126",
+        "field": "Paid this month - Indemnity"
+      },
+      {
+        "code": "CR0127",
+        "field": "Paid this month - Fees"
+      },
+      {
+        "code": "CR0128",
+        "field": "Previously Paid - Indemnity"
+      },
+      {
+        "code": "CR0129",
+        "field": "Previously Paid - Fees"
+      },
+      {
+        "code": "CR0130",
+        "field": "Reserve - Indemnity"
+      },
+      {
+        "code": "CR0131",
+        "field": "Reserve - Fees"
+      },
+      {
+        "code": "CR0134",
+        "field": "Total Incurred - Indemnity"
+      },
+      {
+        "code": "CR0135",
+        "field": "Total Incurred - Fees"
+      },
+      {
+        "code": "CR0136",
+        "field": "Date Claim First Advised/Date Claim Made"
+      },
+      {
+        "code": "CR0300",
+        "field": "Date Claim Opened"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0015",
+        "field": "TPA Name"
+      },
+      {
+        "code": "CR0016",
+        "field": "Lloyd's Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct, or Type of RI)"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Reg No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0042",
+        "field": "Location of Risk Location ID"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk Address"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of risk State, Province, Territory, Canton"
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk Country"
+      },
+      {
+        "code": "CR0055",
+        "field": "Deductible Basis"
+      },
+      {
+        "code": "CR0103",
+        "field": "Sums Insured Amount"
+      },
+      {
+        "code": "CR0110",
+        "field": "Settlement Currency"
+      },
+      {
+        "code": "CR0111",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0112",
+        "field": "Location of loss Address"
+      },
+      {
+        "code": "CR0114",
+        "field": "Location of loss State, Province, Territory, Canton"
+      },
+      {
+        "code": "CR0115",
+        "field": "Location of loss Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0117",
+        "field": "Cause of Loss Code"
+      },
+      {
+        "code": "CR0118",
+        "field": "Loss Description"
+      },
+      {
+        "code": "CR0119",
+        "field": "Date of Loss (From)"
+      },
+      {
+        "code": "CR0120",
+        "field": "Date of Loss to"
+      },
+      {
+        "code": "CR0122",
+        "field": "Claimant Name"
+      },
+      {
+        "code": "CR0132",
+        "field": "Change this month - Indemnity"
+      },
+      {
+        "code": "CR0133",
+        "field": "Change this month - Fees"
+      },
+      {
+        "code": "CR0137",
+        "field": "Date Closed"
+      },
+      {
+        "code": "CR0138",
+        "field": "Lloyd's Cat Code"
+      },
+      {
+        "code": "CR0139",
+        "field": "Catastrophe Name"
+      },
+      {
+        "code": "CR0140",
+        "field": "Paid this month - Expenses"
+      },
+      {
+        "code": "CR0141",
+        "field": "Paid this month - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0142",
+        "field": "Paid this month - Adjusters Fees"
+      },
+      {
+        "code": "CR0143",
+        "field": "Paid this month - Defence Fees"
+      },
+      {
+        "code": "CR0144",
+        "field": "Paid this month - TPA Fees"
+      },
+      {
+        "code": "CR0145",
+        "field": "Previously Paid - Expenses"
+      },
+      {
+        "code": "CR0146",
+        "field": "Previously Paid - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0147",
+        "field": "Previously Paid - Adjusters Fees"
+      },
+      {
+        "code": "CR0148",
+        "field": "Previously Paid - Defence Fees"
+      },
+      {
+        "code": "CR0149",
+        "field": "Previously Paid - TPA Fees"
+      },
+      {
+        "code": "CR0150",
+        "field": "Reserve - Expenses"
+      },
+      {
+        "code": "CR0151",
+        "field": "Reserve - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0152",
+        "field": "Reserve - Adjusters Fees"
+      },
+      {
+        "code": "CR0153",
+        "field": "Reserve - Defence Fees"
+      },
+      {
+        "code": "CR0154",
+        "field": "Reserve - TPA Fees"
+      },
+      {
+        "code": "CR0155",
+        "field": "Total Incurred"
+      },
+      {
+        "code": "CR0156",
+        "field": "% Ceded (Reinsurance)"
+      },
+      {
+        "code": "CR0157",
+        "field": "Plan"
+      },
+      {
+        "code": "CR0158",
+        "field": "Patient Name"
+      },
+      {
+        "code": "CR0159",
+        "field": "Treatment Type"
+      },
+      {
+        "code": "CR0160",
+        "field": "Country of Treatment"
+      },
+      {
+        "code": "CR0161",
+        "field": "Date of Treatment"
+      },
+      {
+        "code": "CR0162",
+        "field": "Expert - Role"
+      },
+      {
+        "code": "CR0163",
+        "field": "Expert Firm / Company Name"
+      },
+      {
+        "code": "CR0164",
+        "field": "Expert Reference No etc."
+      },
+      {
+        "code": "CR0165",
+        "field": "Expert Address"
+      },
+      {
+        "code": "CR0166",
+        "field": "Expert State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0167",
+        "field": "Expert Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0168",
+        "field": "Expert Country"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0317",
+        "field": "Ex gratia payment"
+      },
+      {
+        "code": "CR0369",
+        "field": "Diary date"
+      },
+      {
+        "code": "CR0370",
+        "field": "Peer review date"
+      },
+      {
+        "code": "CR0371",
+        "field": "Date First Reserve Established"
+      },
+      {
+        "code": "CR0372",
+        "field": "Claim First Notification Acknowledgement Date"
+      },
+      {
+        "code": "CR1268",
+        "field": "Lead syndicate number"
+      },
+      {
+        "code": "CR1269",
+        "field": "Hong Kong Insured Occupation Code"
+      },
+      {
+        "code": "CR1270",
+        "field": "IA Accounting Class"
+      },
+      {
+        "code": "CR1272",
+        "field": "IA Sub-accounting class"
+      },
+      {
+        "code": "CR1273",
+        "field": "Nature of claim"
+      },
+      {
+        "code": "CR1275",
+        "field": "Type of vehicle Ð code"
+      },
+      {
+        "code": "CR1276",
+        "field": "Number of vessels"
+      },
+      {
+        "code": "CR1279",
+        "field": "Management expense"
+      }
+    ]
+  },
+  "Lloyd's Brussels": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0008",
+        "field": "Binding authority or coverholder appointment agreement inception date"
+      },
+      {
+        "code": "CR0009",
+        "field": "Binding authority or coverholder appointment agreement expiry date"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Reference"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country"
+      },
+      {
+        "code": "CR0104",
+        "field": "Claim Reference / Number"
+      },
+      {
+        "code": "CR0105",
+        "field": "Claim Status"
+      },
+      {
+        "code": "CR0106",
+        "field": "Refer to Underwriters"
+      },
+      {
+        "code": "CR0107",
+        "field": "Denial"
+      },
+      {
+        "code": "CR0109",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0116",
+        "field": "Location of loss Country"
+      },
+      {
+        "code": "CR0126",
+        "field": "Paid this month - Indemnity"
+      },
+      {
+        "code": "CR0127",
+        "field": "Paid this month - Fees"
+      },
+      {
+        "code": "CR0128",
+        "field": "Previously Paid - Indemnity"
+      },
+      {
+        "code": "CR0129",
+        "field": "Previously Paid - Fees"
+      },
+      {
+        "code": "CR0130",
+        "field": "Reserve - Indemnity"
+      },
+      {
+        "code": "CR0131",
+        "field": "Reserve - Fees"
+      },
+      {
+        "code": "CR0134",
+        "field": "Total Incurred - Indemnity"
+      },
+      {
+        "code": "CR0135",
+        "field": "Total Incurred - Fees"
+      },
+      {
+        "code": "CR0136",
+        "field": "Date Claim First Advised/Date Claim Made"
+      },
+      {
+        "code": "CR0300",
+        "field": "Date Claim Opened"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0015",
+        "field": "TPA Name"
+      },
+      {
+        "code": "CR0016",
+        "field": "Lloyd's Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct, or Type of RI)"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Reg No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0042",
+        "field": "Location of Risk Location ID"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk Address"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of risk State, Province, Territory, Canton"
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk Country"
+      },
+      {
+        "code": "CR0055",
+        "field": "Deductible Basis"
+      },
+      {
+        "code": "CR0103",
+        "field": "Sums Insured Amount"
+      },
+      {
+        "code": "CR0110",
+        "field": "Settlement Currency"
+      },
+      {
+        "code": "CR0111",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0112",
+        "field": "Location of loss Address"
+      },
+      {
+        "code": "CR0114",
+        "field": "Location of loss State, Province, Territory, Canton"
+      },
+      {
+        "code": "CR0115",
+        "field": "Location of loss Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0117",
+        "field": "Cause of Loss Code"
+      },
+      {
+        "code": "CR0118",
+        "field": "Loss Description"
+      },
+      {
+        "code": "CR0119",
+        "field": "Date of Loss (From)"
+      },
+      {
+        "code": "CR0120",
+        "field": "Date of Loss to"
+      },
+      {
+        "code": "CR0122",
+        "field": "Claimant Name"
+      },
+      {
+        "code": "CR0132",
+        "field": "Change this month - Indemnity"
+      },
+      {
+        "code": "CR0133",
+        "field": "Change this month - Fees"
+      },
+      {
+        "code": "CR0137",
+        "field": "Date Closed"
+      },
+      {
+        "code": "CR0138",
+        "field": "Lloyd's Cat Code"
+      },
+      {
+        "code": "CR0139",
+        "field": "Catastrophe Name"
+      },
+      {
+        "code": "CR0140",
+        "field": "Paid this month - Expenses"
+      },
+      {
+        "code": "CR0141",
+        "field": "Paid this month - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0142",
+        "field": "Paid this month - Adjusters Fees"
+      },
+      {
+        "code": "CR0143",
+        "field": "Paid this month - Defence Fees"
+      },
+      {
+        "code": "CR0144",
+        "field": "Paid this month - TPA Fees"
+      },
+      {
+        "code": "CR0145",
+        "field": "Previously Paid - Expenses"
+      },
+      {
+        "code": "CR0146",
+        "field": "Previously Paid - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0147",
+        "field": "Previously Paid - Adjusters Fees"
+      },
+      {
+        "code": "CR0148",
+        "field": "Previously Paid - Defence Fees"
+      },
+      {
+        "code": "CR0149",
+        "field": "Previously Paid - TPA Fees"
+      },
+      {
+        "code": "CR0150",
+        "field": "Reserve - Expenses"
+      },
+      {
+        "code": "CR0151",
+        "field": "Reserve - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0152",
+        "field": "Reserve - Adjusters Fees"
+      },
+      {
+        "code": "CR0153",
+        "field": "Reserve - Defence Fees"
+      },
+      {
+        "code": "CR0154",
+        "field": "Reserve - TPA Fees"
+      },
+      {
+        "code": "CR0155",
+        "field": "Total Incurred"
+      },
+      {
+        "code": "CR0156",
+        "field": "% Ceded (Reinsurance)"
+      },
+      {
+        "code": "CR0157",
+        "field": "Plan"
+      },
+      {
+        "code": "CR0158",
+        "field": "Patient Name"
+      },
+      {
+        "code": "CR0159",
+        "field": "Treatment Type"
+      },
+      {
+        "code": "CR0160",
+        "field": "Country of Treatment"
+      },
+      {
+        "code": "CR0161",
+        "field": "Date of Treatment"
+      },
+      {
+        "code": "CR0162",
+        "field": "Expert - Role"
+      },
+      {
+        "code": "CR0163",
+        "field": "Expert Firm / Company Name"
+      },
+      {
+        "code": "CR0164",
+        "field": "Expert Reference No etc."
+      },
+      {
+        "code": "CR0165",
+        "field": "Expert Address"
+      },
+      {
+        "code": "CR0166",
+        "field": "Expert State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0167",
+        "field": "Expert Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0168",
+        "field": "Expert Country"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0317",
+        "field": "Ex gratia payment"
+      },
+      {
+        "code": "CR0369",
+        "field": "Diary date"
+      },
+      {
+        "code": "CR0370",
+        "field": "Peer review date"
+      },
+      {
+        "code": "CR0371",
+        "field": "Date First Reserve Established"
+      },
+      {
+        "code": "CR0372",
+        "field": "Claim First Notification Acknowledgement Date"
+      },
+      {
+        "code": "CR1252",
+        "field": "Paid this month fees Ð VAT applied"
+      },
+      {
+        "code": "CR1253",
+        "field": "Paid this month fees Ð VAT Amount"
+      },
+      {
+        "code": "CR1254",
+        "field": "Paid this month fees Ð exempt Belgian VAT"
+      },
+      {
+        "code": "CR1255",
+        "field": "Paid this month fees Ð no VAT applied"
+      },
+      {
+        "code": "CR1297",
+        "field": "Lloyd's Platform"
+      }
+    ]
+  },
+  "South Africa": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0008",
+        "field": "Binding authority or coverholder appointment agreement inception date"
+      },
+      {
+        "code": "CR0009",
+        "field": "Binding authority or coverholder appointment agreement expiry date"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Reference"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country"
+      },
+      {
+        "code": "CR0104",
+        "field": "Claim Reference / Number"
+      },
+      {
+        "code": "CR0105",
+        "field": "Claim Status"
+      },
+      {
+        "code": "CR0106",
+        "field": "Refer to Underwriters"
+      },
+      {
+        "code": "CR0107",
+        "field": "Denial"
+      },
+      {
+        "code": "CR0109",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0116",
+        "field": "Location of loss Country"
+      },
+      {
+        "code": "CR0126",
+        "field": "Paid this month - Indemnity"
+      },
+      {
+        "code": "CR0127",
+        "field": "Paid this month - Fees"
+      },
+      {
+        "code": "CR0128",
+        "field": "Previously Paid - Indemnity"
+      },
+      {
+        "code": "CR0129",
+        "field": "Previously Paid - Fees"
+      },
+      {
+        "code": "CR0130",
+        "field": "Reserve - Indemnity"
+      },
+      {
+        "code": "CR0131",
+        "field": "Reserve - Fees"
+      },
+      {
+        "code": "CR0134",
+        "field": "Total Incurred - Indemnity"
+      },
+      {
+        "code": "CR0135",
+        "field": "Total Incurred - Fees"
+      },
+      {
+        "code": "CR0136",
+        "field": "Date Claim First Advised/Date Claim Made"
+      },
+      {
+        "code": "CR0300",
+        "field": "Date Claim Opened"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0015",
+        "field": "TPA Name"
+      },
+      {
+        "code": "CR0016",
+        "field": "Lloyd's Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct, or Type of RI)"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Reg No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0042",
+        "field": "Location of Risk Location ID"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk Address"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of risk State, Province, Territory, Canton"
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk Country"
+      },
+      {
+        "code": "CR0055",
+        "field": "Deductible Basis"
+      },
+      {
+        "code": "CR0103",
+        "field": "Sums Insured Amount"
+      },
+      {
+        "code": "CR0110",
+        "field": "Settlement Currency"
+      },
+      {
+        "code": "CR0111",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0112",
+        "field": "Location of loss Address"
+      },
+      {
+        "code": "CR0114",
+        "field": "Location of loss State, Province, Territory, Canton"
+      },
+      {
+        "code": "CR0115",
+        "field": "Location of loss Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0117",
+        "field": "Cause of Loss Code"
+      },
+      {
+        "code": "CR0118",
+        "field": "Loss Description"
+      },
+      {
+        "code": "CR0119",
+        "field": "Date of Loss (From)"
+      },
+      {
+        "code": "CR0120",
+        "field": "Date of Loss to"
+      },
+      {
+        "code": "CR0122",
+        "field": "Claimant Name"
+      },
+      {
+        "code": "CR0132",
+        "field": "Change this month - Indemnity"
+      },
+      {
+        "code": "CR0133",
+        "field": "Change this month - Fees"
+      },
+      {
+        "code": "CR0137",
+        "field": "Date Closed"
+      },
+      {
+        "code": "CR0138",
+        "field": "Lloyd's Cat Code"
+      },
+      {
+        "code": "CR0139",
+        "field": "Catastrophe Name"
+      },
+      {
+        "code": "CR0140",
+        "field": "Paid this month - Expenses"
+      },
+      {
+        "code": "CR0141",
+        "field": "Paid this month - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0142",
+        "field": "Paid this month - Adjusters Fees"
+      },
+      {
+        "code": "CR0143",
+        "field": "Paid this month - Defence Fees"
+      },
+      {
+        "code": "CR0144",
+        "field": "Paid this month - TPA Fees"
+      },
+      {
+        "code": "CR0145",
+        "field": "Previously Paid - Expenses"
+      },
+      {
+        "code": "CR0146",
+        "field": "Previously Paid - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0147",
+        "field": "Previously Paid - Adjusters Fees"
+      },
+      {
+        "code": "CR0148",
+        "field": "Previously Paid - Defence Fees"
+      },
+      {
+        "code": "CR0149",
+        "field": "Previously Paid - TPA Fees"
+      },
+      {
+        "code": "CR0150",
+        "field": "Reserve - Expenses"
+      },
+      {
+        "code": "CR0151",
+        "field": "Reserve - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0152",
+        "field": "Reserve - Adjusters Fees"
+      },
+      {
+        "code": "CR0153",
+        "field": "Reserve - Defence Fees"
+      },
+      {
+        "code": "CR0154",
+        "field": "Reserve - TPA Fees"
+      },
+      {
+        "code": "CR0155",
+        "field": "Total Incurred"
+      },
+      {
+        "code": "CR0156",
+        "field": "% Ceded (Reinsurance)"
+      },
+      {
+        "code": "CR0157",
+        "field": "Plan"
+      },
+      {
+        "code": "CR0158",
+        "field": "Patient Name"
+      },
+      {
+        "code": "CR0159",
+        "field": "Treatment Type"
+      },
+      {
+        "code": "CR0160",
+        "field": "Country of Treatment"
+      },
+      {
+        "code": "CR0161",
+        "field": "Date of Treatment"
+      },
+      {
+        "code": "CR0162",
+        "field": "Expert - Role"
+      },
+      {
+        "code": "CR0163",
+        "field": "Expert Firm / Company Name"
+      },
+      {
+        "code": "CR0164",
+        "field": "Expert Reference No etc."
+      },
+      {
+        "code": "CR0165",
+        "field": "Expert Address"
+      },
+      {
+        "code": "CR0166",
+        "field": "Expert State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0167",
+        "field": "Expert Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0168",
+        "field": "Expert Country"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0303",
+        "field": "Date Claims Paid (Final)"
+      },
+      {
+        "code": "CR0304",
+        "field": "Date fees paid (final)"
+      },
+      {
+        "code": "CR0317",
+        "field": "Ex gratia payment"
+      },
+      {
+        "code": "CR0369",
+        "field": "Diary date"
+      },
+      {
+        "code": "CR0370",
+        "field": "Peer review date"
+      },
+      {
+        "code": "CR0371",
+        "field": "Date First Reserve Established"
+      },
+      {
+        "code": "CR0372",
+        "field": "Claim First Notification Acknowledgement Date"
+      }
+    ]
+  },
+  "UK": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0008",
+        "field": "Binding authority or coverholder appointment agreement inception date"
+      },
+      {
+        "code": "CR0009",
+        "field": "Binding authority or coverholder appointment agreement expiry date"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Reference"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country"
+      },
+      {
+        "code": "CR0104",
+        "field": "Claim Reference / Number"
+      },
+      {
+        "code": "CR0105",
+        "field": "Claim Status"
+      },
+      {
+        "code": "CR0106",
+        "field": "Refer to Underwriters"
+      },
+      {
+        "code": "CR0107",
+        "field": "Denial"
+      },
+      {
+        "code": "CR0109",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0116",
+        "field": "Location of loss Country"
+      },
+      {
+        "code": "CR0126",
+        "field": "Paid this month - Indemnity"
+      },
+      {
+        "code": "CR0127",
+        "field": "Paid this month - Fees"
+      },
+      {
+        "code": "CR0128",
+        "field": "Previously Paid - Indemnity"
+      },
+      {
+        "code": "CR0129",
+        "field": "Previously Paid - Fees"
+      },
+      {
+        "code": "CR0130",
+        "field": "Reserve - Indemnity"
+      },
+      {
+        "code": "CR0131",
+        "field": "Reserve - Fees"
+      },
+      {
+        "code": "CR0134",
+        "field": "Total Incurred - Indemnity"
+      },
+      {
+        "code": "CR0135",
+        "field": "Total Incurred - Fees"
+      },
+      {
+        "code": "CR0136",
+        "field": "Date Claim First Advised/Date Claim Made"
+      },
+      {
+        "code": "CR0300",
+        "field": "Date Claim Opened"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0015",
+        "field": "TPA Name"
+      },
+      {
+        "code": "CR0016",
+        "field": "Lloyd's Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct, or Type of RI)"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Reg No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0042",
+        "field": "Location of Risk Location ID"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk Address"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of risk State, Province, Territory, Canton"
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk Country"
+      },
+      {
+        "code": "CR0055",
+        "field": "Deductible Basis"
+      },
+      {
+        "code": "CR0103",
+        "field": "Sums Insured Amount"
+      },
+      {
+        "code": "CR0110",
+        "field": "Settlement Currency"
+      },
+      {
+        "code": "CR0111",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0112",
+        "field": "Location of loss Address"
+      },
+      {
+        "code": "CR0114",
+        "field": "Location of loss State, Province, Territory, Canton"
+      },
+      {
+        "code": "CR0115",
+        "field": "Location of loss Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0117",
+        "field": "Cause of Loss Code"
+      },
+      {
+        "code": "CR0118",
+        "field": "Loss Description"
+      },
+      {
+        "code": "CR0119",
+        "field": "Date of Loss (From)"
+      },
+      {
+        "code": "CR0120",
+        "field": "Date of Loss to"
+      },
+      {
+        "code": "CR0122",
+        "field": "Claimant Name"
+      },
+      {
+        "code": "CR0132",
+        "field": "Change this month - Indemnity"
+      },
+      {
+        "code": "CR0133",
+        "field": "Change this month - Fees"
+      },
+      {
+        "code": "CR0137",
+        "field": "Date Closed"
+      },
+      {
+        "code": "CR0138",
+        "field": "Lloyd's Cat Code"
+      },
+      {
+        "code": "CR0139",
+        "field": "Catastrophe Name"
+      },
+      {
+        "code": "CR0140",
+        "field": "Paid this month - Expenses"
+      },
+      {
+        "code": "CR0141",
+        "field": "Paid this month - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0142",
+        "field": "Paid this month - Adjusters Fees"
+      },
+      {
+        "code": "CR0143",
+        "field": "Paid this month - Defence Fees"
+      },
+      {
+        "code": "CR0144",
+        "field": "Paid this month - TPA Fees"
+      },
+      {
+        "code": "CR0145",
+        "field": "Previously Paid - Expenses"
+      },
+      {
+        "code": "CR0146",
+        "field": "Previously Paid - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0147",
+        "field": "Previously Paid - Adjusters Fees"
+      },
+      {
+        "code": "CR0148",
+        "field": "Previously Paid - Defence Fees"
+      },
+      {
+        "code": "CR0149",
+        "field": "Previously Paid - TPA Fees"
+      },
+      {
+        "code": "CR0150",
+        "field": "Reserve - Expenses"
+      },
+      {
+        "code": "CR0151",
+        "field": "Reserve - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0152",
+        "field": "Reserve - Adjusters Fees"
+      },
+      {
+        "code": "CR0153",
+        "field": "Reserve - Defence Fees"
+      },
+      {
+        "code": "CR0154",
+        "field": "Reserve - TPA Fees"
+      },
+      {
+        "code": "CR0155",
+        "field": "Total Incurred"
+      },
+      {
+        "code": "CR0156",
+        "field": "% Ceded (Reinsurance)"
+      },
+      {
+        "code": "CR0157",
+        "field": "Plan"
+      },
+      {
+        "code": "CR0158",
+        "field": "Patient Name"
+      },
+      {
+        "code": "CR0159",
+        "field": "Treatment Type"
+      },
+      {
+        "code": "CR0160",
+        "field": "Country of Treatment"
+      },
+      {
+        "code": "CR0161",
+        "field": "Date of Treatment"
+      },
+      {
+        "code": "CR0162",
+        "field": "Expert - Role"
+      },
+      {
+        "code": "CR0163",
+        "field": "Expert Firm / Company Name"
+      },
+      {
+        "code": "CR0164",
+        "field": "Expert Reference No etc."
+      },
+      {
+        "code": "CR0165",
+        "field": "Expert Address"
+      },
+      {
+        "code": "CR0166",
+        "field": "Expert State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0167",
+        "field": "Expert Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0168",
+        "field": "Expert Country"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0301",
+        "field": "Date Coverage Confirmed"
+      },
+      {
+        "code": "CR0302",
+        "field": "Date Claim Amount Agreed"
+      },
+      {
+        "code": "CR0303",
+        "field": "Date Claims Paid (Final)"
+      },
+      {
+        "code": "CR0304",
+        "field": "Date fees paid (final)"
+      },
+      {
+        "code": "CR0306",
+        "field": "Date Reopened"
+      },
+      {
+        "code": "CR0307",
+        "field": "Date of Subrogation"
+      },
+      {
+        "code": "CR0311",
+        "field": "Date Claim Denied"
+      },
+      {
+        "code": "CR0312",
+        "field": "Reason for Denial"
+      },
+      {
+        "code": "CR0313",
+        "field": "Amount Claimed"
+      },
+      {
+        "code": "CR0316",
+        "field": "Date claim withdrawn"
+      },
+      {
+        "code": "CR0317",
+        "field": "Ex gratia payment"
+      },
+      {
+        "code": "CR0319",
+        "field": "Claim not paid as within excess"
+      },
+      {
+        "code": "CR0369",
+        "field": "Diary date"
+      },
+      {
+        "code": "CR0370",
+        "field": "Peer review date"
+      },
+      {
+        "code": "CR0371",
+        "field": "Date First Reserve Established"
+      },
+      {
+        "code": "CR0372",
+        "field": "Claim First Notification Acknowledgement Date"
+      }
+    ]
+  },
+  "US": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0008",
+        "field": "Binding authority or coverholder appointment agreement inception date"
+      },
+      {
+        "code": "CR0009",
+        "field": "Binding authority or coverholder appointment agreement expiry date"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Reference"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country"
+      },
+      {
+        "code": "CR0104",
+        "field": "Claim Reference / Number"
+      },
+      {
+        "code": "CR0105",
+        "field": "Claim Status"
+      },
+      {
+        "code": "CR0106",
+        "field": "Refer to Underwriters"
+      },
+      {
+        "code": "CR0107",
+        "field": "Denial"
+      },
+      {
+        "code": "CR0109",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0116",
+        "field": "Location of loss Country"
+      },
+      {
+        "code": "CR0126",
+        "field": "Paid this month - Indemnity"
+      },
+      {
+        "code": "CR0127",
+        "field": "Paid this month - Fees"
+      },
+      {
+        "code": "CR0128",
+        "field": "Previously Paid - Indemnity"
+      },
+      {
+        "code": "CR0129",
+        "field": "Previously Paid - Fees"
+      },
+      {
+        "code": "CR0130",
+        "field": "Reserve - Indemnity"
+      },
+      {
+        "code": "CR0131",
+        "field": "Reserve - Fees"
+      },
+      {
+        "code": "CR0134",
+        "field": "Total Incurred - Indemnity"
+      },
+      {
+        "code": "CR0135",
+        "field": "Total Incurred - Fees"
+      },
+      {
+        "code": "CR0136",
+        "field": "Date Claim First Advised/Date Claim Made"
+      },
+      {
+        "code": "CR0300",
+        "field": "Date Claim Opened"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0015",
+        "field": "TPA Name"
+      },
+      {
+        "code": "CR0016",
+        "field": "Lloyd's Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct, or Type of RI)"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Reg No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0042",
+        "field": "Location of Risk Location ID"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk Address"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of risk State, Province, Territory, Canton"
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk Country"
+      },
+      {
+        "code": "CR0055",
+        "field": "Deductible Basis"
+      },
+      {
+        "code": "CR0088",
+        "field": "State of Filing"
+      },
+      {
+        "code": "CR0103",
+        "field": "Sums Insured Amount"
+      },
+      {
+        "code": "CR0108",
+        "field": "PCS Code"
+      },
+      {
+        "code": "CR0110",
+        "field": "Settlement Currency"
+      },
+      {
+        "code": "CR0111",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0112",
+        "field": "Location of loss Address"
+      },
+      {
+        "code": "CR0113",
+        "field": "Loss County"
+      },
+      {
+        "code": "CR0114",
+        "field": "Location of loss State, Province, Territory, Canton"
+      },
+      {
+        "code": "CR0115",
+        "field": "Location of loss Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0117",
+        "field": "Cause of Loss Code"
+      },
+      {
+        "code": "CR0118",
+        "field": "Loss Description"
+      },
+      {
+        "code": "CR0119",
+        "field": "Date of Loss (From)"
+      },
+      {
+        "code": "CR0120",
+        "field": "Date of Loss to"
+      },
+      {
+        "code": "CR0122",
+        "field": "Claimant Name"
+      },
+      {
+        "code": "CR0132",
+        "field": "Change this month - Indemnity"
+      },
+      {
+        "code": "CR0133",
+        "field": "Change this month - Fees"
+      },
+      {
+        "code": "CR0137",
+        "field": "Date Closed"
+      },
+      {
+        "code": "CR0138",
+        "field": "Lloyd's Cat Code"
+      },
+      {
+        "code": "CR0139",
+        "field": "Catastrophe Name"
+      },
+      {
+        "code": "CR0140",
+        "field": "Paid this month - Expenses"
+      },
+      {
+        "code": "CR0141",
+        "field": "Paid this month - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0142",
+        "field": "Paid this month - Adjusters Fees"
+      },
+      {
+        "code": "CR0143",
+        "field": "Paid this month - Defence Fees"
+      },
+      {
+        "code": "CR0144",
+        "field": "Paid this month - TPA Fees"
+      },
+      {
+        "code": "CR0145",
+        "field": "Previously Paid - Expenses"
+      },
+      {
+        "code": "CR0146",
+        "field": "Previously Paid - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0147",
+        "field": "Previously Paid - Adjusters Fees"
+      },
+      {
+        "code": "CR0148",
+        "field": "Previously Paid - Defence Fees"
+      },
+      {
+        "code": "CR0149",
+        "field": "Previously Paid - TPA Fees"
+      },
+      {
+        "code": "CR0150",
+        "field": "Reserve - Expenses"
+      },
+      {
+        "code": "CR0151",
+        "field": "Reserve - Attorney Coverage Fees"
+      },
+      {
+        "code": "CR0152",
+        "field": "Reserve - Adjusters Fees"
+      },
+      {
+        "code": "CR0153",
+        "field": "Reserve - Defence Fees"
+      },
+      {
+        "code": "CR0154",
+        "field": "Reserve - TPA Fees"
+      },
+      {
+        "code": "CR0155",
+        "field": "Total Incurred"
+      },
+      {
+        "code": "CR0156",
+        "field": "% Ceded (Reinsurance)"
+      },
+      {
+        "code": "CR0157",
+        "field": "Plan"
+      },
+      {
+        "code": "CR0158",
+        "field": "Patient Name"
+      },
+      {
+        "code": "CR0159",
+        "field": "Treatment Type"
+      },
+      {
+        "code": "CR0160",
+        "field": "Country of Treatment"
+      },
+      {
+        "code": "CR0161",
+        "field": "Date of Treatment"
+      },
+      {
+        "code": "CR0162",
+        "field": "Expert - Role"
+      },
+      {
+        "code": "CR0163",
+        "field": "Expert Firm / Company Name"
+      },
+      {
+        "code": "CR0164",
+        "field": "Expert Reference No etc."
+      },
+      {
+        "code": "CR0165",
+        "field": "Expert Address"
+      },
+      {
+        "code": "CR0166",
+        "field": "Expert State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0167",
+        "field": "Expert Postcode / Zip Code or similar"
+      },
+      {
+        "code": "CR0168",
+        "field": "Expert Country"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0220",
+        "field": "Medicare United States Bodily Injury"
+      },
+      {
+        "code": "CR0221",
+        "field": "Medicare Eligibility Check Performance"
+      },
+      {
+        "code": "CR0222",
+        "field": "Medicare Outcome of Eligibility Status Check"
+      },
+      {
+        "code": "CR0223",
+        "field": "Medicare Conditional Payments"
+      },
+      {
+        "code": "CR0224",
+        "field": "Medicare MSP Compliance Services"
+      },
+      {
+        "code": "CR0317",
+        "field": "Ex gratia payment"
+      },
+      {
+        "code": "CR0369",
+        "field": "Diary date"
+      },
+      {
+        "code": "CR0370",
+        "field": "Peer review date"
+      },
+      {
+        "code": "CR0371",
+        "field": "Date First Reserve Established"
+      },
+      {
+        "code": "CR0372",
+        "field": "Claim First Notification Acknowledgement Date"
+      }
+    ]
+  }
+}

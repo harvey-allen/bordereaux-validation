@@ -8,7 +8,7 @@ import hashlib
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -19,6 +19,7 @@ async def store_validation_results(
     session: AsyncSession,
     *,
     api_key: str | None = None,
+    owner_email: str | None = None,
     test_packs: list[str],
     coverage_data: dict[str, Any],
     workbook_name: str | None = None,
@@ -52,11 +53,22 @@ async def store_validation_results(
     Returns:
         The created ValidationRun record
     """
-    # Hash the API key if provided
+    # Resolve user by email first (primary auth mode), else API key fallback
     api_key_hash = None
     user_id = None
+
+    if owner_email:
+        normalized_email = owner_email.strip().lower()
+        if normalized_email:
+            result = await session.execute(
+                select(UserSubscription).where(func.lower(UserSubscription.email) == normalized_email)
+            )
+            user = result.scalar_one_or_none()
+            if user:
+                user_id = user.id
+                api_key_hash = user.api_key_hash
     
-    if api_key:
+    if api_key and not user_id:
         api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
         
         # Try to find the user
@@ -101,7 +113,7 @@ async def store_validation_results(
                 test_description=test_data.get("description"),
                 target_columns=",".join(test_data.get("targetColumns", [])),
                 severity=test_data.get("severity", "ERROR"),
-                severity_weight=test_data.get("severityWeight", 3),
+                severity_weight=test_data.get("severityWeight", 2),
                 evaluated_rows=test_data.get("evaluatedRows", 0),
                 passed_rows=test_data.get("passedRows", 0),
                 failed_rows=test_data.get("failedRows", 0),
@@ -119,6 +131,7 @@ async def get_validation_history(
     session: AsyncSession,
     *,
     api_key: str | None = None,
+    owner_email: str | None = None,
     user_id: int | None = None,
     limit: int = 50,
     offset: int = 0,
@@ -140,7 +153,10 @@ async def get_validation_history(
         selectinload(ValidationRun.test_results)
     ).order_by(desc(ValidationRun.timestamp))
     
-    if api_key:
+    if owner_email:
+        query = query.join(UserSubscription, ValidationRun.user_id == UserSubscription.id)
+        query = query.where(func.lower(UserSubscription.email) == owner_email.strip().lower())
+    elif api_key:
         api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
         query = query.where(ValidationRun.api_key_hash == api_key_hash)
     elif user_id:
@@ -178,6 +194,7 @@ async def get_test_statistics(
     session: AsyncSession,
     *,
     api_key: str | None = None,
+    owner_email: str | None = None,
     user_id: int | None = None,
     test_pack: str | None = None,
     days: int = 30,
@@ -203,7 +220,10 @@ async def get_test_statistics(
     # Build base query for validation runs
     runs_query = select(ValidationRun).where(ValidationRun.timestamp >= cutoff)
     
-    if api_key:
+    if owner_email:
+        runs_query = runs_query.join(UserSubscription, ValidationRun.user_id == UserSubscription.id)
+        runs_query = runs_query.where(func.lower(UserSubscription.email) == owner_email.strip().lower())
+    elif api_key:
         api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
         runs_query = runs_query.where(ValidationRun.api_key_hash == api_key_hash)
     elif user_id:

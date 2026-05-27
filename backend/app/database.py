@@ -10,7 +10,7 @@ import os
 from datetime import datetime, timezone
 from typing import AsyncGenerator
 
-from sqlalchemy import Boolean, DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text, JSON
+from sqlalchemy import Boolean, DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text, JSON, UniqueConstraint
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -201,7 +201,7 @@ class TestResult(Base):
     
     # Severity level
     severity: Mapped[str] = mapped_column(String(20), nullable=False)  # INFO, WARNING, ERROR, CRITICAL
-    severity_weight: Mapped[int] = mapped_column(Integer, nullable=False)  # 1, 2, 3, 5
+    severity_weight: Mapped[int] = mapped_column(Integer, nullable=False)  # 0, 1, 2, 3
     
     # Results
     evaluated_rows: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -220,6 +220,40 @@ class TestResult(Base):
     
     def __repr__(self) -> str:
         return f"<TestResult(test={self.test_pack}.{self.test_name}, passed={self.passed_rows}, failed={self.failed_rows})>"
+
+
+class PackConfiguration(Base):
+    """Persisted per-user test pack configuration by sheet."""
+    __tablename__ = "pack_configurations"
+    __table_args__ = (
+        UniqueConstraint("user_id", "sheet_name", "test_pack", name="uq_pack_config_user_sheet_pack"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("user_subscriptions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    sheet_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    test_pack: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+
+    workbook_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    config_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

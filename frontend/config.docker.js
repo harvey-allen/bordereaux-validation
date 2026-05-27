@@ -11,14 +11,14 @@ const CONFIG = {
   API_KEY: "dev_bordereaux_key_12345",
 
   // Default test pack to select on load
-  DEFAULT_PACK: "bordereaux",
+  DEFAULT_PACK: "premium",
 
   // Default reference column name
-  DEFAULT_REF_COLUMN: "policy_id",
+  DEFAULT_REF_COLUMN: "Unique Market Reference (UMR)",
 
   // Maximum cells per validation chunk (to avoid payload size limits)
   MAX_CELLS_PER_CHUNK: 5000,
 
-  // Heatmap color scale cap (failures beyond this value don't get darker)
-  HEATMAP_FAIL_CAP: 8,
+  // Heatmap severity rank cap (1-10)
+  HEATMAP_FAIL_CAP: 10,
 };

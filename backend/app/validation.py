@@ -2,12 +2,81 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from functools import lru_cache
+import json
+from pathlib import Path
 import re
 from typing import Any
 
 import pandas as pd
 
-from app.testpacks import get_pack_class
+from app.testpacks import Severity, get_pack_class
+
+FIELD_CONFIG_DIR = Path(__file__).parent / "testpacks" / "field_configurations"
+
+
+def _normalize_field_name(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", str(value or "").strip().lower())
+
+
+@lru_cache(maxsize=16)
+def _load_pack_field_configuration(pack_name: str) -> dict[str, Any]:
+    normalized_pack = str(pack_name or "").strip().lower()
+    config_path = FIELD_CONFIG_DIR / f"{normalized_pack}.json"
+    if not config_path.exists():
+        return {}
+
+    try:
+        raw = json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    if not isinstance(raw, dict):
+        return {}
+    return raw
+
+
+def get_pack_territories(pack_name: str) -> list[str]:
+    config = _load_pack_field_configuration(pack_name)
+    if not config:
+        return []
+    return sorted(str(territory) for territory in config.keys())
+
+
+def get_pack_mandatory_fields(pack_name: str, territory: str | None = None) -> list[str]:
+    """
+    Resolve mandatory fields for a pack and territory from JSON field configuration.
+    """
+    normalized_pack = str(pack_name or "").strip().lower()
+    config = _load_pack_field_configuration(normalized_pack)
+
+    if not config:
+        return []
+
+    if not territory:
+        return []
+
+    territory_lookup = {str(name).strip().lower(): str(name) for name in config.keys()}
+    selected_key = territory_lookup.get(str(territory).strip().lower())
+    if not selected_key:
+        return []
+
+    territory_entry = config.get(selected_key, {})
+    mandatory_rows = territory_entry.get("mandatory", []) if isinstance(territory_entry, dict) else []
+    mandatory_fields: list[str] = []
+    seen: set[str] = set()
+    for row in mandatory_rows:
+        if not isinstance(row, dict):
+            continue
+        field_name = str(row.get("field") or "").strip()
+        if not field_name:
+            continue
+        if field_name in seen:
+            continue
+        seen.add(field_name)
+        mandatory_fields.append(field_name)
+
+    return mandatory_fields
 
 
 @dataclass
@@ -61,15 +130,21 @@ def _coerce_number(value: Any) -> float | None:
 
 
 def _severity_color(fail_count: int, max_failures: int) -> str:
-    """Heatmap color gradient: light green (0 failures) → dark red (8+ failures)."""
-    start_red, start_green, start_blue = (226, 240, 217)
-    end_red, end_green, end_blue = (192, 0, 0)
-    fail_scale_cap = 8
-
+    """Heatmap color gradient: no failures=white, then level 1-10 as light→dark red."""
     _max_failures = max_failures
     _ = _max_failures
-    clamped_fails = max(0.0, min(float(fail_scale_cap), float(fail_count)))
-    ratio = clamped_fails / float(fail_scale_cap)
+
+    score = float(fail_count)
+    if score <= 0:
+        return "#FFFFFF"
+
+    # Ranked heatmap level, capped at 10.
+    level = int(max(1.0, min(10.0, score)))
+
+    # Very light red at level 1 → dark red at level 10.
+    start_red, start_green, start_blue = (255, 235, 238)
+    end_red, end_green, end_blue = (139, 0, 0)
+    ratio = (level - 1) / 9
 
     red = int(start_red + (end_red - start_red) * ratio)
     green = int(start_green + (end_green - start_green) * ratio)
@@ -215,8 +290,8 @@ def validate_grid_with_packs_report(
                 base_result = validate_cell(value=value, tests=tests)
                 if base_result.fail_count > 0:
                     base_failures[(row_index, col_index)].extend(base_result.failed_tests)
-                    # Column rules default to ERROR severity (weight 3)
-                    severity_scores[(row_index, col_index)] += base_result.fail_count * 3
+                    # Column rules default to ERROR severity (weight 2)
+                    severity_scores[(row_index, col_index)] += base_result.fail_count * 2
 
     coverage_packs: dict[str, Any] = {}
 
@@ -251,19 +326,58 @@ def validate_grid_with_packs_report(
 
             pack_config = pack_configs.get(pack_name, {})
 
-            configured_ref = pack_config.get("RefColumn") or pack_config.get("UTIColumn")
+            # Optional field mappings to align sheet column names with model fields.
+            # Supports both directions:
+            #   model_field -> sheet_column
+            #   sheet_column -> model_field
+            field_mappings_raw = (
+                pack_config.get("fieldMappings")
+                or pack_config.get("FieldMappings")
+                or pack_config.get("columnMappings")
+                or {}
+            )
+            model_to_sheet_column: dict[str, str] = {}
+            if isinstance(field_mappings_raw, dict):
+                for raw_left, raw_right in field_mappings_raw.items():
+                    left = str(raw_left).strip()
+                    right = str(raw_right).strip()
+                    if not left or not right:
+                        continue
+
+                    if right in data_frame.columns:
+                        # model_field -> sheet_column
+                        model_to_sheet_column[left] = right
+                    elif left in data_frame.columns:
+                        # sheet_column -> model_field
+                        model_to_sheet_column[right] = left
+
+            # Build a pack-specific dataframe that includes mapped model-field aliases.
+            pack_data_frame = data_frame.copy()
+            for model_field, sheet_column in model_to_sheet_column.items():
+                if model_field not in pack_data_frame.columns and sheet_column in pack_data_frame.columns:
+                    pack_data_frame[model_field] = pack_data_frame[sheet_column]
+
+            configured_territory = pack_config.get("territory") or pack_config.get("Territory")
+
+            # Territory-aware mandatory fields loaded from backend JSON configs.
+            # Falls back to model defaults for packs without JSON territory config.
+            default_fields = get_pack_mandatory_fields(pack_name.lower(), configured_territory)
+
+            configured_ref = pack_config.get("UMR") or pack_config.get("UTIColumn")
             if configured_ref is not None:
                 trans_ref_column = str(configured_ref)
             else:
                 trans_ref_candidates = [
+                    "Unique Market Reference (UMR)",
+                    "umr",
                     "policy_id",
                     "policy_reference",
                     "ref",
                     "reference",
                 ]
-                trans_ref_column = next((name for name in trans_ref_candidates if name in data_frame.columns), "")
+                trans_ref_column = next((name for name in trans_ref_candidates if name in pack_data_frame.columns), "")
 
-            if trans_ref_column not in data_frame.columns:
+            if trans_ref_column not in pack_data_frame.columns:
                 coverage_packs[pack_name] = {
                     "tests": {},
                     "totals": {
@@ -272,7 +386,7 @@ def validate_grid_with_packs_report(
                         "passedRows": 0,
                         "testsRun": 0,
                     },
-                    "warning": f"Missing RefColumn '{trans_ref_column}'",
+                    "warning": f"Missing UMR '{trans_ref_column}'",
                 }
                 continue
 
@@ -282,7 +396,7 @@ def validate_grid_with_packs_report(
                 selected = [str(item).strip() for item in enabled_tests_raw if str(item).strip()]
                 enabled_tests = selected if selected else None
 
-            pack = pack_class(df=data_frame, trans_ref=trans_ref_column, enabled_tests=enabled_tests)
+            pack = pack_class(df=pack_data_frame, trans_ref=trans_ref_column, enabled_tests=enabled_tests)
             failures, pack_coverage = pack.run_with_coverage()
 
             tests_coverage: dict[str, Any] = {}
@@ -292,6 +406,7 @@ def validate_grid_with_packs_report(
 
             for test_cov in pack_coverage:
                 tests_coverage[test_cov.test_name] = {
+                    "testCode": test_cov.test_code,
                     "targetColumns": test_cov.target_columns,
                     "description": test_cov.description,
                     "severity": test_cov.severity.name,
@@ -304,33 +419,92 @@ def validate_grid_with_packs_report(
                 failed_total += test_cov.failed_rows
                 passed_total += test_cov.passed_rows
 
+            # Single per-pack header/default schema check (not for base "bordereaux" alias).
+            missing_default_fields: list[str] = []
+            include_header_schema_test = bool(default_fields) and pack_name.lower() != "bordereaux"
+            if include_header_schema_test:
+                normalized_present_columns = {_normalize_field_name(column_name) for column_name in pack_data_frame.columns}
+                normalized_mapped_fields: set[str] = set()
+                for model_field, sheet_column in model_to_sheet_column.items():
+                    normalized_mapped_fields.add(_normalize_field_name(model_field))
+                    normalized_mapped_fields.add(_normalize_field_name(sheet_column))
+
+                missing_default_fields = [
+                    field
+                    for field in default_fields
+                    if _normalize_field_name(field) not in normalized_present_columns
+                    and _normalize_field_name(field) not in normalized_mapped_fields
+                ]
+                header_check_failed = len(missing_default_fields) > 0
+                tests_coverage["test_required_headers_present"] = {
+                    "testCode": "Bheaders1",
+                    "targetColumns": headers,
+                    "description": "Required headers are present or mapped for the selected pack",
+                    "severity": "CRITICAL",
+                    "severityWeight": int(Severity.CRITICAL),
+                    "evaluatedRows": 1,
+                    "failedRows": 1 if header_check_failed else 0,
+                    "passedRows": 0 if header_check_failed else 1,
+                }
+                evaluated_total += 1
+                if header_check_failed:
+                    failed_total += 1
+                else:
+                    passed_total += 1
+
             coverage_packs[pack_name] = {
                 "tests": tests_coverage,
                 "totals": {
                     "evaluatedRows": evaluated_total,
                     "failedRows": failed_total,
                     "passedRows": passed_total,
-                    "testsRun": len(pack_coverage),
+                    "testsRun": len(pack_coverage) + (1 if include_header_schema_test else 0),
                 },
             }
+
+            # Missing default model fields are critical header errors unless mapped.
+            if missing_default_fields:
+                if "warnings" not in coverage_packs[pack_name]:
+                    coverage_packs[pack_name]["warnings"] = []
+                coverage_packs[pack_name]["warnings"].append(
+                    f"Missing default columns: {', '.join(missing_default_fields)}"
+                )
+                coverage_packs[pack_name]["missingDefaultFields"] = missing_default_fields
+
+                missing_columns_text = ", ".join(missing_default_fields)
+                header_message = (
+                    f"[CRITICAL] Bheaders1: Missing required columns for {pack_name}: {missing_columns_text}. "
+                    "Map sheet headers via fieldMappings to resolve."
+                )
+
+                for header_col_index in range(col_count):
+                    if (0, header_col_index) not in base_failures:
+                        continue
+
+                    base_failures[(0, header_col_index)].append(header_message)
+                    severity_scores[(0, header_col_index)] += int(Severity.CRITICAL)
 
             for failure in failures:
                 target_columns = failure.target_columns
                 severity_weight = int(failure.severity)
                 
                 # Format: test ID (without "test_" prefix) + severity + docstring
-                test_id = failure.test_name.replace("test_", "")
+                test_id = failure.test_code or failure.test_name.replace("test_", "")
                 severity_label = failure.severity.name
                 failed_message = f"[{severity_label}] {test_id}: {failure.description}"
 
-                matching_rows = data_frame[data_frame[trans_ref_column].astype(str).isin(failure.failed_refs)]
+                matching_rows = pack_data_frame[pack_data_frame[trans_ref_column].astype(str).isin(failure.failed_refs)]
                 
                 # Apply failure to all target columns
                 for target_column in target_columns:
-                    if target_column not in header_to_col_index:
+                    mapped_target_column = target_column
+                    if mapped_target_column not in header_to_col_index:
+                        mapped_target_column = model_to_sheet_column.get(target_column, target_column)
+
+                    if mapped_target_column not in header_to_col_index:
                         continue
 
-                    target_col_index = header_to_col_index[target_column]
+                    target_col_index = header_to_col_index[mapped_target_column]
                     
                     for df_row_index in matching_rows.index.tolist():
                         sheet_row_index = int(df_row_index) + 1

@@ -171,10 +171,10 @@ class TestAPIAuthentication:
             headers={"X-API-Key": "dev_bordereaux_key_12345"},
             json={
                 "addresses": [["A1", "B1"], ["A2", "B2"]],
-                "values": [["policy_id", "premium_amount"], ["POL001", "1000"]],
+                "values": [["Unique Market Reference (UMR)", "premium_amount"], ["POL001", "1000"]],
                 "testPacks": ["bordereaux"],
                 "hasHeaderRow": True,
-                "packConfigs": {"bordereaux": {"RefColumn": "policy_id"}},
+                "packConfigs": {"bordereaux": {"UMR": "Unique Market Reference (UMR)"}},
             },
         )
         assert response.status_code == 200

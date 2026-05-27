@@ -20,14 +20,18 @@ from app.validation import validate_grid_with_packs_report
 
 
 def heatmap_color(fail_count: int, max_failures: int) -> str:
-    start_red, start_green, start_blue = (226, 240, 217)
-    end_red, end_green, end_blue = (192, 0, 0)
-    fail_scale_cap = 5
-
     _max_failures = max_failures
     _ = _max_failures
-    clamped_fails = max(0.0, min(float(fail_scale_cap), float(fail_count)))
-    ratio = clamped_fails / float(fail_scale_cap)
+
+    score = float(fail_count)
+    if score <= 0:
+        return "FFFFFF"
+
+    level = int(max(1.0, min(10.0, score)))
+
+    start_red, start_green, start_blue = (255, 235, 238)
+    end_red, end_green, end_blue = (139, 0, 0)
+    ratio = (level - 1) / 9
 
     red = int(start_red + (end_red - start_red) * ratio)
     green = int(start_green + (end_green - start_green) * ratio)
@@ -88,7 +92,7 @@ def apply_highlighting(
         column_rules={},
         test_packs=packs,
         has_header_row=True,
-        pack_configs={"bordereaux": {"RefColumn": trans_ref_column}},
+        pack_configs={"bordereaux": {"Unique Market Reference (UMR)": trans_ref_column}},
     )
 
     highlighted = 0

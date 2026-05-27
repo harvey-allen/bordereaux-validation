@@ -28,6 +28,11 @@ from app.database import RequestLog, UserSubscription
 
 # Get default tier from environment
 DEFAULT_TIER = SubscriptionTier(os.getenv("DEFAULT_SUBSCRIPTION_TIER", "trial"))
+ADMIN_EMAILS = {
+    email.strip().lower()
+    for email in os.getenv("ADMIN_EMAILS", "harveyallen2001@gmail.com").split(",")
+    if email.strip()
+}
 
 
 def hash_api_key(api_key: str) -> str:
@@ -163,6 +168,52 @@ class SubscriptionService:
         subscription = self._db_to_subscription(db_sub)
         self._cache_subscription(subscription)
         
+        return subscription
+
+    async def get_subscription_by_email(
+        self,
+        db: AsyncSession,
+        email: str,
+    ) -> Subscription | None:
+        """Look up an active subscription by email (case-insensitive)."""
+        normalized_email = email.strip().lower()
+        if not normalized_email:
+            return None
+
+        result = await db.execute(
+            select(UserSubscription)
+            .where(func.lower(UserSubscription.email) == normalized_email)
+            .where(UserSubscription.is_active.is_(True))
+            .order_by(UserSubscription.created_at.desc())
+        )
+        db_sub = result.scalars().first()
+
+        if not db_sub and normalized_email in ADMIN_EMAILS:
+            api_key = generate_api_key(DEFAULT_TIER)
+            key_hash = hash_api_key(api_key)
+            excel_user_id = f"excel_{normalized_email.replace('@', '_at_').replace('.', '_')}"
+            db_sub = UserSubscription(
+                excel_user_id=excel_user_id,
+                email=normalized_email,
+                display_name="Harvey Allen",
+                api_key_hash=key_hash,
+                api_key_prefix=api_key[:12] + "...",
+                tier=SubscriptionTier.BORDEREAUX,
+                is_active=True,
+                created_at=datetime.now(timezone.utc),
+            )
+            db.add(db_sub)
+            await db.commit()
+            await db.refresh(db_sub)
+
+        if not db_sub:
+            return None
+
+        db_sub.last_used_at = datetime.now(timezone.utc)
+        await db.commit()
+
+        subscription = self._db_to_subscription(db_sub)
+        self._cache_subscription(subscription)
         return subscription
 
     async def update_tier(
@@ -320,7 +371,12 @@ class SubscriptionService:
             created_at=db_sub.created_at,
             expires_at=db_sub.expires_at,
             is_active=db_sub.is_active,
-            metadata={"excel_user_id": db_sub.excel_user_id, "display_name": db_sub.display_name},
+            metadata={
+                "user_id": db_sub.id,
+                "excel_user_id": db_sub.excel_user_id,
+                "display_name": db_sub.display_name,
+                "is_admin": db_sub.email.strip().lower() in ADMIN_EMAILS,
+            },
         )
 
 

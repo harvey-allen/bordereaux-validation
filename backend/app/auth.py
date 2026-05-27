@@ -47,17 +47,25 @@ TIER_CONFIGS: dict[SubscriptionTier, TierConfig] = {
         requests_per_day=5,
         requests_per_minute=5,
         max_cells_per_request=1000,
-        allowed_packs=["bordereaux"],
+        allowed_packs=["bordereaux", "premium", "claims"],
         priority=1,
     ),
     SubscriptionTier.BORDEREAUX: TierConfig(
         requests_per_day=500,
         requests_per_minute=50,
         max_cells_per_request=10000,
-        allowed_packs=["bordereaux"], 
+        allowed_packs=["bordereaux", "premium", "claims"],
         priority=2,
     ),
 }
+
+ADMIN_TIER_CONFIG = TierConfig(
+    requests_per_day=1_000_000,
+    requests_per_minute=10_000,
+    max_cells_per_request=1_000_000,
+    allowed_packs=None,
+    priority=99,
+)
 
 
 @dataclass
@@ -74,6 +82,8 @@ class Subscription:
 
     @property
     def config(self) -> TierConfig:
+        if self.metadata.get("is_admin"):
+            return ADMIN_TIER_CONFIG
         return TIER_CONFIGS[self.tier]
 
     @property
@@ -138,7 +148,7 @@ class SubscriptionStore:
         dev_key = "dev_bordereaux_key_12345"
         key_hash = self._hash_key(dev_key)
         self._subscriptions[key_hash] = Subscription(
-            api_key=dev_key[:8] + "...",  # Only store prefix for display
+            api_key=dev_key,
             api_key_hash=key_hash,
             tier=SubscriptionTier.BORDEREAUX,
             owner_email="dev@example.com",

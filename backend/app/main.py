@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import os
+import traceback
 from contextlib import asynccontextmanager
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -17,11 +18,9 @@ from app.auth import (
     SubscriptionTier,
     check_cell_limit,
     check_pack_access,
-    check_rate_limit,
-    get_current_subscription,
     subscription_store,
 )
-from app.validation import validate_grid_with_packs_report
+from app.validation import get_pack_territories, validate_grid_with_packs_report
 
 # Database imports (optional - gracefully handle if DB not available)
 try:
@@ -29,6 +28,7 @@ try:
     from app.database import get_db, init_db, close_db, async_session_maker
     from app.subscription_service import subscription_service
     from app.results_service import store_validation_results, get_validation_history, get_validation_run, get_test_statistics
+    from app.pack_config_service import pack_config_service
     DB_AVAILABLE = True
 except ImportError:
     DB_AVAILABLE = False
@@ -45,7 +45,7 @@ class ValidateRequest(BaseModel):
     hasHeaderRow: bool = Field(default=True, description="Treat first selected row as header for pack-based tests")
     packConfigs: dict[str, dict[str, Any]] = Field(
         default_factory=dict,
-        description="Optional per-pack config, e.g. RefColumn",
+        description="Optional per-pack config, e.g. UMR",
     )
     includeCoverage: bool = Field(default=True, description="Include per-pack coverage report in response")
     storeResults: bool = Field(default=True, description="Store results in database for history")
@@ -61,6 +61,20 @@ class ValidateResponse(BaseModel):
     validation_run_id: int | None = None
 
 
+class PackConfigRequest(BaseModel):
+    test_pack: str
+    sheet_name: str
+    pack_config: dict[str, Any] = Field(default_factory=dict)
+    workbook_name: str | None = None
+
+
+class PackConfigResponse(BaseModel):
+    test_pack: str
+    sheet_name: str
+    workbook_name: str | None = None
+    pack_config: dict[str, Any] = Field(default_factory=dict)
+
+
 class UsageResponse(BaseModel):
     tier: str
     requests_today: int
@@ -69,6 +83,11 @@ class UsageResponse(BaseModel):
     minute_limit: int
     daily_remaining: int
     minute_remaining: int
+
+
+class TerritoryOptionsResponse(BaseModel):
+    test_pack: str
+    territories: list[str]
 
 
 class SubscriptionInfoResponse(BaseModel):
@@ -129,10 +148,119 @@ app.add_middleware(
 )
 
 
+def _normalize_email(value: str | None) -> str:
+    return (value or "").strip().lower()
+
+
+async def get_authenticated_subscription(
+    request: Request,
+    db: AsyncSession = Depends(get_db) if DB_AVAILABLE else None,
+) -> Subscription:
+    """
+    Resolve subscription using Excel email first, with API-key fallback for compatibility.
+
+    Priority:
+    1) `X-Excel-User-Email` or `X-User-Email` header (DB lookup)
+    2) `email` query parameter (DB lookup)
+    3) Legacy `X-API-Key` header / `api_key` query parameter
+    """
+    request_email = _normalize_email(
+        request.headers.get("X-Excel-User-Email")
+        or request.headers.get("X-User-Email")
+        or request.query_params.get("email")
+    )
+
+    if DB_AVAILABLE and db is not None and request_email:
+        subscription = await subscription_service.get_subscription_by_email(db, request_email)
+        if not subscription:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"No active subscription found for Excel email '{request_email}'.",
+            )
+
+        if not subscription.is_active:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Subscription is inactive.")
+
+        if subscription.is_expired:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Subscription has expired.")
+
+        return subscription
+
+    # Legacy API-key fallback
+    api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+    if api_key:
+        subscription = subscription_store.get_subscription(api_key)
+
+        if not subscription:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid API key.",
+                headers={"WWW-Authenticate": "ApiKey"},
+            )
+
+        if not subscription.is_active:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="API key has been revoked.")
+
+        if subscription.is_expired:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Subscription has expired.")
+
+        return subscription
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Missing API key or Excel user email. Provide X-Excel-User-Email (preferred) or X-API-Key.",
+    )
+
+
+async def enforce_rate_limit(
+    request: Request,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+    db: AsyncSession = Depends(get_db) if DB_AVAILABLE else None,
+) -> Subscription:
+    """Rate-limit using DB-backed service when available, else in-memory fallback."""
+    if DB_AVAILABLE and db is not None and not subscription.metadata.get("is_dev_key"):
+        allowed, error_message = await subscription_service.check_rate_limit(db, subscription)
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=error_message,
+                headers={"Retry-After": "60"},
+            )
+
+        await subscription_service.record_request(
+            db,
+            subscription,
+            endpoint=request.url.path,
+        )
+        return subscription
+
+    allowed, error_message = subscription_store.check_rate_limit(subscription)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=error_message,
+            headers={"Retry-After": "60"},
+        )
+
+    subscription_store.record_request(subscription)
+    return subscription
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     """Health check endpoint (no auth required)."""
     return {"status": "ok", "db_available": str(DB_AVAILABLE)}
+
+
+@app.get("/api/v1/field-config/territories", response_model=TerritoryOptionsResponse)
+def get_field_config_territories(test_pack: str) -> TerritoryOptionsResponse:
+    """Return available territory options for the given test pack."""
+    normalized_pack = str(test_pack or "").strip().lower()
+    if not normalized_pack:
+        raise HTTPException(status_code=400, detail="test_pack is required")
+
+    territories = get_pack_territories(normalized_pack)
+    return TerritoryOptionsResponse(test_pack=normalized_pack, territories=territories)
 
 
 @app.post("/api/v1/register", response_model=RegisterResponse)
@@ -175,16 +303,19 @@ async def register_user(
 
 @app.get("/api/v1/usage", response_model=UsageResponse)
 def get_usage(
-    subscription: Subscription = Depends(check_rate_limit),
+    subscription: Subscription = Depends(enforce_rate_limit),
 ) -> UsageResponse:
     """Get current usage statistics for your API key."""
-    stats = subscription_store.get_usage_stats(subscription.api_key_hash)
+    if subscription.metadata.get("is_dev_key"):
+        stats = subscription_store.get_usage_stats(subscription.api_key_hash)
+    else:
+        stats = subscription_service.get_usage_stats(subscription)
     return UsageResponse(**stats)
 
 
 @app.get("/api/v1/subscription", response_model=SubscriptionInfoResponse)
 def get_subscription_info(
-    subscription: Subscription = Depends(get_current_subscription),
+    subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> SubscriptionInfoResponse:
     """Get subscription details for your API key."""
     return SubscriptionInfoResponse(
@@ -200,7 +331,8 @@ def get_subscription_info(
 @app.post("/validate-range", response_model=ValidateResponse)
 async def validate_range(
     payload: ValidateRequest,
-    subscription: Subscription = Depends(check_rate_limit),
+    subscription: Subscription = Depends(enforce_rate_limit),
+    db: AsyncSession = Depends(get_db) if DB_AVAILABLE else None,
 ) -> ValidateResponse:
     """
     Validate a range of Excel cells against test packs.
@@ -221,6 +353,42 @@ async def validate_range(
     if payload.testPacks:
         check_pack_access(subscription, payload.testPacks)
 
+    effective_pack_configs = dict(payload.packConfigs or {})
+
+    # Load persisted per-user/per-sheet/per-pack configs and merge with request config.
+    if DB_AVAILABLE and db is not None and not subscription.metadata.get("is_dev_key") and payload.sheetName:
+        subscription_user_id = subscription.metadata.get("user_id")
+        if subscription_user_id is not None:
+            for pack_name in payload.testPacks:
+                stored_config = await pack_config_service.get_config(
+                    db,
+                    user_id=int(subscription_user_id),
+                    sheet_name=payload.sheetName,
+                    test_pack=pack_name,
+                )
+
+                incoming_pack_config = payload.packConfigs.get(pack_name, {}) if payload.packConfigs else {}
+                if stored_config is None:
+                    effective_pack_configs[pack_name] = dict(incoming_pack_config or {})
+                else:
+                    merged_pack_config = dict(stored_config)
+                    merged_pack_config.update(dict(incoming_pack_config or {}))
+                    effective_pack_configs[pack_name] = merged_pack_config
+
+            # Persist user-provided config updates for this user/sheet/pack.
+            if payload.packConfigs:
+                for pack_name, pack_config in payload.packConfigs.items():
+                    if pack_name not in payload.testPacks:
+                        continue
+                    await pack_config_service.upsert_config(
+                        db,
+                        user_id=int(subscription_user_id),
+                        sheet_name=payload.sheetName,
+                        test_pack=pack_name,
+                        pack_config=dict(pack_config or {}),
+                        workbook_name=payload.workbookName,
+                    )
+
     try:
         report = validate_grid_with_packs_report(
             addresses=payload.addresses,
@@ -228,15 +396,29 @@ async def validate_range(
             column_rules=payload.columnRules,
             test_packs=payload.testPacks,
             has_header_row=payload.hasHeaderRow,
-            pack_configs=payload.packConfigs,
+            pack_configs=effective_pack_configs,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        if subscription.metadata.get("is_dev_key"):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "message": "Validation failed in Python backend.",
+                    "python_error": f"{type(exc).__name__}: {exc}",
+                    "traceback": traceback.format_exc().splitlines(),
+                },
+            ) from exc
+        raise HTTPException(status_code=500, detail="Internal validation error") from exc
 
     coverage = report.get("coverage") if payload.includeCoverage else None
     
     # Include usage stats in response
-    usage = subscription_store.get_usage_stats(subscription.api_key_hash)
+    if subscription.metadata.get("is_dev_key"):
+        usage = subscription_store.get_usage_stats(subscription.api_key_hash)
+    else:
+        usage = subscription_service.get_usage_stats(subscription)
     
     # Store results in database
     validation_run_id = None
@@ -248,7 +430,8 @@ async def validate_range(
                 
                 validation_run = await store_validation_results(
                     session,
-                    api_key=subscription.api_key_hash,  # Already hashed
+                    api_key=None if not subscription.metadata.get("is_dev_key") else subscription.api_key,
+                    owner_email=subscription.owner_email if not subscription.metadata.get("is_dev_key") else None,
                     test_packs=payload.testPacks,
                     coverage_data=coverage,
                     workbook_name=payload.workbookName,
@@ -269,6 +452,70 @@ async def validate_range(
         coverage=coverage, 
         usage=usage,
         validation_run_id=validation_run_id,
+    )
+
+
+@app.get("/api/v1/pack-config", response_model=PackConfigResponse)
+async def get_pack_config(
+    test_pack: str,
+    sheet_name: str,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> PackConfigResponse:
+    """Get persisted test-pack config for the authenticated user and sheet."""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    if subscription.metadata.get("is_dev_key"):
+        raise HTTPException(status_code=400, detail="Pack config persistence requires a database-backed user")
+
+    subscription_user_id = subscription.metadata.get("user_id")
+    if subscription_user_id is None:
+        raise HTTPException(status_code=400, detail="Missing user context")
+
+    async with async_session_maker() as session:
+        config = await pack_config_service.get_config(
+            session,
+            user_id=int(subscription_user_id),
+            sheet_name=sheet_name,
+            test_pack=test_pack,
+        )
+
+    return PackConfigResponse(
+        test_pack=test_pack,
+        sheet_name=sheet_name,
+        pack_config=config or {},
+    )
+
+
+@app.put("/api/v1/pack-config", response_model=PackConfigResponse)
+async def upsert_pack_config(
+    payload: PackConfigRequest,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> PackConfigResponse:
+    """Persist test-pack config for the authenticated user/sheet/pack."""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    if subscription.metadata.get("is_dev_key"):
+        raise HTTPException(status_code=400, detail="Pack config persistence requires a database-backed user")
+
+    subscription_user_id = subscription.metadata.get("user_id")
+    if subscription_user_id is None:
+        raise HTTPException(status_code=400, detail="Missing user context")
+
+    async with async_session_maker() as session:
+        saved_config = await pack_config_service.upsert_config(
+            session,
+            user_id=int(subscription_user_id),
+            sheet_name=payload.sheet_name,
+            test_pack=payload.test_pack,
+            pack_config=payload.pack_config,
+            workbook_name=payload.workbook_name,
+        )
+
+    return PackConfigResponse(
+        test_pack=payload.test_pack,
+        sheet_name=payload.sheet_name,
+        workbook_name=payload.workbook_name,
+        pack_config=saved_config,
     )
 
 
@@ -310,7 +557,7 @@ class TestStatisticsResponse(BaseModel):
 async def get_history(
     limit: int = 50,
     offset: int = 0,
-    subscription: Subscription = Depends(get_current_subscription),
+    subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> ValidationHistoryResponse:
     """
     Get validation history for the current user.
@@ -323,7 +570,8 @@ async def get_history(
     async with async_session_maker() as session:
         runs = await get_validation_history(
             session,
-            api_key=subscription.api_key_hash,
+            owner_email=subscription.owner_email if not subscription.metadata.get("is_dev_key") else None,
+            api_key=subscription.api_key if subscription.metadata.get("is_dev_key") else None,
             limit=limit,
             offset=offset,
         )
@@ -366,7 +614,7 @@ async def get_history(
 @app.get("/api/v1/history/{run_id}")
 async def get_history_detail(
     run_id: int,
-    subscription: Subscription = Depends(get_current_subscription),
+    subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> dict[str, Any]:
     """
     Get detailed results for a specific validation run.
@@ -381,8 +629,13 @@ async def get_history_detail(
             raise HTTPException(status_code=404, detail="Validation run not found")
         
         # Check ownership
-        if run.api_key_hash != subscription.api_key_hash:
-            raise HTTPException(status_code=403, detail="Access denied")
+        if subscription.metadata.get("is_dev_key"):
+            if run.api_key_hash != subscription.api_key_hash:
+                raise HTTPException(status_code=403, detail="Access denied")
+        else:
+            subscription_user_id = subscription.metadata.get("user_id")
+            if subscription_user_id is None or run.user_id != int(subscription_user_id):
+                raise HTTPException(status_code=403, detail="Access denied")
         
         tests = []
         for test in run.test_results:
@@ -420,7 +673,7 @@ async def get_history_detail(
 async def get_statistics(
     days: int = 30,
     test_pack: str | None = None,
-    subscription: Subscription = Depends(get_current_subscription),
+    subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> TestStatisticsResponse:
     """
     Get aggregated test statistics for analytics.
@@ -433,7 +686,8 @@ async def get_statistics(
     async with async_session_maker() as session:
         stats = await get_test_statistics(
             session,
-            api_key=subscription.api_key_hash,
+            owner_email=subscription.owner_email if not subscription.metadata.get("is_dev_key") else None,
+            api_key=subscription.api_key if subscription.metadata.get("is_dev_key") else None,
             test_pack=test_pack,
             days=days,
         )

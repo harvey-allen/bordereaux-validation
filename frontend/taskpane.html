@@ -15,12 +15,9 @@
       select { appearance: none; background: #fff; cursor: pointer; }
       button { background: #0f6cbd; border: none; color: #fff; border-radius: 4px; cursor: pointer; }
       button:disabled { background: #8caec8; cursor: progress; }
+      .btn-secondary { background: #666; }
       .status { margin-top: 10px; font-size: 13px; }
       .hint { font-size: 12px; color: #666; margin-top: 4px; }
-      .section { border-top: 1px solid #ddd; margin-top: 16px; padding-top: 12px; }
-      .section-title { font-size: 14px; font-weight: 600; color: #444; margin-bottom: 8px; }
-      .user-info { font-size: 12px; color: #666; background: #f5f5f5; padding: 8px; border-radius: 4px; margin-top: 8px; }
-      .btn-secondary { background: #666; margin-top: 8px; }
     </style>
   </head>
   <body>
@@ -29,22 +26,19 @@
 
     <label for="testPacks">Test Pack</label>
     <select id="testPacks">
-      <option value="bordereaux">Bordereaux</option>
+      <option value="premium">Premium</option>
+      <option value="claims">Claims</option>
     </select>
+
+    <label for="territory">Territory</label>
+    <select id="territory"></select>
 
     <label for="packConfigs">Test Configuration (JSON)</label>
     <textarea id="packConfigs"></textarea>
 
-    <button id="runValidation">Validate Selected Range</button>
+    <button id="runValidation">Validate Table</button>
+    <button id="clearTable" class="btn-secondary">Clear Table</button>
     <div class="status" id="status"></div>
-
-    <div class="section">
-      <div class="section-title">User Settings</div>
-      <label for="userEmail">Subscription Email</label>
-      <input type="email" id="userEmail" placeholder="your.email@company.com" />
-      <button id="saveEmail" class="btn-secondary">Save & Register</button>
-      <div class="user-info" id="userInfo">Not registered</div>
-    </div>
 
     <script src="./taskpane.js"></script>
   </body>

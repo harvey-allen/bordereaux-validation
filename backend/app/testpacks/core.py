@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import IntEnum
+import re
 from typing import Any, Callable
 
 import pandas as pd
@@ -11,15 +12,16 @@ TEST_PACKS: dict[str, type["BaseTestPack"]] = {}
 
 class Severity(IntEnum):
     """Severity levels for test failures, affecting heatmap intensity."""
-    INFO = 1       # Minor issue, light impact on heatmap
-    WARNING = 2    # Moderate issue, medium impact on heatmap
-    ERROR = 3      # Serious issue, strong impact on heatmap
-    CRITICAL = 5   # Critical issue, maximum impact on heatmap
+    INFO = 0       # Informational only, no heatmap impact
+    WARNING = 1    # Low impact on heatmap
+    ERROR = 2      # Medium impact on heatmap
+    CRITICAL = 3   # High impact on heatmap
 
 
 @dataclass
 class PackFailure:
     test_name: str
+    test_code: str | None
     target_columns: list[str]
     failed_refs: set[str]
     description: str
@@ -29,6 +31,7 @@ class PackFailure:
 @dataclass
 class PackTestCoverage:
     test_name: str
+    test_code: str | None
     target_columns: list[str]
     description: str
     severity: Severity
@@ -60,7 +63,7 @@ def register_test(
         target_column: Single column this test affects (for backwards compatibility)
         target_columns: List of columns this test affects (takes precedence over target_column)
         description: Human-readable description of what the test validates
-        severity: Impact level - INFO (1), WARNING (2), ERROR (3), CRITICAL (5)
+        severity: Impact level - INFO (0), WARNING (1), ERROR (2), CRITICAL (3)
     """
     def decorator(test_func: Callable[..., pd.DataFrame | None]) -> Callable[..., pd.DataFrame | None]:
         setattr(test_func, "_is_registered_test", True)
@@ -87,6 +90,41 @@ class BaseTestPack:
         self._df = df.copy()
         self.trans_ref = trans_ref
         self.enabled_tests = set(enabled_tests) if enabled_tests else None
+        self._test_code_map = self._build_test_code_map()
+
+    def _build_test_code_map(self) -> dict[str, str]:
+        """
+        Build deterministic test codes using format B{field_id}{n}.
+
+        Example: Bpolicy_id1, Bpremium_amount1, Bclaim_amount1.
+        """
+        code_map: dict[str, str] = {}
+        field_counters: dict[str, int] = {}
+
+        for attribute_name in dir(self):
+            if not attribute_name.startswith("test_"):
+                continue
+
+            method = getattr(self, attribute_name)
+            if not callable(method) or not getattr(method, "_is_registered_test", False):
+                continue
+
+            target_columns = getattr(method, "_target_columns", None)
+            if not target_columns:
+                legacy_column = self.test_column_map.get(attribute_name)
+                if legacy_column:
+                    target_columns = [legacy_column] if isinstance(legacy_column, str) else legacy_column
+
+            primary_field = "general"
+            if target_columns and len(target_columns) > 0:
+                primary_field = str(target_columns[0]).strip().lower() or "general"
+
+            field_id = re.sub(r"[^a-z0-9_]+", "_", primary_field).strip("_") or "general"
+            count = field_counters.get(field_id, 0) + 1
+            field_counters[field_id] = count
+            code_map[attribute_name] = f"B{field_id}{count}"
+
+        return code_map
 
     def iter_registered_tests(self) -> list[Callable[[], pd.DataFrame | None]]:
         tests: list[Callable[[], pd.DataFrame | None]] = []
@@ -95,7 +133,8 @@ class BaseTestPack:
                 continue
             method = getattr(self, attribute_name)
             if callable(method) and getattr(method, "_is_registered_test", False):
-                if self.enabled_tests is not None and attribute_name not in self.enabled_tests:
+                test_code = self._test_code_map.get(attribute_name)
+                if self.enabled_tests is not None and attribute_name not in self.enabled_tests and test_code not in self.enabled_tests:
                     continue
                 tests.append(method)
         return tests
@@ -110,6 +149,7 @@ class BaseTestPack:
         for method in self.iter_registered_tests():
             result = method()
             test_name = method.__name__
+            test_code = self._test_code_map.get(test_name)
             
             # Get target columns - support both new list format and legacy single column
             target_columns = getattr(method, "_target_columns", None)
@@ -129,6 +169,7 @@ class BaseTestPack:
                 coverage.append(
                     PackTestCoverage(
                         test_name=test_name,
+                        test_code=test_code,
                         target_columns=target_columns,
                         description=short_description,
                         severity=severity,
@@ -147,6 +188,7 @@ class BaseTestPack:
             coverage.append(
                 PackTestCoverage(
                     test_name=test_name,
+                    test_code=test_code,
                     target_columns=target_columns,
                     description=short_description,
                     severity=severity,
@@ -164,6 +206,7 @@ class BaseTestPack:
                 failures.append(
                     PackFailure(
                         test_name=test_name,
+                        test_code=test_code,
                         target_columns=target_columns,
                         failed_refs=failed_refs,
                         description=short_description,

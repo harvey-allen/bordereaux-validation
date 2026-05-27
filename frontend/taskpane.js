@@ -1,21 +1,42 @@
 /**
- * Heatmap color gradient: light green (0 severity) → dark red (max severity)
+ * Heatmap color gradient: no failures=white, then level 1-10 as light→dark red.
  * Uses severity score instead of simple failure count for more nuanced coloring.
- * Severity levels: INFO=1, WARNING=2, ERROR=3, CRITICAL=5
+ * Severity levels: INFO=0, WARNING=1, ERROR=2, CRITICAL=3
  */
 const packDefaultTests = {
-  bordereaux: [],
+  premium: ["Bpolicy_id1", "Bcurrency1", "Bpremium_amount1"],
+  claims: ["Bpolicy_id1", "Bcurrency1", "Bclaim_amount1"],
 };
 
+const DEFAULT_EXCEL_EMAIL = "harveyallen2001@gmail.com";
+let packConfigsByPack = {};
+let currentPackSelection = null;
+let territoriesByPack = {};
+
+function getDefaultPackConfig(selectedPack) {
+  const normalizedPack = String(selectedPack || "").trim().toLowerCase();
+  return {
+    testPack: normalizedPack,
+    UMR: "Unique Market Reference (UMR)",
+    enabledTests: [...(packDefaultTests[normalizedPack] || [])],
+  };
+}
+
 function heatmapColor(severityScore, maxSeverityScore) {
-  const startRed = 226, startGreen = 240, startBlue = 217;
-  const endRed = 192, endGreen = 0, endBlue = 0;
-  const failScaleCap = CONFIG.HEATMAP_FAIL_CAP;
+  const startRed = 255, startGreen = 235, startBlue = 238;
+  const endRed = 139, endGreen = 0, endBlue = 0;
+  const scaleCap = CONFIG.HEATMAP_FAIL_CAP;
 
   const _maxSeverityScore = maxSeverityScore;
   void _maxSeverityScore;
-  const clampedScore = Math.max(0, Math.min(failScaleCap, Number(severityScore) || 0));
-  const ratio = clampedScore / failScaleCap;
+
+  const numericScore = Number(severityScore) || 0;
+  if (numericScore <= 0) {
+    return "#ffffff";
+  }
+
+  const level = Math.max(1, Math.min(scaleCap, Math.floor(numericScore)));
+  const ratio = (level - 1) / (scaleCap - 1);
 
   const red = Math.round(startRed + (endRed - startRed) * ratio);
   const green = Math.round(startGreen + (endGreen - startGreen) * ratio);
@@ -42,206 +63,324 @@ function withDefaultEnabledTests(packConfigs, selectedPack) {
   return nextConfigs;
 }
 
+function getSelectedTerritoryValue() {
+  return String(document.getElementById("territory")?.value || "").trim();
+}
+
+function applyTerritoryToPackConfig(packName, territory) {
+  const normalizedPack = String(packName || "").trim().toLowerCase();
+  if (!normalizedPack) {
+    return;
+  }
+
+  const existingConfig = {
+    ...(packConfigsByPack[normalizedPack] || getDefaultPackConfig(normalizedPack)),
+  };
+
+  if (territory) {
+    existingConfig.territory = territory;
+  } else {
+    delete existingConfig.territory;
+  }
+
+  packConfigsByPack[normalizedPack] = existingConfig;
+}
+
+async function fetchTerritoriesForPack(packName) {
+  const normalizedPack = String(packName || "").trim().toLowerCase();
+  if (!normalizedPack) {
+    return [];
+  }
+
+  if (Array.isArray(territoriesByPack[normalizedPack])) {
+    return territoriesByPack[normalizedPack];
+  }
+
+  try {
+    const query = new URLSearchParams({ test_pack: normalizedPack });
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/field-config/territories?${query.toString()}`, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      territoriesByPack[normalizedPack] = [];
+      return [];
+    }
+
+    const payload = await response.json().catch(() => ({}));
+    const territories = Array.isArray(payload?.territories)
+      ? payload.territories.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    territoriesByPack[normalizedPack] = territories;
+    return territories;
+  } catch {
+    territoriesByPack[normalizedPack] = [];
+    return [];
+  }
+}
+
+async function syncTerritorySelectorForSelectedPack() {
+  const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
+  const territorySelect = document.getElementById("territory");
+  if (!selectedPack || !territorySelect) {
+    return;
+  }
+
+  const availableTerritories = await fetchTerritoriesForPack(selectedPack);
+  territorySelect.innerHTML = "";
+
+  if (availableTerritories.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Default";
+    territorySelect.appendChild(option);
+    territorySelect.value = "";
+    applyTerritoryToPackConfig(selectedPack, "");
+    if (currentPackSelection === selectedPack) {
+      renderSelectedPackConfig(selectedPack);
+    }
+    return;
+  }
+
+  for (const territory of availableTerritories) {
+    const option = document.createElement("option");
+    option.value = territory;
+    option.textContent = territory;
+    territorySelect.appendChild(option);
+  }
+
+  const configuredTerritory = String(
+    packConfigsByPack[selectedPack]?.territory
+      || packConfigsByPack[selectedPack]?.Territory
+      || ""
+  ).trim();
+  const chosenTerritory = availableTerritories.includes(configuredTerritory)
+    ? configuredTerritory
+    : availableTerritories[0];
+
+  territorySelect.value = chosenTerritory;
+  applyTerritoryToPackConfig(selectedPack, chosenTerritory);
+
+  if (currentPackSelection === selectedPack) {
+    renderSelectedPackConfig(selectedPack);
+  }
+}
+
+function parsePackConfigInput(packConfigText, selectedPack) {
+  const normalizedPack = String(selectedPack || "").trim().toLowerCase();
+  const parsed = JSON.parse(packConfigText || "{}");
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Pack config must be a JSON object.");
+  }
+
+  const directConfig = parsed;
+  const nestedConfig = parsed[normalizedPack];
+
+  if (nestedConfig && typeof nestedConfig === "object" && !Array.isArray(nestedConfig)) {
+    return nestedConfig;
+  }
+
+  return directConfig;
+}
+
+function renderSelectedPackConfig(selectedPack) {
+  const normalizedPack = String(selectedPack || "").trim().toLowerCase();
+  const packConfigEditor = document.getElementById("packConfigs");
+  const config = withDefaultEnabledTests(
+    { [normalizedPack]: packConfigsByPack[normalizedPack] || getDefaultPackConfig(normalizedPack) },
+    normalizedPack
+  )[normalizedPack];
+  config.testPack = normalizedPack;
+  packConfigsByPack[normalizedPack] = config;
+  packConfigEditor.value = JSON.stringify(config, null, 2);
+}
+
 function syncPackConfigEditorWithSelectedPack() {
   const selectedPack = document.getElementById("testPacks").value;
   const packConfigEditor = document.getElementById("packConfigs");
-
-  let packConfigs;
-  try {
-    packConfigs = JSON.parse(packConfigEditor.value || "{}");
-  } catch {
-    return;
-  }
-
   const normalizedPack = String(selectedPack || "").trim().toLowerCase();
-  const updatedPackConfigs = withDefaultEnabledTests(packConfigs, normalizedPack);
-  packConfigEditor.value = JSON.stringify(updatedPackConfigs, null, 2);
+  const selectedTerritory = getSelectedTerritoryValue();
+
+  if (currentPackSelection) {
+    try {
+      const currentConfig = parsePackConfigInput(packConfigEditor.value, currentPackSelection);
+      if (selectedTerritory) {
+        currentConfig.territory = selectedTerritory;
+      }
+      packConfigsByPack[currentPackSelection] = withDefaultEnabledTests(
+        { [currentPackSelection]: currentConfig },
+        currentPackSelection
+      )[currentPackSelection];
+    } catch {
+      // Keep current editor value if invalid, but do not switch contexts.
+      document.getElementById("testPacks").value = currentPackSelection;
+      setStatus("Pack configs JSON is invalid.", true);
+      return;
+    }
+  }
+
+  currentPackSelection = normalizedPack;
+  renderSelectedPackConfig(normalizedPack);
 }
 
-/**
- * Get or create API key for the current Excel user.
- * Stores the key in localStorage for persistence.
- * 
- * For Excel add-ins, we use Office.context.document.url combined with
- * a user-provided email or auto-generated ID since Excel doesn't provide
- * user identity directly like Outlook does.
- */
-async function ensureApiKey() {
-  // Check if we already have a stored API key
-  let apiKey = localStorage.getItem("bordereaux_api_key");
-  if (apiKey) {
-    return apiKey;
+function getExcelUserEmail() {
+  const officeMailboxEmail = Office?.context?.mailbox?.userProfile?.emailAddress;
+  const officeProfileEmail = Office?.context?.userProfile?.emailAddress;
+
+  const email = officeMailboxEmail || officeProfileEmail || DEFAULT_EXCEL_EMAIL;
+  return String(email).trim().toLowerCase();
+}
+
+function formatBackendErrorDetail(detail) {
+  if (!detail) {
+    return null;
   }
 
-  // Use the development key from config as fallback
-  if (CONFIG.API_KEY) {
-    return CONFIG.API_KEY;
+  if (typeof detail === "string") {
+    return detail;
   }
 
-  // Try to register with the backend
+  if (typeof detail === "object") {
+    const message = detail.message || "Backend error";
+    const pythonError = detail.python_error || detail.pythonError || null;
+    const traceback = Array.isArray(detail.traceback) ? detail.traceback.join("\n") : null;
+
+    const parts = [message];
+    if (pythonError) {
+      parts.push(`Python: ${pythonError}`);
+    }
+    if (traceback) {
+      parts.push(`Traceback:\n${traceback}`);
+    }
+    return parts.join("\n\n");
+  }
+
+  return String(detail);
+}
+
+async function getDevelopmentFetchDiagnostics(backendUrl) {
   try {
-    // Generate a unique Excel user ID based on the add-in context
-    // This persists per-user via localStorage partitioning
-    let excelUserId = localStorage.getItem("bordereaux_user_id");
-    if (!excelUserId) {
-      // Generate unique ID for this user/machine combination
-      const partitionKey = Office.context.partitionKey || "";
-      const timestamp = Date.now();
-      const random = Math.random().toString(36).substring(2, 10);
-      excelUserId = `excel_${partitionKey}_${timestamp}_${random}`;
-      localStorage.setItem("bordereaux_user_id", excelUserId);
-    }
-
-    // Try to get user email - prompt if needed for production
-    let email = localStorage.getItem("bordereaux_user_email");
-    if (!email) {
-      // For now, use a placeholder - could show a dialog to collect this
-      email = `${excelUserId}@bordereaux.local`;
-    }
-
-    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        excel_user_id: excelUserId,
-        email: email,
-        display_name: null,
-      }),
+    const healthResponse = await fetch(`${backendUrl}/health`, {
+      method: "GET",
+      cache: "no-store",
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      if (data.api_key) {
-        // Store the new API key
-        localStorage.setItem("bordereaux_api_key", data.api_key);
-        console.log("New API key registered and stored");
-        return data.api_key;
-      }
+    const body = await healthResponse.text().catch(() => "");
+    if (!healthResponse.ok) {
+      return `Could not reach Python validation endpoint cleanly. Health returned HTTP ${healthResponse.status}. Response: ${body || "<empty>"}`;
     }
-  } catch (error) {
-    console.warn("Could not register with backend:", error);
-  }
 
-  // Fall back to dev key
-  return CONFIG.API_KEY;
-}
-
-/**
- * Get the API key to use for requests.
- */
-function getApiKey() {
-  return localStorage.getItem("bordereaux_api_key") || CONFIG.API_KEY;
-}
-
-/**
- * Update the user info display in the UI.
- */
-function updateUserInfoDisplay() {
-  const userInfo = document.getElementById("userInfo");
-  const emailInput = document.getElementById("userEmail");
-  
-  const storedEmail = localStorage.getItem("bordereaux_user_email");
-  const storedApiKey = localStorage.getItem("bordereaux_api_key");
-  const storedUserId = localStorage.getItem("bordereaux_user_id");
-  
-  if (emailInput && storedEmail) {
-    emailInput.value = storedEmail;
-  }
-  
-  if (userInfo) {
-    if (storedApiKey && storedEmail) {
-      userInfo.innerHTML = `Registered as <strong>${storedEmail}</strong><br/>API Key: ${storedApiKey.substring(0, 12)}...`;
-    } else if (storedApiKey) {
-      userInfo.innerHTML = `Using API key: ${storedApiKey.substring(0, 12)}...<br/>ID: ${storedUserId || 'dev'}`;
-    } else {
-      userInfo.textContent = "Not Registered - Using Development Key";
-    }
+    return `Python backend is reachable at ${backendUrl}, but /validate-range failed before a response could be read. Check backend logs for request handling errors.`;
+  } catch (diagError) {
+    return `Could not reach Python backend at ${backendUrl}. Ensure backend is running with TLS and reachable from Office. Root fetch error: ${diagError?.message || "Unknown network error"}`;
   }
 }
 
-/**
- * Register the user with the backend using their email.
- */
-async function registerUser() {
-  const emailInput = document.getElementById("userEmail");
-  const email = emailInput?.value?.trim();
-  
-  if (!email || !email.includes("@")) {
-    setStatus("Please enter a valid email address", true);
+async function getActiveSheetName() {
+  try {
+    return await Excel.run(async (context) => {
+      const worksheet = context.workbook.worksheets.getActiveWorksheet();
+      worksheet.load(["name"]);
+      await context.sync();
+      return worksheet.name || null;
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function hydrateSelectedPackConfigFromServer() {
+  const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
+  if (!selectedPack) {
     return;
   }
-  
-  setStatus("Registering...");
-  
+
+  const excelUserEmail = getExcelUserEmail();
+  const sheetName = await getActiveSheetName();
+  if (!excelUserEmail || !sheetName) {
+    return;
+  }
+
+  const query = new URLSearchParams({
+    test_pack: selectedPack,
+    sheet_name: sheetName,
+  });
+
   try {
-    // Generate or use existing user ID
-    let excelUserId = localStorage.getItem("bordereaux_user_id");
-    if (!excelUserId) {
-      const partitionKey = Office.context.partitionKey || "";
-      const timestamp = Date.now();
-      const random = Math.random().toString(36).substring(2, 10);
-      excelUserId = `excel_${partitionKey}_${timestamp}_${random}`;
-      localStorage.setItem("bordereaux_user_id", excelUserId);
-    }
-    
-    // Clear existing API key to force new registration
-    localStorage.removeItem("bordereaux_api_key");
-    
-    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        excel_user_id: excelUserId,
-        email: email,
-        display_name: null,
-      }),
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/pack-config?${query.toString()}`, {
+      method: "GET",
+      headers: {
+        "X-Excel-User-Email": excelUserEmail,
+      },
+      cache: "no-store",
     });
-    
-    if (response.ok) {
-      const data = await response.json();
-      if (data.api_key) {
-        localStorage.setItem("bordereaux_api_key", data.api_key);
-        localStorage.setItem("bordereaux_user_email", email);
-        setStatus(`Registered successfully! Tier: ${data.tier || 'TRIAL'}`);
-        updateUserInfoDisplay();
-      }
-    } else {
-      const error = await response.json();
-      setStatus(`Registration failed: ${error.detail || 'Unknown error'}`, true);
+
+    if (!response.ok) {
+      return;
     }
-  } catch (error) {
-    console.error("Registration error:", error);
-    setStatus(`Registration failed: ${error.message}`, true);
+
+    const payload = await response.json().catch(() => ({}));
+    const persistedConfig = payload && typeof payload.pack_config === "object" && !Array.isArray(payload.pack_config)
+      ? payload.pack_config
+      : null;
+
+    if (!persistedConfig) {
+      return;
+    }
+
+    const mergedConfig = withDefaultEnabledTests(
+      {
+        [selectedPack]: {
+          ...getDefaultPackConfig(selectedPack),
+          ...(packConfigsByPack[selectedPack] || {}),
+          ...persistedConfig,
+        },
+      },
+      selectedPack
+    )[selectedPack];
+
+    packConfigsByPack[selectedPack] = mergedConfig;
+    if (currentPackSelection === selectedPack) {
+      renderSelectedPackConfig(selectedPack);
+    }
+  } catch {
+    // Best-effort hydration only.
   }
 }
+
 
 Office.onReady(async () => {
-  const initialPackConfigs = withDefaultEnabledTests(
-    {
-      bordereaux: {
-        RefColumn: CONFIG.DEFAULT_REF_COLUMN,
-      }
-    },
-    CONFIG.DEFAULT_PACK
-  );
-
-  document.getElementById("packConfigs").value = JSON.stringify(initialPackConfigs, null, 2);
-  document.getElementById("testPacks").value = CONFIG.DEFAULT_PACK;
-  document.getElementById("testPacks").addEventListener("change", syncPackConfigEditorWithSelectedPack);
-  document.getElementById("runValidation").addEventListener("click", runValidation);
-  
-  // User registration
-  document.getElementById("saveEmail")?.addEventListener("click", registerUser);
-
-  // Try to ensure we have an API key
-  try {
-    await ensureApiKey();
-  } catch (error) {
-    console.warn("Could not ensure API key:", error);
+  const testPackSelect = document.getElementById("testPacks");
+  testPackSelect.value = CONFIG.DEFAULT_PACK;
+  if (!testPackSelect.value) {
+    testPackSelect.value = "premium";
   }
-  
-  // Update user info display
-  updateUserInfoDisplay();
+  packConfigsByPack = {
+    premium: getDefaultPackConfig("premium"),
+    claims: getDefaultPackConfig("claims"),
+  };
+  currentPackSelection = String(testPackSelect.value || "").trim().toLowerCase();
+  renderSelectedPackConfig(currentPackSelection);
+  await syncTerritorySelectorForSelectedPack();
+  document.getElementById("testPacks").addEventListener("change", async () => {
+    syncPackConfigEditorWithSelectedPack();
+    await hydrateSelectedPackConfigFromServer();
+    await syncTerritorySelectorForSelectedPack();
+  });
+  await hydrateSelectedPackConfigFromServer();
+  await syncTerritorySelectorForSelectedPack();
+  document.getElementById("territory")?.addEventListener("change", () => {
+    const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
+    const territory = getSelectedTerritoryValue();
+    applyTerritoryToPackConfig(selectedPack, territory);
+    if (currentPackSelection === selectedPack) {
+      renderSelectedPackConfig(selectedPack);
+    }
+  });
+  document.getElementById("runValidation").addEventListener("click", runValidation);
+  document.getElementById("clearTable")?.addEventListener("click", clearTableFormattingAndComments);
 });
 
 function setStatus(message, isError = false) {
@@ -273,6 +412,171 @@ function buildAddressRow(globalRowZeroBased, startColZeroBased, columnCount) {
   }
 
   return rowAddresses;
+}
+
+function getWorkbookName() {
+  try {
+    const url = String(Office?.context?.document?.url || "").trim();
+    if (!url) {
+      return null;
+    }
+    const withoutQuery = url.split("?")[0];
+    const lastSegment = withoutQuery.split("/").pop() || "";
+    return lastSegment ? decodeURIComponent(lastSegment) : null;
+  } catch {
+    return null;
+  }
+}
+
+function isCellEmpty(value) {
+  return value === null || value === undefined || (typeof value === "string" && value.trim() === "");
+}
+
+function findNonEmptyBounds(values) {
+  if (!Array.isArray(values) || values.length === 0) {
+    return null;
+  }
+
+  let minRow = Number.POSITIVE_INFINITY;
+  let maxRow = Number.NEGATIVE_INFINITY;
+  let minCol = Number.POSITIVE_INFINITY;
+  let maxCol = Number.NEGATIVE_INFINITY;
+
+  for (let r = 0; r < values.length; r += 1) {
+    const row = values[r] || [];
+    for (let c = 0; c < row.length; c += 1) {
+      if (!isCellEmpty(row[c])) {
+        minRow = Math.min(minRow, r);
+        maxRow = Math.max(maxRow, r);
+        minCol = Math.min(minCol, c);
+        maxCol = Math.max(maxCol, c);
+      }
+    }
+  }
+
+  if (!Number.isFinite(minRow)) {
+    return null;
+  }
+
+  return { minRow, maxRow, minCol, maxCol };
+}
+
+async function resolveValidationRangeMeta() {
+  return Excel.run(async (context) => {
+    const workbook = context.workbook;
+    const worksheet = workbook.worksheets.getActiveWorksheet();
+    const selectedRange = workbook.getSelectedRange();
+
+    worksheet.load(["name"]);
+    selectedRange.load(["rowIndex", "columnIndex", "rowCount", "columnCount", "values"]);
+    await context.sync();
+
+    const selectionHasHeaderAndData = selectedRange.rowCount >= 2 && selectedRange.columnCount >= 1;
+    if (selectionHasHeaderAndData) {
+      const headerValues = selectedRange.values?.[0] || [];
+      const hasHeaderContent = headerValues.some((value) => !isCellEmpty(value));
+      if (hasHeaderContent) {
+        return {
+          startRow: selectedRange.rowIndex,
+          startCol: selectedRange.columnIndex,
+          rowCount: selectedRange.rowCount,
+          columnCount: selectedRange.columnCount,
+          headerValues,
+          headerAddresses: buildAddressRow(
+            selectedRange.rowIndex,
+            selectedRange.columnIndex,
+            selectedRange.columnCount
+          ),
+          sheetName: worksheet.name,
+          source: "selection",
+        };
+      }
+    }
+
+    const usedRange = worksheet.getUsedRangeOrNullObject();
+    usedRange.load(["isNullObject", "rowIndex", "columnIndex", "rowCount", "columnCount", "values"]);
+    await context.sync();
+
+    if (usedRange.isNullObject) {
+      throw new Error("No data found on the active sheet.");
+    }
+
+    const bounds = findNonEmptyBounds(usedRange.values || []);
+    if (!bounds) {
+      throw new Error("No data found on the active sheet.");
+    }
+
+    const trimmedStartRow = usedRange.rowIndex + bounds.minRow;
+    const trimmedStartCol = usedRange.columnIndex + bounds.minCol;
+    const trimmedRowCount = bounds.maxRow - bounds.minRow + 1;
+    const trimmedColumnCount = bounds.maxCol - bounds.minCol + 1;
+
+    if (trimmedRowCount < 2) {
+      throw new Error("Could not identify a table with a header row and at least one data row.");
+    }
+
+    const headerValues = (usedRange.values[bounds.minRow] || []).slice(bounds.minCol, bounds.maxCol + 1);
+
+    return {
+      startRow: trimmedStartRow,
+      startCol: trimmedStartCol,
+      rowCount: trimmedRowCount,
+      columnCount: trimmedColumnCount,
+      headerValues,
+      headerAddresses: buildAddressRow(trimmedStartRow, trimmedStartCol, trimmedColumnCount),
+      sheetName: worksheet.name,
+      source: "sheet",
+    };
+  });
+}
+
+async function clearTableFormattingAndComments() {
+  const clearButton = document.getElementById("clearTable");
+  const runButton = document.getElementById("runValidation");
+
+  if (clearButton) {
+    clearButton.disabled = true;
+  }
+  if (runButton) {
+    runButton.disabled = true;
+  }
+
+  try {
+    setStatus("Detecting table on active sheet...");
+    const tableMeta = await resolveValidationRangeMeta();
+
+    setStatus("Clearing comments...");
+    await clearCommentsInRange(
+      tableMeta.startRow,
+      tableMeta.startCol,
+      tableMeta.rowCount,
+      tableMeta.columnCount
+    );
+
+    setStatus("Clearing cell highlights...");
+    await Excel.run(async (context) => {
+      const worksheet = context.workbook.worksheets.getActiveWorksheet();
+      const range = worksheet.getRangeByIndexes(
+        tableMeta.startRow,
+        tableMeta.startCol,
+        tableMeta.rowCount,
+        tableMeta.columnCount
+      );
+      range.format.fill.clear();
+      await context.sync();
+    });
+
+    setStatus("Cleared all comments and highlights in the table.");
+  } catch (error) {
+    setStatus(`Clear failed: ${error?.message || "Unexpected error"}`, true);
+  } finally {
+    if (clearButton) {
+      clearButton.disabled = false;
+    }
+    if (runButton) {
+      runButton.disabled = false;
+    }
+  }
 }
 
 async function readRangeValues(startRow, startCol, rowCount, columnCount) {
@@ -340,10 +644,6 @@ async function applyResultsToSheet(results, maxSeverityScore) {
     const cellsWithoutFailures = [];
 
     for (const result of results) {
-      if (result.rowIndex === 0) {
-        continue;
-      }
-
       const cell = worksheet.getRange(result.address);
       // Use severityScore for heatmap coloring (falls back to failCount for compatibility)
       const severityScore = result.severityScore !== undefined ? result.severityScore : result.failCount;
@@ -351,7 +651,12 @@ async function applyResultsToSheet(results, maxSeverityScore) {
       cell.format.fill.color = color;
 
       if (result.failCount > 0) {
-        cellsWithFailures.push({ address: result.address, comment: result.comment });
+        // Header issues should be highlighted but comments stay in frontend status.
+        if (result.rowIndex > 0) {
+          cellsWithFailures.push({ address: result.address, comment: result.comment });
+        } else {
+          cellsWithoutFailures.push(result.address);
+        }
       } else {
         cellsWithoutFailures.push(result.address);
       }
@@ -404,68 +709,59 @@ async function applyResultsToSheet(results, maxSeverityScore) {
 
 async function runValidation() {
   const button = document.getElementById("runValidation");
+  const clearButton = document.getElementById("clearTable");
   const backendUrl = CONFIG.BACKEND_URL;
   const maxCellsPerChunk = CONFIG.MAX_CELLS_PER_CHUNK;
 
-  let packConfigs;
+  // Get the selected test pack from dropdown
+  const selectedPack = String(document.getElementById("testPacks").value || "").trim().toLowerCase();
+  const testPacks = [selectedPack];
+  const packConfigEditor = document.getElementById("packConfigs");
+  let selectedPackConfig;
   try {
-    packConfigs = JSON.parse(document.getElementById("packConfigs").value);
+    selectedPackConfig = parsePackConfigInput(packConfigEditor.value, selectedPack);
   } catch {
     setStatus("Pack configs JSON is invalid.", true);
     return;
   }
 
-  // Get the selected test pack from dropdown
-  const selectedPack = String(document.getElementById("testPacks").value || "").trim().toLowerCase();
-  const testPacks = [selectedPack];
-  packConfigs = withDefaultEnabledTests(packConfigs, selectedPack);
-  document.getElementById("packConfigs").value = JSON.stringify(packConfigs, null, 2);
+  const normalizedConfig = withDefaultEnabledTests(
+    { [selectedPack]: selectedPackConfig },
+    selectedPack
+  )[selectedPack];
+  const selectedTerritory = getSelectedTerritoryValue();
+  if (selectedTerritory) {
+    normalizedConfig.territory = selectedTerritory;
+  } else {
+    delete normalizedConfig.territory;
+  }
+  packConfigsByPack[selectedPack] = normalizedConfig;
+  currentPackSelection = selectedPack;
+  packConfigEditor.value = JSON.stringify(normalizedConfig, null, 2);
+  const packConfigs = { [selectedPack]: normalizedConfig };
+
+  const excelUserEmail = getExcelUserEmail();
+  if (!excelUserEmail) {
+    setStatus("Validation failed: Could not determine Excel user email.", true);
+    return;
+  }
 
   button.disabled = true;
-  setStatus("Reading selected range from Excel...");
+  setStatus("Detecting table on active sheet...");
 
   try {
-    const selectionMeta = await Excel.run(async (context) => {
-      const workbook = context.workbook;
-      const worksheet = workbook.worksheets.getActiveWorksheet();
-      const selectedRange = workbook.getSelectedRange();
+    const selectionMeta = await resolveValidationRangeMeta();
 
-      selectedRange.load(["rowIndex", "columnIndex", "rowCount", "columnCount"]);
-      await context.sync();
-
-      const headerRange = worksheet.getRangeByIndexes(
-        selectedRange.rowIndex,
-        selectedRange.columnIndex,
-        1,
-        selectedRange.columnCount
-      );
-      headerRange.load("values");
-
-      await context.sync();
-
-      return {
-        startRow: selectedRange.rowIndex,
-        startCol: selectedRange.columnIndex,
-        rowCount: selectedRange.rowCount,
-        columnCount: selectedRange.columnCount,
-        headerValues: headerRange.values[0],
-        headerAddresses: buildAddressRow(
-          selectedRange.rowIndex,
-          selectedRange.columnIndex,
-          selectedRange.columnCount
-        ),
-      };
-    });
-
-    if (selectionMeta.rowCount < 2) {
-      throw new Error("Please select a range that includes a header row and at least one data row.");
+    if (clearButton) {
+      clearButton.disabled = true;
     }
 
     const dataRowCount = selectionMeta.rowCount - 1;
     const rowsPerChunk = Math.max(1, Math.floor(maxCellsPerChunk / selectionMeta.columnCount));
     const totalChunks = Math.ceil(dataRowCount / rowsPerChunk);
 
-    setStatus("Clearing existing comments in selected range...");
+    const targetDescription = selectionMeta.source === "selection" ? "selected range" : "detected table";
+    setStatus(`Clearing existing comments in ${targetDescription}...`);
     await clearCommentsInRange(
       selectionMeta.startRow,
       selectionMeta.startCol,
@@ -499,12 +795,13 @@ async function runValidation() {
 
       const payloadAddresses = [selectionMeta.headerAddresses, ...chunkAddresses];
       const payloadValues = [selectionMeta.headerValues, ...chunkValues];
+      const workbookName = getWorkbookName();
 
       const response = await fetch(`${backendUrl}/validate-range`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-API-Key": getApiKey(),
+          "X-Excel-User-Email": excelUserEmail,
         },
         body: JSON.stringify({
           addresses: payloadAddresses,
@@ -513,12 +810,23 @@ async function runValidation() {
           hasHeaderRow: true,
           packConfigs,
           includeCoverage: true,
+          workbookName,
+          sheetName: selectionMeta.sheetName || null,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const detail = errorData.detail || `HTTP ${response.status}`;
+        const errorText = await response.text().catch(() => "");
+        let errorData = {};
+        if (errorText) {
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { detail: errorText };
+          }
+        }
+
+        const detail = formatBackendErrorDetail(errorData.detail) || `HTTP ${response.status}`;
         throw new Error(detail);
       }
 
@@ -534,6 +842,11 @@ async function runValidation() {
       for (const [packName, packCoverage] of Object.entries(coveragePacks)) {
         if (packCoverage?.warning) {
           coverageWarnings.add(`${packName}: ${packCoverage.warning}`);
+        }
+        if (Array.isArray(packCoverage?.warnings)) {
+          for (const warning of packCoverage.warnings) {
+            coverageWarnings.add(`${packName}: ${warning}`);
+          }
         }
         const tests = packCoverage?.tests || {};
         for (const testName of Object.keys(tests)) {
@@ -553,8 +866,17 @@ async function runValidation() {
     setStatus(warningText ? `${statusMessage} Warning: ${warningText}.` : statusMessage, Boolean(warningText));
   } catch (error) {
     const message = error?.message || "Unexpected error";
-    setStatus(`Validation failed: ${message}`, true);
+
+    if (/Failed to fetch/i.test(message)) {
+      const diagnostic = await getDevelopmentFetchDiagnostics(backendUrl);
+      setStatus(`Validation failed: ${message}. ${diagnostic}`, true);
+    } else {
+      setStatus(`Validation failed: ${message}`, true);
+    }
   } finally {
     button.disabled = false;
+    if (clearButton) {
+      clearButton.disabled = false;
+    }
   }
 }

@@ -1,0 +1,8174 @@
+{
+  "Australia": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0022",
+        "field": "Risk, Transaction Type"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0053",
+        "field": "Deductible or Excess Currency (see code list)"
+      },
+      {
+        "code": "CR0054",
+        "field": "Deductible or Excess Amount"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0175",
+        "field": "Participation % ceded"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0279",
+        "field": "Insured - Total Number of Employees"
+      },
+      {
+        "code": "CR0280",
+        "field": "Insured - Revenue or Turnover"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR0322",
+        "field": "Original inception date"
+      },
+      {
+        "code": "CR0324",
+        "field": "Insured occupation/nature or organisation"
+      },
+      {
+        "code": "CR0325",
+        "field": "Insured Assets"
+      },
+      {
+        "code": "CR0354",
+        "field": "Policy basis"
+      },
+      {
+        "code": "CR0356",
+        "field": "Limit of indemnity"
+      },
+      {
+        "code": "CR0357",
+        "field": "Insured Professional Fees"
+      },
+      {
+        "code": "CR0358",
+        "field": "Other risk factor description"
+      },
+      {
+        "code": "CR0359",
+        "field": "Other risk factor value"
+      },
+      {
+        "code": "CR0360",
+        "field": "APRA product type"
+      },
+      {
+        "code": "CR1284",
+        "field": "Australia insured occupation code"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  },
+  "Canada": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0018",
+        "field": "Wet Marine Indicator"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0053",
+        "field": "Deductible or Excess Currency (see code list)"
+      },
+      {
+        "code": "CR0054",
+        "field": "Deductible or Excess Amount"
+      },
+      {
+        "code": "CR0055",
+        "field": "Deductible or Excess Basis"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  },
+  "EEA": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0022",
+        "field": "Risk, Transaction Type"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0227",
+        "field": "Referred to London"
+      },
+      {
+        "code": "CR0278",
+        "field": "Insured - Policyholder Type"
+      },
+      {
+        "code": "CR0279",
+        "field": "Insured - Total Number of Employees"
+      },
+      {
+        "code": "CR0280",
+        "field": "Insured - Revenue or Turnover"
+      },
+      {
+        "code": "CR0299",
+        "field": "Reason for Cancellation"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  },
+  "Germany": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0225",
+        "field": "IMO Ship Identification Number"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  },
+  "Hong Kong": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0235",
+        "field": "Coverholder commission amount for whole risk/written premium"
+      },
+      {
+        "code": "CR0270",
+        "field": "Tax amount for the whole risk/written premium"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR1250",
+        "field": "IA Levy - co-insurance code"
+      },
+      {
+        "code": "CR1251",
+        "field": "IA Levy - total gross written premium amount"
+      },
+      {
+        "code": "CR1268",
+        "field": "Lead syndicate number"
+      },
+      {
+        "code": "CR1269",
+        "field": "Hong Kong Insured Occupation code"
+      },
+      {
+        "code": "CR1270",
+        "field": "IA Accounting class"
+      },
+      {
+        "code": "CR1272",
+        "field": "IA Sub-accounting class"
+      },
+      {
+        "code": "CR1275",
+        "field": "Type of vehicle code"
+      },
+      {
+        "code": "CR1276",
+        "field": "Number of vessels"
+      },
+      {
+        "code": "CR1277",
+        "field": "Estimated premium income"
+      },
+      {
+        "code": "CR1278",
+        "field": "Lloyd's brokerage amount for the risk"
+      },
+      {
+        "code": "CR1279",
+        "field": "Management expense"
+      },
+      {
+        "code": "CR1280",
+        "field": "Net premium to underwriters for the risk"
+      },
+      {
+        "code": "CR1292",
+        "field": "Amount of Taxable Written Premium"
+      },
+      {
+        "code": "CR1294",
+        "field": "Local sub producers commission amount"
+      },
+      {
+        "code": "CR1295",
+        "field": "Local sub producers commission %"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  },
+  "Iceland": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0022",
+        "field": "Risk, Transaction Type"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  },
+  "Ireland": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0022",
+        "field": "Risk, Transaction Type"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  },
+  "Italy": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0036",
+        "field": "Fiscal Code (codice fiscale)"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0063",
+        "field": "Accessori (Italy)"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR1271",
+        "field": "Accessori Written Amount"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  },
+  "Lloyd's Asia": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0230",
+        "field": "Transaction number"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR0925",
+        "field": "Total Fee Amount"
+      },
+      {
+        "code": "CR1288",
+        "field": "100% Net Written Premium in USD"
+      },
+      {
+        "code": "CR1294",
+        "field": "Local sub producers commission amount"
+      },
+      {
+        "code": "CR1297",
+        "field": "LloydÕs Platform"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  },
+  "Lloyd's Brussels": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0053",
+        "field": "Deductible or Excess Currency (see code list)"
+      },
+      {
+        "code": "CR0054",
+        "field": "Deductible or Excess Amount"
+      },
+      {
+        "code": "CR0055",
+        "field": "Deductible or Excess Basis"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0235",
+        "field": "Coverholder commission amount for whole risk/written premium"
+      },
+      {
+        "code": "CR0236",
+        "field": "Total taxes paid locally"
+      },
+      {
+        "code": "CR0288",
+        "field": "Number of Instalments"
+      },
+      {
+        "code": "CR0289",
+        "field": "Instalment Basis"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR0925",
+        "field": "Total Fee Amount"
+      },
+      {
+        "code": "CR1271",
+        "field": "Accessori Written Amount"
+      },
+      {
+        "code": "CR1297",
+        "field": "LloydÕs Platform"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      },
+      {
+        "code": "CR1299",
+        "field": "Reinsurance basis"
+      }
+    ]
+  },
+  "New Jersey": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0098",
+        "field": "New Jersey SLA No"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  },
+  "South Africa": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0022",
+        "field": "Risk, Transaction Type"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0278",
+        "field": "Insured - Policyholder Type"
+      },
+      {
+        "code": "CR0299",
+        "field": "Reason for Cancellation"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR0377",
+        "field": "Cover Type"
+      },
+      {
+        "code": "CR0378",
+        "field": "Distribution Channel"
+      },
+      {
+        "code": "CR1281",
+        "field": "Cover type - level 1"
+      },
+      {
+        "code": "CR1282",
+        "field": "Cover type - level 2"
+      },
+      {
+        "code": "CR1283",
+        "field": "Cover type - level 3"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  },
+  "Spain": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0027",
+        "field": "Number of Policies"
+      },
+      {
+        "code": "CR0028",
+        "field": "Number of Vehicles"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR1256",
+        "field": "Spanish tax identification number"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  },
+  "UK": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0022",
+        "field": "Risk, Transaction Type"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0170",
+        "field": "A-Buildings"
+      },
+      {
+        "code": "CR0172",
+        "field": "C-Contents"
+      },
+      {
+        "code": "CR0173",
+        "field": "D-Business Interruption"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0278",
+        "field": "Insured - Policyholder Type"
+      },
+      {
+        "code": "CR0279",
+        "field": "Insured - Total Number of Employees"
+      },
+      {
+        "code": "CR0280",
+        "field": "Insured - Revenue or Turnover"
+      },
+      {
+        "code": "CR0299",
+        "field": "Reason for Cancellation"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR0320",
+        "field": "Reason for endorsement"
+      },
+      {
+        "code": "CR0321",
+        "field": "Reason for reinstatement"
+      },
+      {
+        "code": "CR0323",
+        "field": "Number of locations"
+      },
+      {
+        "code": "CR0324",
+        "field": "Insured occupation/nature or organisation"
+      },
+      {
+        "code": "CR0326",
+        "field": "Additional insured policy type"
+      },
+      {
+        "code": "CR0327",
+        "field": "Additional insured employer name"
+      },
+      {
+        "code": "CR0328",
+        "field": "Additional insured ERN exempt flag"
+      },
+      {
+        "code": "CR0329",
+        "field": "Additional insured employer reference number"
+      },
+      {
+        "code": "CR0330",
+        "field": "FRID"
+      },
+      {
+        "code": "CR0331",
+        "field": "Property Type"
+      },
+      {
+        "code": "CR0332",
+        "field": "Eligibility Category"
+      },
+      {
+        "code": "CR0333",
+        "field": "Resilience Work"
+      },
+      {
+        "code": "CR0334",
+        "field": "Basement"
+      },
+      {
+        "code": "CR0335",
+        "field": "Basement Usage"
+      },
+      {
+        "code": "CR0336",
+        "field": "No of bedrooms"
+      },
+      {
+        "code": "CR0337",
+        "field": "Wall construction"
+      },
+      {
+        "code": "CR0338",
+        "field": "Roof Construction"
+      },
+      {
+        "code": "CR0339",
+        "field": "Rebuilding cost"
+      },
+      {
+        "code": "CR0340",
+        "field": "Rebuilding basis indicator"
+      },
+      {
+        "code": "CR0341",
+        "field": "Transaction Rating Date"
+      },
+      {
+        "code": "CR0342",
+        "field": "Building Excess Amount"
+      },
+      {
+        "code": "CR0343",
+        "field": "Building New Annual Premium"
+      },
+      {
+        "code": "CR0344",
+        "field": "Building Transaction Premium"
+      },
+      {
+        "code": "CR0345",
+        "field": "Building Alternative Accommodation Limit"
+      },
+      {
+        "code": "CR0346",
+        "field": "High Value Art"
+      },
+      {
+        "code": "CR0347",
+        "field": "Contents Blanket Sum Insured"
+      },
+      {
+        "code": "CR0348",
+        "field": "Contents Transaction Rating Date"
+      },
+      {
+        "code": "CR0349",
+        "field": "Contents Excess Sum"
+      },
+      {
+        "code": "CR0350",
+        "field": "Contents New Annual Premium"
+      },
+      {
+        "code": "CR0351",
+        "field": "Contents Transaction Premium"
+      },
+      {
+        "code": "CR0352",
+        "field": "Contents Alternative Accommodation Limit"
+      },
+      {
+        "code": "CR0353",
+        "field": "Property Total Premium Payable"
+      },
+      {
+        "code": "CR0374",
+        "field": "Pool Re Zone"
+      },
+      {
+        "code": "CR1285",
+        "field": "UK insured occupation code"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  },
+  "US": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0025",
+        "field": "US Classification"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0037",
+        "field": "NAIC Code"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0088",
+        "field": "State of Filing (see code list)"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0096",
+        "field": "Surplus Lines Broker Name"
+      },
+      {
+        "code": "CR0097",
+        "field": "Surplus Lines Broker Licence No"
+      },
+      {
+        "code": "CR0099",
+        "field": "Surplus Lines Broker Address"
+      },
+      {
+        "code": "CR0100",
+        "field": "Surplus Lines Broker State"
+      },
+      {
+        "code": "CR0101",
+        "field": "Surplus Lines Broker Zip Code"
+      },
+      {
+        "code": "CR0102",
+        "field": "Surplus Lines Broker Country"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0201",
+        "field": "Terrorism acceptance date"
+      },
+      {
+        "code": "CR0202",
+        "field": "Terrorism declination date"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  },
+  "Unspecified": {
+    "mandatory": [
+      {
+        "code": "CR0002",
+        "field": "Reporting Period (End Date)"
+      },
+      {
+        "code": "CR0005",
+        "field": "Unique Market Reference (UMR)"
+      },
+      {
+        "code": "CR0013",
+        "field": "Coverholder Name"
+      },
+      {
+        "code": "CR0019",
+        "field": "Type of Insurance (Direct or Type or Reinsurance)"
+      },
+      {
+        "code": "CR0020",
+        "field": "Original Currency"
+      },
+      {
+        "code": "CR0021",
+        "field": "Total gross written premium"
+      },
+      {
+        "code": "CR0029",
+        "field": "Certificate Ref"
+      },
+      {
+        "code": "CR0030",
+        "field": "Risk Inception Date"
+      },
+      {
+        "code": "CR0031",
+        "field": "Risk Expiry Date"
+      },
+      {
+        "code": "CR0035",
+        "field": "Insured Full Name, Last Name or Company Name"
+      },
+      {
+        "code": "CR0041",
+        "field": "Insured Country (see code list)"
+      },
+      {
+        "code": "CR0050",
+        "field": "Location of risk - Country"
+      },
+      {
+        "code": "CR0051",
+        "field": "Sum Insured Currency (see code list)"
+      },
+      {
+        "code": "CR0052",
+        "field": "Sum Insured Amount"
+      },
+      {
+        "code": "CR0056",
+        "field": "Transaction Type - Original Premium etc."
+      },
+      {
+        "code": "CR0059",
+        "field": "Gross premium paid this time"
+      },
+      {
+        "code": "CR0061",
+        "field": "Commission %"
+      },
+      {
+        "code": "CR0062",
+        "field": "Commission Amount"
+      },
+      {
+        "code": "CR0065",
+        "field": "Net Premium to London in original currency"
+      },
+      {
+        "code": "CR0066",
+        "field": "Settlement Currency"
+      }
+    ],
+    "conditional": [
+      {
+        "code": "CR0001",
+        "field": "Reporting Period Start Date"
+      },
+      {
+        "code": "CR0006",
+        "field": "Agreement No"
+      },
+      {
+        "code": "CR0007",
+        "field": "Section No"
+      },
+      {
+        "code": "CR0010",
+        "field": "Year of Account"
+      },
+      {
+        "code": "CR0011",
+        "field": "London Broker Reference"
+      },
+      {
+        "code": "CR0014",
+        "field": "Coverholder PIN"
+      },
+      {
+        "code": "CR0016",
+        "field": "Risk Code"
+      },
+      {
+        "code": "CR0017",
+        "field": "Class of Business"
+      },
+      {
+        "code": "CR0026",
+        "field": "Policy or Group Ref"
+      },
+      {
+        "code": "CR0032",
+        "field": "Period of Cover - Narrative"
+      },
+      {
+        "code": "CR0033",
+        "field": "Name or Registration No of Aircraft Vehicle, Vessel etc."
+      },
+      {
+        "code": "CR0034",
+        "field": "Insured First Name"
+      },
+      {
+        "code": "CR0038",
+        "field": "Insured Address"
+      },
+      {
+        "code": "CR0039",
+        "field": "Insured Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0040",
+        "field": "Insured Postcode, Zip Code or Similar"
+      },
+      {
+        "code": "CR0046",
+        "field": "Location of Risk, Address"
+      },
+      {
+        "code": "CR0047",
+        "field": "Location of Risk, County"
+      },
+      {
+        "code": "CR0048",
+        "field": "Location of Risk - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0049",
+        "field": "Location of Risk, Postcode, zip code or similar"
+      },
+      {
+        "code": "CR0057",
+        "field": "Effective Date of Transaction"
+      },
+      {
+        "code": "CR0058",
+        "field": "Expiry Date of Transaction"
+      },
+      {
+        "code": "CR0060",
+        "field": "Terrorism premium"
+      },
+      {
+        "code": "CR0064",
+        "field": "Total Taxes and Levies"
+      },
+      {
+        "code": "CR0067",
+        "field": "Rate of Exchange"
+      },
+      {
+        "code": "CR0068",
+        "field": "Net Premium to London in Settlement Currency"
+      },
+      {
+        "code": "CR0069",
+        "field": "Brokerage % of gross premium"
+      },
+      {
+        "code": "CR0070",
+        "field": "Brokerage Amount (Original Currency)"
+      },
+      {
+        "code": "CR0071",
+        "field": "Final Net Premium (Original Currency)"
+      },
+      {
+        "code": "CR0072",
+        "field": "Final Net Premium Settlement Currency (see code list)"
+      },
+      {
+        "code": "CR0073",
+        "field": "Final Net Premium Rate of Exchange"
+      },
+      {
+        "code": "CR0074",
+        "field": "Brokerage Amount (Settlement Currency)"
+      },
+      {
+        "code": "CR0075",
+        "field": "Final Net Premium (Settlement Currency)"
+      },
+      {
+        "code": "CR0076",
+        "field": "% for Lloyd's"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 1 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 2 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 3 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 4 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0077",
+        "field": "Tax 5 - Jurisdiction: Country, State, Province, Territory"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 1 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 2 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 3 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 4 - Tax Type"
+      },
+      {
+        "code": "CR0078",
+        "field": "Tax 5 - Tax Type"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 1 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 2 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 3 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 4 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0079",
+        "field": "Tax 5 - Amount of Taxable Premium"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 1 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 2 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 3 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 4 - %"
+      },
+      {
+        "code": "CR0080",
+        "field": "Tax 5 - %"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 1 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 2 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 3 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 4 - Fixed Rate"
+      },
+      {
+        "code": "CR0081",
+        "field": "Tax 5 - Fixed Rate"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 1 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 2 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 3 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 4 - Multiplier"
+      },
+      {
+        "code": "CR0082",
+        "field": "Tax 5 - Multiplier"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 1 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 2 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 3 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 4 - Amount"
+      },
+      {
+        "code": "CR0083",
+        "field": "Tax 5 - Amount"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 1 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 2 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 3 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 4 - Administered By"
+      },
+      {
+        "code": "CR0084",
+        "field": "Tax 5 - Administered By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 1 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 2 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 3 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 4 - Payable By"
+      },
+      {
+        "code": "CR0085",
+        "field": "Tax 5 - Payable By"
+      },
+      {
+        "code": "CR0086",
+        "field": "Other Fees or Deductions Description"
+      },
+      {
+        "code": "CR0087",
+        "field": "Other Fees or Deductions Amount"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 1 - Role"
+      },
+      {
+        "code": "CR0089",
+        "field": "Intermediary 2 - Role"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 1 - Name"
+      },
+      {
+        "code": "CR0090",
+        "field": "Intermediary 2 - Name"
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 1 - Reference No etc."
+      },
+      {
+        "code": "CR0091",
+        "field": "Intermediary 2 - Reference No etc."
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 1 - Address"
+      },
+      {
+        "code": "CR0092",
+        "field": "Intermediary 2 - Address"
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 1 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0093",
+        "field": "Intermediary 2 - Country Sub-division: State, Province, Territory, Canton etc."
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 1 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0094",
+        "field": "Intermediary 2 - Postcode, zip or similar"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 1 - Country (see code list)"
+      },
+      {
+        "code": "CR0095",
+        "field": "Intermediary 2 - Country (see code list)"
+      },
+      {
+        "code": "CR0169",
+        "field": "Notes"
+      },
+      {
+        "code": "CR0226",
+        "field": "Country of Registration"
+      },
+      {
+        "code": "CR0237",
+        "field": "Total London taxes"
+      },
+      {
+        "code": "CR0315",
+        "field": "Policy issuance date"
+      },
+      {
+        "code": "CR1298",
+        "field": "Industrial sector of the insured"
+      }
+    ]
+  }
+}

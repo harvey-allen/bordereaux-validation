@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.validation import validate_cell, validate_grid_with_packs_report
+from app.validation import get_pack_mandatory_fields, validate_cell, validate_grid_with_packs_report
 
 
 client = TestClient(app)
@@ -39,7 +39,7 @@ def test_validate_cell_passes_all_tests():
         ],
     )
     assert result.fail_count == 0
-    assert result.color == "#E2F0D9"  # Light green for 0 failures
+    assert result.color == "#FFFFFF"  # No failures
 
 
 def test_validate_cell_fails_required():
@@ -178,7 +178,7 @@ def test_validate_range_with_bordereaux_pack():
             "columnRules": {},
             "testPacks": ["bordereaux"],
             "hasHeaderRow": True,
-            "packConfigs": {"bordereaux": {"RefColumn": "policy_id"}},
+            "packConfigs": {"bordereaux": {"UMR": "policy_id"}},
             "includeCoverage": True,
         },
     )
@@ -252,7 +252,7 @@ def test_bordereaux_policy_id_required():
         column_rules={},
         test_packs=["bordereaux"],
         has_header_row=True,
-        pack_configs={"bordereaux": {"RefColumn": "policy_id"}},
+        pack_configs={"bordereaux": {"UMR": "policy_id"}},
     )
     
     # Find the test results for policy_id_required
@@ -275,7 +275,7 @@ def test_bordereaux_premium_required():
         column_rules={},
         test_packs=["bordereaux"],
         has_header_row=True,
-        pack_configs={"bordereaux": {"RefColumn": "policy_id"}},
+        pack_configs={"bordereaux": {"UMR": "policy_id"}},
     )
     
     pack_tests = report["coverage"]["packs"]["bordereaux"]["tests"]
@@ -297,7 +297,7 @@ def test_bordereaux_currency_valid():
         column_rules={},
         test_packs=["bordereaux"],
         has_header_row=True,
-        pack_configs={"bordereaux": {"RefColumn": "policy_id"}},
+        pack_configs={"bordereaux": {"UMR": "policy_id"}},
     )
     
     pack_tests = report["coverage"]["packs"]["bordereaux"]["tests"]
@@ -319,7 +319,7 @@ def test_bordereaux_marine_requires_vessel():
         column_rules={},
         test_packs=["bordereaux"],
         has_header_row=True,
-        pack_configs={"bordereaux": {"RefColumn": "policy_id"}},
+        pack_configs={"bordereaux": {"UMR": "policy_id"}},
     )
     
     pack_tests = report["coverage"]["packs"]["bordereaux"]["tests"]
@@ -341,7 +341,7 @@ def test_bordereaux_claim_within_limit():
         column_rules={},
         test_packs=["bordereaux"],
         has_header_row=True,
-        pack_configs={"bordereaux": {"RefColumn": "policy_id"}},
+        pack_configs={"bordereaux": {"UMR": "policy_id"}},
     )
     
     pack_tests = report["coverage"]["packs"]["bordereaux"]["tests"]
@@ -369,7 +369,7 @@ def test_severity_score_affects_heatmap():
         column_rules={},
         test_packs=["bordereaux"],
         has_header_row=True,
-        pack_configs={"bordereaux": {"RefColumn": "policy_id"}},
+        pack_configs={"bordereaux": {"UMR": "policy_id"}},
     )
     
     # Find results with failures
@@ -395,7 +395,7 @@ def test_multiple_columns_affected_by_single_test():
         column_rules={},
         test_packs=["bordereaux"],
         has_header_row=True,
-        pack_configs={"bordereaux": {"RefColumn": "policy_id"}},
+        pack_configs={"bordereaux": {"UMR": "policy_id"}},
     )
     
     # Both claim_amount (B2) and policy_limit (C2) should be highlighted
@@ -404,3 +404,117 @@ def test_multiple_columns_affected_by_single_test():
     
     assert b2_result["failCount"] > 0
     assert c2_result["failCount"] > 0
+
+
+def test_field_mappings_enable_model_based_tests_with_codes():
+    """Missing model fields should be tested only when mapped from sheet columns."""
+    report = validate_grid_with_packs_report(
+        addresses=[
+            ["A1", "B1", "C1"],
+            ["A2", "B2", "C2"],
+            ["A3", "B3", "C3"],
+        ],
+        values=[
+            ["policy_number", "premium_currency", "gross_written_premium"],
+            ["POL-001", "GBP", 1000],
+            ["", "INVALID", None],
+        ],
+        column_rules={},
+        test_packs=["premium"],
+        has_header_row=True,
+        pack_configs={
+            "premium": {
+                "UMR": "policy_number",
+                "fieldMappings": {
+                    "policy_id": "policy_number",
+                    "currency": "premium_currency",
+                    "premium_amount": "gross_written_premium",
+                },
+                "enabledTests": ["Bpolicy_id1", "Bcurrency1", "Bpremium_amount1"],
+            }
+        },
+    )
+
+    premium_tests = report["coverage"]["packs"]["premium"]["tests"]
+    assert "test_policy_id_required" in premium_tests
+    assert premium_tests["test_policy_id_required"]["testCode"] == "Bpolicy_id1"
+    assert premium_tests["test_currency_valid"]["testCode"] == "Bcurrency1"
+    assert premium_tests["test_premium_amount_required"]["testCode"] == "Bpremium_amount1"
+
+    assert premium_tests["test_policy_id_required"]["failedRows"] >= 1
+    assert premium_tests["test_currency_valid"]["failedRows"] >= 1
+    assert premium_tests["test_premium_amount_required"]["failedRows"] >= 1
+
+
+def test_missing_default_columns_produce_critical_header_errors():
+    """Missing assumed default columns should raise CRITICAL header failures."""
+    report = validate_grid_with_packs_report(
+        addresses=[
+            ["A1", "B1", "C1"],
+            ["A2", "B2", "C2"],
+        ],
+        values=[
+            ["policy_number", "premium_currency", "gross_written_premium"],
+            ["POL-001", "GBP", 1000],
+        ],
+        column_rules={},
+        test_packs=["premium"],
+        has_header_row=True,
+        pack_configs={
+            "premium": {
+                "UMR": "policy_number",
+                "territory": "UK",
+                "enabledTests": ["Bpolicy_id1", "Bcurrency1", "Bpremium_amount1"],
+            }
+        },
+    )
+
+    header_results = [r for r in report["results"] if r["rowIndex"] == 0]
+    assert any(r["failCount"] > 0 for r in header_results)
+    assert any("Bheaders1" in r["comment"] for r in header_results if r["failCount"] > 0)
+    assert "test_required_headers_present" in report["coverage"]["packs"]["premium"]["tests"]
+    assert report["coverage"]["packs"]["premium"]["tests"]["test_required_headers_present"]["failedRows"] == 1
+
+
+def test_default_missing_columns_resolved_by_field_mappings():
+    """Mapping sheet names to model defaults should clear missing-default-column header errors."""
+    premium_required_fields = get_pack_mandatory_fields("premium", "UK")
+    full_field_mapping = {
+        field: "policy_number"
+        for field in premium_required_fields
+    }
+    full_field_mapping.update(
+        {
+            "currency": "premium_currency",
+            "premium_amount": "gross_written_premium",
+            "policy_id": "policy_number",
+            "premium_currency": "premium_currency",
+            "gross_written_premium": "gross_written_premium",
+        }
+    )
+
+    report = validate_grid_with_packs_report(
+        addresses=[
+            ["A1", "B1", "C1"],
+            ["A2", "B2", "C2"],
+        ],
+        values=[
+            ["policy_number", "premium_currency", "gross_written_premium"],
+            ["POL-001", "GBP", 1000],
+        ],
+        column_rules={},
+        test_packs=["premium"],
+        has_header_row=True,
+        pack_configs={
+            "premium": {
+                "UMR": "policy_number",
+                "territory": "UK",
+                "fieldMappings": full_field_mapping,
+                "enabledTests": ["Bpolicy_id1", "Bcurrency1", "Bpremium_amount1"],
+            }
+        },
+    )
+
+    header_results = [r for r in report["results"] if r["rowIndex"] == 0]
+    assert all("Bheaders1" not in r["comment"] for r in header_results)
+    assert report["coverage"]["packs"]["premium"]["tests"]["test_required_headers_present"]["failedRows"] == 0
