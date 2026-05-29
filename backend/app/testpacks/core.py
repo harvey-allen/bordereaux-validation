@@ -127,17 +127,30 @@ class BaseTestPack:
         return code_map
 
     def iter_registered_tests(self) -> list[Callable[[], pd.DataFrame | None]]:
-        tests: list[Callable[[], pd.DataFrame | None]] = []
+        all_tests: list[Callable[[], pd.DataFrame | None]] = []
+        filtered_tests: list[Callable[[], pd.DataFrame | None]] = []
         for attribute_name in dir(self):
             if not attribute_name.startswith("test_"):
                 continue
             method = getattr(self, attribute_name)
             if callable(method) and getattr(method, "_is_registered_test", False):
+                all_tests.append(method)
                 test_code = self._test_code_map.get(attribute_name)
-                if self.enabled_tests is not None and attribute_name not in self.enabled_tests and test_code not in self.enabled_tests:
+                short_name = attribute_name.replace("test_", "")
+                if self.enabled_tests is None:
+                    filtered_tests.append(method)
                     continue
-                tests.append(method)
-        return tests
+
+                if (
+                    attribute_name in self.enabled_tests
+                    or short_name in self.enabled_tests
+                    or test_code in self.enabled_tests
+                ):
+                    filtered_tests.append(method)
+
+        if self.enabled_tests is not None and not filtered_tests:
+            return all_tests
+        return filtered_tests
 
     def run(self) -> list[PackFailure]:
         failures, _ = self.run_with_coverage()

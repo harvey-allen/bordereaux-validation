@@ -3,22 +3,17 @@
  * Uses severity score instead of simple failure count for more nuanced coloring.
  * Severity levels: INFO=0, WARNING=1, ERROR=2, CRITICAL=3
  */
-const packDefaultTests = {
-  premium: ["Bpolicy_id1", "Bcurrency1", "Bpremium_amount1"],
-  claims: ["Bpolicy_id1", "Bcurrency1", "Bclaim_amount1"],
-};
-
 const DEFAULT_EXCEL_EMAIL = "harveyallen2001@gmail.com";
 let packConfigsByPack = {};
 let currentPackSelection = null;
 let territoriesByPack = {};
+let lastValidationResults = [];
 
 function getDefaultPackConfig(selectedPack) {
   const normalizedPack = String(selectedPack || "").trim().toLowerCase();
   return {
     testPack: normalizedPack,
     UMR: "Unique Market Reference (UMR)",
-    enabledTests: [...(packDefaultTests[normalizedPack] || [])],
   };
 }
 
@@ -52,11 +47,23 @@ function withDefaultEnabledTests(packConfigs, selectedPack) {
 
   const nextConfigs = { ...(packConfigs || {}) };
   const existingPackConfig = { ...(nextConfigs[normalizedPack] || {}) };
-  const configuredTests = existingPackConfig.enabledTests;
-  const hasConfiguredTests = Array.isArray(configuredTests) && configuredTests.length > 0;
+  const configuredTests = Array.isArray(existingPackConfig.enabledTests)
+    ? existingPackConfig.enabledTests
+    : [];
+  const normalizedEnabledTests = Array.from(
+    new Set(
+      configuredTests
+        .map((item) => String(item || "").trim())
+        .filter(Boolean)
+        .map((item) => item.startsWith("test_") ? item.slice(5) : item)
+    )
+  );
+  const hasConfiguredTests = normalizedEnabledTests.length > 0;
 
   if (!hasConfiguredTests) {
-    existingPackConfig.enabledTests = [...(packDefaultTests[normalizedPack] || [])];
+    delete existingPackConfig.enabledTests;
+  } else {
+    existingPackConfig.enabledTests = normalizedEnabledTests;
   }
 
   nextConfigs[normalizedPack] = existingPackConfig;
@@ -381,6 +388,7 @@ Office.onReady(async () => {
   });
   document.getElementById("runValidation").addEventListener("click", runValidation);
   document.getElementById("clearTable")?.addEventListener("click", clearTableFormattingAndComments);
+  document.getElementById("extractResults")?.addEventListener("click", extractValidationResults);
 });
 
 function setStatus(message, isError = false) {
@@ -705,6 +713,116 @@ async function applyResultsToSheet(results, maxSeverityScore) {
 
     await context.sync();
   });
+
+  // Store results for extraction
+  lastValidationResults = results;
+}
+
+async function extractValidationResults() {
+  const extractButton = document.getElementById("extractResults");
+  
+  if (!lastValidationResults || lastValidationResults.length === 0) {
+    setStatus("No validation results to extract. Please run validation first.", true);
+    return;
+  }
+
+  if (extractButton) {
+    extractButton.disabled = true;
+  }
+
+  try {
+    setStatus("Preparing CSV export...");
+    
+    const exportRows = await Excel.run(async (context) => {
+      const worksheet = context.workbook.worksheets.getActiveWorksheet();
+      
+      // Get validation range metadata to find headers and UMR column
+      const usedRange = worksheet.getUsedRangeOrNullObject();
+      usedRange.load(["isNullObject", "values"]);
+      await context.sync();
+      
+      if (usedRange.isNullObject) {
+        throw new Error("Could not find data on the active sheet.");
+      }
+      
+      // Get headers from first row
+      const allValues = usedRange.values || [];
+      const headerRow = allValues[0] || [];
+      
+      // Find UMR column index
+      const umrConfig = packConfigsByPack[currentPackSelection]?.UMR || "Unique Market Reference (UMR)";
+      const umrColumnIndex = headerRow.findIndex((header) => 
+        String(header || "").trim() === String(umrConfig || "").trim()
+      );
+      
+      // Create a map of column index to field name
+      const fieldNameMap = {};
+      for (let i = 0; i < headerRow.length; i++) {
+        fieldNameMap[i] = String(headerRow[i] || "").trim();
+      }
+      
+      // Build data rows - one row per failed test
+      const dataRows = [];
+      for (const result of lastValidationResults) {
+        if (result.failCount > 0 && result.rowIndex > 0) {
+          // Get UMR value for this row
+          const rowOffset = result.rowIndex;
+          let umrValue = "";
+          if (umrColumnIndex >= 0 && allValues[rowOffset] && allValues[rowOffset][umrColumnIndex]) {
+            umrValue = String(allValues[rowOffset][umrColumnIndex]).trim();
+          }
+          
+          // Get field name from column index
+          const fieldName = fieldNameMap[result.columnIndex] || "";
+          const value = result.value === null || result.value === undefined ? "" : String(result.value);
+          
+          // Create a row for each failed test
+          const failedTests = Array.isArray(result.failedTests) ? result.failedTests : [];
+          if (failedTests.length > 0) {
+            for (const testMessage of failedTests) {
+              // Extract severity, test ID and description from message like:
+              // [ERROR] CR0005_1: Description text
+              const rawMessage = String(testMessage || "").trim();
+              const match = rawMessage.match(/^\[(.*?)\]\s+([A-Za-z0-9_]+):\s*(.*)$/);
+              const severity = match ? match[1] : "";
+              const testId = match ? match[2] : "Unknown";
+              const description = match ? match[3] : rawMessage;
+              dataRows.push([umrValue, testId, fieldName, value, severity, description]);
+            }
+          } else if (result.failCount > 0) {
+            // Fallback if no specific tests listed
+            dataRows.push([umrValue, "Unknown", fieldName, value, "", ""]);
+          }
+        }
+      }
+
+      return dataRows;
+    });
+
+    const headers = ["UMR", "Test ID", "Field Name", "Value", "Severity", "Description"];
+    const rowsForCsv = [headers, ...exportRows];
+    const csvEscape = (input) => `"${String(input ?? "").replace(/"/g, '""')}"`;
+    const csvContent = rowsForCsv.map((row) => row.map(csvEscape).join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `axios_${timestamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    setStatus(`Export complete: ${exportRows.length} failure rows downloaded as CSV.`);
+  } catch (error) {
+    setStatus(`Extract failed: ${error?.message || "Unexpected error"}`, true);
+  } finally {
+    if (extractButton) {
+      extractButton.disabled = false;
+    }
+  }
 }
 
 async function runValidation() {

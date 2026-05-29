@@ -488,8 +488,9 @@ def validate_grid_with_packs_report(
                 target_columns = failure.target_columns
                 severity_weight = int(failure.severity)
                 
-                # Format: test ID (without "test_" prefix) + severity + docstring
-                test_id = failure.test_code or failure.test_name.replace("test_", "")
+                # Display test ID in {field_code}_{test_number} format from method name.
+                # Example: test_CR0005_1 -> CR0005_1
+                test_id = failure.test_name.replace("test_", "")
                 severity_label = failure.severity.name
                 failed_message = f"[{severity_label}] {test_id}: {failure.description}"
 

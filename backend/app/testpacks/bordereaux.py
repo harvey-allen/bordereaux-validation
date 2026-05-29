@@ -14,99 +14,81 @@ class BordereauxBaseTestPack(BaseTestPack):
     """
 
     def _select_columns(self, *columns: str) -> pd.DataFrame:
-        """Helper to select columns including trans_ref without duplicates."""
         cols = list(dict.fromkeys([self.trans_ref] + list(columns)))
         return self._df[cols].copy()
 
-    def _premium_amount_required_df(self) -> pd.DataFrame | None:
-        if "premium_amount" not in self._df.columns:
+    def _string_rule(self, column: str, predicate) -> pd.DataFrame | None:
+        if column not in self._df.columns:
             return None
-
-        data = self._select_columns("premium_amount")
-        premium_col = pd.to_numeric(self._df["premium_amount"], errors="coerce")
-        data["test_results"] = premium_col.notna() & (premium_col > 0)
+        data = self._select_columns(column)
+        values = self._df[column].astype(str).str.strip()
+        data["test_results"] = predicate(values)
         return data[[self.trans_ref, "test_results"]]
 
-    def _marine_requires_vessel_df(self) -> pd.DataFrame | None:
-        if "product_type" not in self._df.columns or "vessel_id" not in self._df.columns:
+    def _numeric_rule(self, column: str, predicate) -> pd.DataFrame | None:
+        if column not in self._df.columns:
             return None
-
-        marine_mask = self._df["product_type"].astype(str).str.upper() == "MARINE"
-        data = self._df.loc[marine_mask, [self.trans_ref]].copy()
-
-        if data.empty:
-            return None
-
-        vessel_col = self._df.loc[marine_mask, "vessel_id"]
-        data["test_results"] = vessel_col.notna() & (vessel_col.astype(str).str.strip() != "")
+        data = self._select_columns(column)
+        values = pd.to_numeric(self._df[column], errors="coerce")
+        data["test_results"] = predicate(values)
         return data[[self.trans_ref, "test_results"]]
 
-    def _claim_within_limit_df(self) -> pd.DataFrame | None:
-        if "claim_amount" not in self._df.columns or "policy_limit" not in self._df.columns:
-            return None
+    @register_test(target_column="Unique Market Reference (UMR)", severity=Severity.CRITICAL)
+    def test_CR0005_1(self) -> pd.DataFrame | None:
+        """Example failing test: UMR must start with UKX-."""
+        return self._string_rule("Unique Market Reference (UMR)", lambda s: s.str.startswith("UKX-"))
 
-        claim_col = pd.to_numeric(self._df["claim_amount"], errors="coerce")
-        limit_col = pd.to_numeric(self._df["policy_limit"], errors="coerce")
+    @register_test(target_column="Reporting Period (End Date)", severity=Severity.ERROR)
+    def test_CR0002_1(self) -> pd.DataFrame | None:
+        """Example failing test: reporting period end must be 2030 or later."""
+        return self._string_rule("Reporting Period (End Date)", lambda s: s.str[:4].astype(str) >= "2030")
 
-        has_claim = claim_col.notna() & (claim_col > 0)
-        data = self._df.loc[has_claim, [self.trans_ref]].copy()
+    @register_test(target_column="Coverholder Name", severity=Severity.WARNING)
+    def test_CR0013_1(self) -> pd.DataFrame | None:
+        """Example failing test: coverholder name must include 'Lloyd'."""
+        return self._string_rule("Coverholder Name", lambda s: s.str.contains("Lloyd", case=False, na=False))
 
-        if data.empty:
-            return None
+    @register_test(target_column="Original Currency", severity=Severity.ERROR)
+    def test_CR0020_1(self) -> pd.DataFrame | None:
+        """Example failing test: original currency must be USD."""
+        return self._string_rule("Original Currency", lambda s: s.eq("USD"))
 
-        data["test_results"] = claim_col[has_claim] <= limit_col[has_claim]
-        return data[[self.trans_ref, "test_results"]]
+    @register_test(target_column="Gross premium paid this time", severity=Severity.ERROR)
+    def test_CR0059_1(self) -> pd.DataFrame | None:
+        """Example failing test: gross premium must exceed 1,000,000."""
+        return self._numeric_rule("Gross premium paid this time", lambda n: n > 1_000_000)
 
-    @register_test(
-        target_column="policy_id",
-        severity=Severity.CRITICAL,
-    )
-    def test_policy_id_required(self) -> pd.DataFrame | None:
-        """Policy ID must be populated for all records."""
-        if "policy_id" not in self._df.columns:
-            return None
-        
-        data = self._select_columns("policy_id")
-        policy_col = self._df["policy_id"]
-        data["test_results"] = policy_col.notna() & (policy_col.astype(str).str.strip() != "")
-        return data[[self.trans_ref, "test_results"]]
+    @register_test(target_column="Claim Reference / Number", severity=Severity.CRITICAL)
+    def test_CR0104_1(self) -> pd.DataFrame | None:
+        """Example failing test: claim reference must start with UK-CLM-."""
+        return self._string_rule("Claim Reference / Number", lambda s: s.str.startswith("UK-CLM-"))
 
-    @register_test(
-        target_column="currency",
-        severity=Severity.ERROR,
-    )
-    def test_currency_valid(self) -> pd.DataFrame | None:
-        """Currency must be a valid ISO 4217 code (GBP, USD, EUR)."""
-        if "currency" not in self._df.columns:
-            return None
-        
-        valid_currencies = {"GBP", "USD", "EUR", "JPY", "CHF", "CAD", "AUD", "NZD"}
-        data = self._select_columns("currency")
-        data["test_results"] = self._df["currency"].isin(valid_currencies)
-        return data[[self.trans_ref, "test_results"]]
+    @register_test(target_column="Date Claim First Advised/Date Claim Made", severity=Severity.ERROR)
+    def test_CR0136_1(self) -> pd.DataFrame | None:
+        """Example failing test: advised date must be before 2020-01-01."""
+        return self._string_rule("Date Claim First Advised/Date Claim Made", lambda s: s < "2020-01-01")
+
+    @register_test(target_column="Claim Status", severity=Severity.WARNING)
+    def test_CR0105_1(self) -> pd.DataFrame | None:
+        """Example failing test: claim status must be REOPENED."""
+        return self._string_rule("Claim Status", lambda s: s.eq("REOPENED"))
+
+    @register_test(target_column="Paid this month - Indemnity", severity=Severity.ERROR)
+    def test_CR0126_1(self) -> pd.DataFrame | None:
+        """Example failing test: paid indemnity this month must be exactly zero."""
+        return self._numeric_rule("Paid this month - Indemnity", lambda n: n == 0)
+
+    @register_test(target_column="Insured Country", severity=Severity.WARNING)
+    def test_CR0041_1(self) -> pd.DataFrame | None:
+        """Example failing test: insured country must be DE."""
+        return self._string_rule("Insured Country", lambda s: s.eq("DE"))
 
 
 @register_pack("premium")
 class PremiumBordereauxTestPack(BordereauxBaseTestPack):
     """Premium bordereaux checks."""
 
-    @register_test(
-        target_column="premium_amount",
-        severity=Severity.ERROR,
-    )
-    def test_premium_amount_required(self) -> pd.DataFrame | None:
-        """Premium amount must be populated and positive."""
-        return self._premium_amount_required_df()
-
 
 @register_pack("claims")
 class ClaimsBordereauxTestPack(BordereauxBaseTestPack):
     """Claims bordereaux checks."""
-
-    @register_test(
-        target_columns=["claim_amount", "policy_limit"],
-        severity=Severity.CRITICAL,
-    )
-    def test_claim_within_limit(self) -> pd.DataFrame | None:
-        """Claim amount must not exceed policy limit."""
-        return self._claim_within_limit_df()
