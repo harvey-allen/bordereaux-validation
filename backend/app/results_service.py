@@ -79,6 +79,29 @@ async def store_validation_results(
         if user:
             user_id = user.id
     
+    # Replace prior results for the same workbook/sheet scope so stored results stay current.
+    if sheet_name:
+        existing_runs_query = select(ValidationRun).where(ValidationRun.sheet_name == sheet_name)
+
+        if user_id is not None:
+            existing_runs_query = existing_runs_query.where(ValidationRun.user_id == user_id)
+        elif api_key_hash:
+            existing_runs_query = existing_runs_query.where(ValidationRun.api_key_hash == api_key_hash)
+        else:
+            existing_runs_query = existing_runs_query.where(ValidationRun.user_id.is_(None))
+            existing_runs_query = existing_runs_query.where(ValidationRun.api_key_hash.is_(None))
+
+        if workbook_name:
+            existing_runs_query = existing_runs_query.where(ValidationRun.workbook_name == workbook_name)
+
+        existing_runs_result = await session.execute(existing_runs_query)
+        existing_runs = list(existing_runs_result.scalars().all())
+        for existing_run in existing_runs:
+            await session.delete(existing_run)
+
+        if existing_runs:
+            await session.flush()
+
     # Create the validation run
     validation_run = ValidationRun(
         user_id=user_id,
@@ -114,6 +137,7 @@ async def store_validation_results(
                 target_columns=",".join(test_data.get("targetColumns", [])),
                 severity=test_data.get("severity", "ERROR"),
                 severity_weight=test_data.get("severityWeight", 2),
+                test_type=test_data.get("testType"),
                 evaluated_rows=test_data.get("evaluatedRows", 0),
                 passed_rows=test_data.get("passedRows", 0),
                 failed_rows=test_data.get("failedRows", 0),

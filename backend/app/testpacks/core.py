@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import IntEnum
+from enum import Enum
 import re
 from typing import Any, Callable
 
@@ -18,6 +19,14 @@ class Severity(IntEnum):
     CRITICAL = 3   # High impact on heatmap
 
 
+class TestType(Enum):
+    """Categorise tests by intent to help triage and filtering."""
+    LOGIC = "LOGIC"
+    QUALITY = "QUALITY"
+    MISSING = "MISSING"
+    LOOKUP = "LOOKUP"
+    OTHER = "OTHER"
+
 @dataclass
 class PackFailure:
     test_name: str
@@ -26,6 +35,7 @@ class PackFailure:
     failed_refs: set[str]
     description: str
     severity: Severity = Severity.ERROR
+    test_type: TestType | str | None = None
 
 
 @dataclass
@@ -38,6 +48,7 @@ class PackTestCoverage:
     evaluated_rows: int
     failed_rows: int
     passed_rows: int
+    test_type: TestType | str | None = None
 
 
 def register_pack(name: str) -> Callable[[type["BaseTestPack"]], type["BaseTestPack"]]:
@@ -55,6 +66,7 @@ def register_test(
     target_columns: list[str] | None = None,
     description: str | None = None,
     severity: Severity = Severity.ERROR,
+    test_type: TestType | str | None = None,
 ) -> Callable[..., Any]:
     """
     Register a test method in a test pack.
@@ -76,6 +88,7 @@ def register_test(
             setattr(test_func, "_target_columns", None)
         setattr(test_func, "_description", description)
         setattr(test_func, "_severity", severity)
+        setattr(test_func, "_test_type", test_type)
         return test_func
 
     if func is not None:
@@ -177,6 +190,7 @@ class BaseTestPack:
             raw_description = getattr(method, "_description", None) or (method.__doc__ or "").strip()
             short_description = " ".join(raw_description.split()) if raw_description else test_name
             severity = getattr(method, "_severity", Severity.ERROR)
+            test_type = getattr(method, "_test_type", None)
 
             if result is None or result.empty or self.trans_ref not in result.columns or "test_results" not in result.columns:
                 coverage.append(
@@ -189,6 +203,7 @@ class BaseTestPack:
                         evaluated_rows=0,
                         failed_rows=0,
                         passed_rows=0,
+                        test_type=test_type,
                     )
                 )
                 continue
@@ -208,6 +223,7 @@ class BaseTestPack:
                     evaluated_rows=evaluated_rows,
                     failed_rows=failed_rows,
                     passed_rows=passed_rows,
+                    test_type=test_type,
                 )
             )
 
@@ -224,6 +240,7 @@ class BaseTestPack:
                         failed_refs=failed_refs,
                         description=short_description,
                         severity=severity,
+                            test_type=test_type,
                     )
                 )
 

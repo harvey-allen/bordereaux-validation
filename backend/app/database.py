@@ -10,7 +10,7 @@ import os
 from datetime import datetime, timezone
 from typing import AsyncGenerator
 
-from sqlalchemy import Boolean, DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text, JSON, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text, JSON, UniqueConstraint, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -150,7 +150,7 @@ class ValidationRun(Base):
     range_address: Mapped[str | None] = mapped_column(String(100), nullable=True)
     
     # Test packs used
-    test_packs: Mapped[str] = mapped_column(String(500), nullable=False)  # Comma-separated
+    test_packs: Mapped[str] = mapped_column(Text, nullable=False)  # Comma-separated
     
     # Summary stats
     total_rows: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -197,11 +197,13 @@ class TestResult(Base):
     test_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     
     # Target columns affected by this test
-    target_columns: Mapped[str] = mapped_column(String(500), nullable=False)  # Comma-separated column names
+    target_columns: Mapped[str] = mapped_column(Text, nullable=False)  # Comma-separated column names
     
     # Severity level
     severity: Mapped[str] = mapped_column(String(20), nullable=False)  # INFO, WARNING, ERROR, CRITICAL
     severity_weight: Mapped[int] = mapped_column(Integer, nullable=False)  # 0, 1, 2, 3
+    # Test type categorisation (LOGIC, QUALITY, MISSING, LOOKUP, etc.)
+    test_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     
     # Results
     evaluated_rows: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -269,6 +271,13 @@ async def init_db() -> None:
     """Initialize the database tables."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(
+            text("ALTER TABLE validation_runs ALTER COLUMN test_packs TYPE TEXT")
+        )
+        await conn.execute(
+            text("ALTER TABLE test_results ALTER COLUMN target_columns TYPE TEXT")
+        )
+
 
 
 async def close_db() -> None:

@@ -414,6 +414,7 @@ def validate_grid_with_packs_report(
                     "evaluatedRows": test_cov.evaluated_rows,
                     "failedRows": test_cov.failed_rows,
                     "passedRows": test_cov.passed_rows,
+                    "testType": test_cov.test_type.name if getattr(test_cov, "test_type", None) is not None else None,
                 }
                 evaluated_total += test_cov.evaluated_rows
                 failed_total += test_cov.failed_rows
@@ -492,7 +493,21 @@ def validate_grid_with_packs_report(
                 # Example: test_CR0005_1 -> CR0005_1
                 test_id = failure.test_name.replace("test_", "")
                 severity_label = failure.severity.name
-                failed_message = f"[{severity_label}] {test_id}: {failure.description}"
+                # Include test type in a structured failure object so frontends
+                # can render the test type as a separate column.
+                test_type_label = None
+                if getattr(failure, "test_type", None) is not None:
+                    try:
+                        test_type_label = failure.test_type.name
+                    except Exception:
+                        test_type_label = str(failure.test_type)
+
+                failed_obj = {
+                    "severity": severity_label,
+                    "testId": test_id,
+                    "description": failure.description,
+                    "testType": test_type_label,
+                }
 
                 matching_rows = pack_data_frame[pack_data_frame[trans_ref_column].astype(str).isin(failure.failed_refs)]
                 
@@ -509,7 +524,7 @@ def validate_grid_with_packs_report(
                     
                     for df_row_index in matching_rows.index.tolist():
                         sheet_row_index = int(df_row_index) + 1
-                        base_failures[(sheet_row_index, target_col_index)].append(failed_message)
+                        base_failures[(sheet_row_index, target_col_index)].append(failed_obj)
                         severity_scores[(sheet_row_index, target_col_index)] += severity_weight
 
     # Use severity score for heatmap instead of simple failure count
@@ -522,7 +537,15 @@ def validate_grid_with_packs_report(
             fail_count = len(reasons)
             severity_score = severity_scores[(row_index, col_index)]
             # Join failures with double newline for blank line separation
-            comment = "Passed all tests" if fail_count == 0 else "\n\n".join(reasons)
+            def _reason_to_string(r: Any) -> str:
+                if isinstance(r, dict):
+                    sev = r.get("severity", "")
+                    tid = r.get("testId", "")
+                    desc = r.get("description", "")
+                    return f"[{sev}] {tid}: {desc}"
+                return str(r)
+
+            comment = "Passed all tests" if fail_count == 0 else "\n\n".join(_reason_to_string(r) for r in reasons)
             results.append(
                 {
                     "address": addresses[row_index][col_index],

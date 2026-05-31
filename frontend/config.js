@@ -3,8 +3,8 @@
  * Edit these values or override via environment-specific config files
  */
 const CONFIG = {
-  // Backend API URL (use localhost for Office/WebView compatibility)
-  BACKEND_URL: "https://localhost:8000",
+  // Backend API URL (match backend host/port and TLS)
+  BACKEND_URL: "https://127.0.0.1:8000",
 
   // API Key for authentication (get from your subscription)
   // Development key provided for testing

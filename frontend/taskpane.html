@@ -6,6 +6,9 @@
     <title>Bordereaux Validator</title>
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
     <script src="./config.js"></script>
+    <!-- D3 and Sankey for client-side Sankey generation -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
     <style>
       body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 16px; color: #222; }
       h2 { margin-bottom: 8px; }
@@ -14,8 +17,10 @@
       textarea { min-height: 140px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
       select { appearance: none; background: #fff; cursor: pointer; }
       button { background: #0f6cbd; border: none; color: #fff; border-radius: 4px; cursor: pointer; }
-      button:disabled { background: #8caec8; cursor: progress; }
-      .btn-secondary { background: #666; }
+      /* Disabled buttons indicate they cannot be run */
+      button:disabled { background: #8c8c8c; cursor: not-allowed; }
+      /* Keep secondary class same visual when enabled (useful semantic grouping) */
+      .btn-secondary { background: #0f6cbd; }
       .status { margin-top: 10px; font-size: 13px; }
       .hint { font-size: 12px; color: #666; margin-top: 4px; }
     </style>
@@ -26,7 +31,7 @@
 
     <label for="testPacks">Test Pack</label>
     <select id="testPacks">
-      <option value="premium">Premium</option>
+      <option value="premium">Risk and Premium</option>
       <option value="claims">Claims</option>
     </select>
 
@@ -39,6 +44,7 @@
     <button id="runValidation">Validate</button>
     <button id="clearTable" class="btn-secondary">Clear</button>
     <button id="extractResults" class="btn-secondary">Extract</button>
+    <button id="visualiseResults" class="btn-secondary">Visualise</button>
     <div class="status" id="status"></div>
 
     <script src="./taskpane.js"></script>

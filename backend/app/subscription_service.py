@@ -61,6 +61,8 @@ class SubscriptionService:
         self._subscription_cache: dict[str, Subscription] = {}
         self._cache_ttl: dict[str, float] = {}
         self._cache_duration = 300  # 5 minutes
+        # Track the last date request logs were purged so we purge once per day
+        self._last_purge_date: str | None = None
 
     def _is_cache_valid(self, key_hash: str) -> bool:
         """Check if cached subscription is still valid."""
@@ -294,6 +296,16 @@ class SubscriptionService:
             cell_count=cell_count,
         )
         db.add(log)
+
+        # On the first request of each new UTC day, purge logs older than yesterday.
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if self._last_purge_date != today:
+            self._last_purge_date = today
+            day_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            await db.execute(
+                delete(RequestLog).where(RequestLog.timestamp < day_start)
+            )
+
         await db.commit()
 
     async def check_rate_limit(
