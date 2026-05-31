@@ -20,6 +20,7 @@ from app.auth import (
     check_pack_access,
     subscription_store,
 )
+from app.testpacks.core import TEST_PACKS
 from app.validation import get_pack_territories, validate_grid_with_packs_report
 
 # Database imports (optional - gracefully handle if DB not available)
@@ -88,6 +89,20 @@ class UsageResponse(BaseModel):
 class TerritoryOptionsResponse(BaseModel):
     test_pack: str
     territories: list[str]
+
+
+class RulesEngineRule(BaseModel):
+    pack: str
+    rule_id: str
+    target_column: str
+    description: str
+    severity: str
+    test_type: str | None = None
+
+
+class RulesEngineResponse(BaseModel):
+    packs: list[str]
+    rules: list[RulesEngineRule]
 
 
 class SubscriptionInfoResponse(BaseModel):
@@ -261,6 +276,60 @@ def get_field_config_territories(test_pack: str) -> TerritoryOptionsResponse:
 
     territories = get_pack_territories(normalized_pack)
     return TerritoryOptionsResponse(test_pack=normalized_pack, territories=territories)
+
+
+@app.get("/api/v1/rules-engine", response_model=RulesEngineResponse)
+def get_rules_engine_rules(test_pack: str | None = None) -> RulesEngineResponse:
+    """Return test-pack rules for the Rules Engine UI."""
+    requested_pack = str(test_pack or "").strip().lower()
+    available_packs = sorted(TEST_PACKS.keys())
+
+    if requested_pack:
+        if requested_pack not in TEST_PACKS:
+            raise HTTPException(status_code=400, detail=f"Unknown test pack '{requested_pack}'")
+        packs_to_scan = [requested_pack]
+    else:
+        packs_to_scan = available_packs
+
+    rules: list[RulesEngineRule] = []
+
+    for pack_name in packs_to_scan:
+        pack_cls = TEST_PACKS.get(pack_name)
+        if pack_cls is None:
+            continue
+
+        for attribute_name in dir(pack_cls):
+            if not attribute_name.startswith("test_"):
+                continue
+
+            method = getattr(pack_cls, attribute_name)
+            if not callable(method) or not getattr(method, "_is_registered_test", False):
+                continue
+
+            rule_id = attribute_name.replace("test_", "")
+            target_columns = getattr(method, "_target_columns", None) or ["(unmapped)"]
+            raw_description = getattr(method, "_description", None) or (method.__doc__ or "")
+            description = " ".join(str(raw_description).split()) if raw_description else rule_id
+            severity = getattr(method, "_severity", None)
+            test_type = getattr(method, "_test_type", None)
+
+            severity_name = severity.name if hasattr(severity, "name") else str(severity or "ERROR")
+            test_type_name = test_type.name if hasattr(test_type, "name") else (str(test_type) if test_type else None)
+
+            for target_column in target_columns:
+                rules.append(
+                    RulesEngineRule(
+                        pack=pack_name,
+                        rule_id=rule_id,
+                        target_column=str(target_column),
+                        description=description,
+                        severity=severity_name,
+                        test_type=test_type_name,
+                    )
+                )
+
+    rules.sort(key=lambda item: (item.target_column.lower(), item.rule_id.lower(), item.pack.lower()))
+    return RulesEngineResponse(packs=available_packs, rules=rules)
 
 
 @app.post("/api/v1/register", response_model=RegisterResponse)

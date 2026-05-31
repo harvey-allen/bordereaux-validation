@@ -688,6 +688,7 @@ Office.onReady(async () => {
   document.getElementById("clearTable")?.addEventListener("click", clearTableFormattingAndComments);
   document.getElementById("extractResults")?.addEventListener("click", extractValidationResults);
   document.getElementById("visualiseResults")?.addEventListener("click", visualiseValidationResults);
+  document.getElementById("rulesEngine")?.addEventListener("click", openRulesEngine);
   // Initialize button states (Extract / Visualise disabled until validation run)
   updateActionButtons();
 });
@@ -1686,6 +1687,413 @@ async function visualiseValidationResults() {
   } finally {
     if (visualiseButton) {
       visualiseButton.disabled = false;
+    }
+  }
+}
+
+async function openRulesEngine() {
+  const rulesButton = document.getElementById("rulesEngine");
+  if (rulesButton) {
+    rulesButton.disabled = true;
+  }
+
+  try {
+    setStatus("Loading rules engine...");
+
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/rules-engine`, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(errorText || `HTTP ${response.status}`);
+    }
+
+    const payload = await response.json().catch(() => ({}));
+    const rules = Array.isArray(payload?.rules) ? payload.rules : [];
+    const packs = Array.isArray(payload?.packs) ? payload.packs : [];
+    const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
+    const nowStr = new Date().toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+    const packLabel = String(selectedPack || "All Packs").replace(/\b\w/g, (c) => c.toUpperCase());
+
+    const win = window.open("", "_blank");
+    if (!win) {
+      setStatus("Could not open new tab — popup blocked.", true);
+      return;
+    }
+
+    const safeJson = (value) => JSON.stringify(value)
+      .replace(/</g, "\\u003c")
+      .replace(/>/g, "\\u003e")
+      .replace(/&/g, "\\u0026")
+      .replace(/\u2028/g, "\\u2028")
+      .replace(/\u2029/g, "\\u2029");
+
+    const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rules Engine</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --surface: #ffffff;
+      --border: #e5e7eb;
+      --text-1: #0f172a;
+      --text-2: #475569;
+      --text-3: #64748b;
+      --accent: #4f46e5;
+      --accent-soft: #eef2ff;
+      --ok-bg: #dcfce7;
+      --ok-fg: #166534;
+      --warn-bg: #fef3c7;
+      --warn-fg: #92400e;
+      --err-bg: #ffedd5;
+      --err-fg: #9a3412;
+      --crit-bg: #fee2e2;
+      --crit-fg: #991b1b;
+      --radius: 10px;
+      --shadow: 0 1px 2px rgba(15,23,42,.04), 0 4px 16px rgba(15,23,42,.06);
+      --font: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --nav-bg: #0f1117;
+      --nav-text: #c9cdd4;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text-1); font-family: var(--font); }
+    .nav { display:flex; align-items:center; gap:16px; padding:0 24px; height:52px; background:var(--nav-bg); border-bottom:1px solid #1e2028; position:sticky; top:0; z-index:100; }
+    .nav-logo { display:flex; align-items:center; gap:8px; color:#fff; font-size:14px; font-weight:600; letter-spacing:-.2px; text-decoration:none; }
+    .nav-divider { width:1px; height:20px; background:#2e3140; }
+    .nav-title { color:var(--nav-text); font-size:13px; }
+    .nav-spacer { flex:1; }
+    .nav-meta { color:#8a92a6; font-size:12px; }
+    .nav-badge { padding:3px 8px; border-radius:4px; font-size:11px; font-weight:600; background:#1e2028; color:var(--nav-text); border:1px solid #2e3140; }
+    .page { max-width: 1500px; margin: 0 auto; padding: 16px; }
+    .page-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; }
+    .page-header h1 { margin:0; font-size:20px; font-weight:700; letter-spacing:-.3px; }
+    .page-header p { margin:4px 0 0; color:var(--text-2); font-size:13px; }
+    .search {
+      width: 100%; border: 1px solid var(--border); border-radius: 8px;
+      padding: 9px 12px; font-size: 13px; background: #fff;
+    }
+    .select {
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 9px 10px; font-size: 13px; background: #fff; min-width: 170px;
+    }
+    .summary { color: var(--text-3); font-size: 12px; white-space: nowrap; }
+    .side-controls { margin-top: 12px; display: grid; gap: 8px; }
+    .layout {
+      display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px;
+    }
+    .sidebar {
+      position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow: auto;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .side-head { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    .side-head h2 { margin: 0; font-size: 13px; }
+    .side-head p { margin: 4px 0 0; color: var(--text-3); font-size: 11px; }
+    .index-list { padding: 8px; display: grid; gap: 4px; }
+    .index-link {
+      display: flex; justify-content: space-between; gap: 10px;
+      text-decoration: none; color: var(--text-2); font-size: 12px;
+      padding: 8px 10px; border-radius: 7px;
+    }
+    .index-link:hover { background: #f1f5f9; color: var(--text-1); }
+    .index-count { color: var(--text-3); font-variant-numeric: tabular-nums; }
+    .content { min-width: 0; }
+    .group {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow); margin-bottom: 12px; overflow: hidden;
+    }
+    .group-head { padding: 12px 14px; border-bottom: 1px solid var(--border); background: #fcfcff; }
+    .group-title { margin: 0; font-size: 14px; }
+    .group-sub { margin: 4px 0 0; color: var(--text-3); font-size: 11px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 12px; vertical-align: top; }
+    th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); background: #fafafa; }
+    tr:last-child td { border-bottom: none; }
+    .rule-main td { border-bottom: none; }
+    .desc-cell {
+      padding-top: 0; padding-bottom: 12px; color: var(--text-2);
+      border-bottom: 1px solid var(--border);
+      line-height: 1.45;
+    }
+    .desc-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); margin-right: 8px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+    .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 600; }
+    .sev-INFO { background: #e2e8f0; color: #334155; }
+    .sev-WARNING { background: var(--warn-bg); color: var(--warn-fg); }
+    .sev-ERROR { background: var(--err-bg); color: var(--err-fg); }
+    .sev-CRITICAL { background: var(--crit-bg); color: var(--crit-fg); }
+    .empty {
+      background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius);
+      color: var(--text-3); padding: 28px; text-align: center; font-size: 13px;
+    }
+    @media (max-width: 1024px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; max-height: none; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a class="nav-logo" href="#">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect width="20" height="20" rx="5" fill="#4f6ef7"/><path d="M5 14L8 8l3 4 2-3 2 5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Axios
+    </a>
+    <div class="nav-divider"></div>
+    <span class="nav-title">Bordereaux Validation</span>
+    <div class="nav-spacer"></div>
+    <span class="nav-meta">Pack: <strong style="color:#fff">${packLabel}</strong></span>
+    <div class="nav-divider"></div>
+    <span class="nav-meta">${nowStr}</span>
+    <span class="nav-badge" id="summary"></span>
+  </nav>
+
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <h1>Rules Engine</h1>
+        <p>Complete catalogue of active validation rules grouped by field and sourced directly from registered test packs.</p>
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="side-head">
+          <h2>Field Index</h2>
+          <p>Grouped alphabetically by target column</p>
+          <div class="side-controls">
+            <input id="search" class="search" type="search" placeholder="Search" />
+            <select id="packFilter" class="select"></select>
+          </div>
+        </div>
+        <nav class="index-list" id="indexList"></nav>
+      </aside>
+
+      <main class="content" id="groupsContainer"></main>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const ALL_RULES = ${safeJson(rules)};
+      const PACKS = ${safeJson(packs)};
+      const INITIAL_PACK = ${safeJson(selectedPack || "")};
+
+      const searchInput = document.getElementById("search");
+      const packFilter = document.getElementById("packFilter");
+      const indexList = document.getElementById("indexList");
+      const groupsContainer = document.getElementById("groupsContainer");
+      const summary = document.getElementById("summary");
+
+      const norm = (value) => String(value || "").trim().toLowerCase();
+      const clean = (value) => String(value || "").trim();
+      const slug = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "field";
+
+      function setupPackFilter() {
+        packFilter.innerHTML = "";
+        const allOption = document.createElement("option");
+        allOption.value = "";
+        allOption.textContent = "All packs";
+        packFilter.appendChild(allOption);
+
+        PACKS.forEach((pack) => {
+          const opt = document.createElement("option");
+          opt.value = String(pack || "");
+          opt.textContent = String(pack || "").replace(/\b\w/g, (c) => c.toUpperCase());
+          packFilter.appendChild(opt);
+        });
+
+        if (INITIAL_PACK && PACKS.includes(INITIAL_PACK)) {
+          packFilter.value = INITIAL_PACK;
+        }
+      }
+
+      function getFilteredRules() {
+        const q = norm(searchInput.value);
+        const selected = norm(packFilter.value);
+
+        return ALL_RULES
+          .filter((rule) => {
+            const pack = norm(rule.pack);
+            if (selected && pack !== selected) return false;
+
+            if (!q) return true;
+            const haystack = [
+              rule.rule_id,
+              rule.target_column,
+              rule.description,
+              rule.severity,
+              rule.test_type,
+              rule.pack,
+            ].map(norm).join(" ");
+            return haystack.includes(q);
+          })
+          .sort((a, b) => {
+            const byCol = clean(a.target_column).localeCompare(clean(b.target_column), undefined, { sensitivity: "base" });
+            if (byCol !== 0) return byCol;
+            const byRule = clean(a.rule_id).localeCompare(clean(b.rule_id), undefined, { sensitivity: "base" });
+            if (byRule !== 0) return byRule;
+            return clean(a.pack).localeCompare(clean(b.pack), undefined, { sensitivity: "base" });
+          });
+      }
+
+      function groupByColumn(filteredRules) {
+        const grouped = new Map();
+        filteredRules.forEach((rule) => {
+          const column = clean(rule.target_column) || "(unmapped)";
+          if (!grouped.has(column)) grouped.set(column, []);
+          grouped.get(column).push(rule);
+        });
+
+        return Array.from(grouped.entries())
+          .sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: "base" }))
+          .map(([column, rows]) => ({ column, rows }));
+      }
+
+      function renderIndex(groups) {
+        indexList.innerHTML = "";
+        if (!groups.length) {
+          const item = document.createElement("div");
+          item.className = "index-link";
+          item.textContent = "No fields";
+          indexList.appendChild(item);
+          return;
+        }
+
+        groups.forEach((group) => {
+          const a = document.createElement("a");
+          a.className = "index-link";
+          a.href = "#field-" + slug(group.column);
+
+          const label = document.createElement("span");
+          label.textContent = group.column;
+          const count = document.createElement("span");
+          count.className = "index-count";
+          count.textContent = String(group.rows.length);
+
+          a.appendChild(label);
+          a.appendChild(count);
+          indexList.appendChild(a);
+        });
+      }
+
+      function severityClass(sev) {
+        const normalized = clean(sev).toUpperCase();
+        if (normalized === "CRITICAL") return "sev-CRITICAL";
+        if (normalized === "WARNING") return "sev-WARNING";
+        if (normalized === "INFO") return "sev-INFO";
+        return "sev-ERROR";
+      }
+
+      function renderGroups(groups, filteredRules) {
+        groupsContainer.innerHTML = "";
+        summary.textContent = String(filteredRules.length) + " rules • " + String(groups.length) + " fields";
+
+        if (!groups.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          empty.textContent = "No rules match your current filters.";
+          groupsContainer.appendChild(empty);
+          return;
+        }
+
+        groups.forEach((group) => {
+          const section = document.createElement("section");
+          section.className = "group";
+          section.id = "field-" + slug(group.column);
+
+          const head = document.createElement("div");
+          head.className = "group-head";
+          const title = document.createElement("h3");
+          title.className = "group-title";
+          title.textContent = group.column;
+          const sub = document.createElement("p");
+          sub.className = "group-sub";
+          sub.textContent = String(group.rows.length) + " rule" + (group.rows.length === 1 ? "" : "s");
+          head.appendChild(title);
+          head.appendChild(sub);
+
+          const table = document.createElement("table");
+          table.innerHTML = "<thead><tr><th>Rule ID</th><th>Severity</th><th>Test Type</th><th>Pack</th></tr></thead>";
+          const body = document.createElement("tbody");
+
+          group.rows.forEach((rule) => {
+            const tr = document.createElement("tr");
+            tr.className = "rule-main";
+
+            const tdId = document.createElement("td");
+            tdId.className = "mono";
+            tdId.textContent = clean(rule.rule_id) || "—";
+
+            const tdSeverity = document.createElement("td");
+            const sevBadge = document.createElement("span");
+            sevBadge.className = "badge " + severityClass(rule.severity);
+            sevBadge.textContent = clean(rule.severity) || "ERROR";
+            tdSeverity.appendChild(sevBadge);
+
+            const tdType = document.createElement("td");
+            tdType.textContent = clean(rule.test_type) || "—";
+
+            const tdPack = document.createElement("td");
+            tdPack.textContent = clean(rule.pack) || "—";
+
+            tr.appendChild(tdId);
+            tr.appendChild(tdSeverity);
+            tr.appendChild(tdType);
+            tr.appendChild(tdPack);
+            body.appendChild(tr);
+
+            const descTr = document.createElement("tr");
+            const descTd = document.createElement("td");
+            descTd.colSpan = 4;
+            descTd.className = "desc-cell";
+            const label = document.createElement("span");
+            label.className = "desc-label";
+            label.textContent = "Description";
+            const text = document.createElement("span");
+            text.textContent = clean(rule.description) || "—";
+            descTd.appendChild(label);
+            descTd.appendChild(text);
+            descTr.appendChild(descTd);
+            body.appendChild(descTr);
+          });
+
+          table.appendChild(body);
+          section.appendChild(head);
+          section.appendChild(table);
+          groupsContainer.appendChild(section);
+        });
+      }
+
+      function render() {
+        const filtered = getFilteredRules();
+        const groups = groupByColumn(filtered);
+        renderIndex(groups);
+        renderGroups(groups, filtered);
+      }
+
+      setupPackFilter();
+      searchInput.addEventListener("input", render);
+      packFilter.addEventListener("change", render);
+      render();
+    })();
+  </script>
+</body>
+</html>`;
+
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+
+    setStatus(`Rules engine opened: ${rules.length} rules loaded.`);
+  } catch (error) {
+    setStatus(`Rules engine failed: ${error?.message || "Unexpected error"}`, true);
+  } finally {
+    if (rulesButton) {
+      rulesButton.disabled = false;
     }
   }
 }
