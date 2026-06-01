@@ -11,6 +11,7 @@ from typing import Any
 import pandas as pd
 
 from app.testpacks import Severity, get_pack_class
+from app.testpacks.core import get_pack_name_variants, normalize_pack_name
 
 FIELD_CONFIG_DIR = Path(__file__).parent / "testpacks" / "field_configurations"
 
@@ -21,23 +22,24 @@ def _normalize_field_name(value: str) -> str:
 
 @lru_cache(maxsize=16)
 def _load_pack_field_configuration(pack_name: str) -> dict[str, Any]:
-    normalized_pack = str(pack_name or "").strip().lower()
-    config_path = FIELD_CONFIG_DIR / f"{normalized_pack}.json"
-    if not config_path.exists():
-        return {}
+    for candidate_pack in get_pack_name_variants(pack_name):
+        config_path = FIELD_CONFIG_DIR / f"{candidate_pack}.json"
+        if not config_path.exists():
+            continue
 
-    try:
-        raw = json.loads(config_path.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+        try:
+            raw = json.loads(config_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
 
-    if not isinstance(raw, dict):
-        return {}
-    return raw
+        if isinstance(raw, dict):
+            return raw
+
+    return {}
 
 
 def get_pack_territories(pack_name: str) -> list[str]:
-    config = _load_pack_field_configuration(pack_name)
+    config = _load_pack_field_configuration(normalize_pack_name(pack_name))
     if not config:
         return []
     return sorted(str(territory) for territory in config.keys())
@@ -47,7 +49,7 @@ def get_pack_mandatory_fields(pack_name: str, territory: str | None = None) -> l
     """
     Resolve mandatory fields for a pack and territory from JSON field configuration.
     """
-    normalized_pack = str(pack_name or "").strip().lower()
+    normalized_pack = normalize_pack_name(pack_name)
     config = _load_pack_field_configuration(normalized_pack)
 
     if not config:
@@ -307,9 +309,26 @@ def validate_grid_with_packs_report(
         data_frame = pd.DataFrame(data_values, columns=headers)
         header_to_col_index = {header: index for index, header in enumerate(headers)}
 
-        pack_configs = pack_configs or {}
-
+        normalized_test_packs: list[str] = []
+        seen_packs: set[str] = set()
         for pack_name in test_packs:
+            normalized_pack_name = normalize_pack_name(pack_name)
+            if not normalized_pack_name or normalized_pack_name in seen_packs:
+                continue
+            seen_packs.add(normalized_pack_name)
+            normalized_test_packs.append(normalized_pack_name)
+
+        raw_pack_configs = pack_configs or {}
+        pack_configs = {}
+        for pack_name, config in raw_pack_configs.items():
+            normalized_pack_name = normalize_pack_name(pack_name)
+            if not normalized_pack_name:
+                continue
+            existing_config = dict(pack_configs.get(normalized_pack_name, {}))
+            existing_config.update(dict(config or {}))
+            pack_configs[normalized_pack_name] = existing_config
+
+        for pack_name in normalized_test_packs:
             pack_class = get_pack_class(pack_name)
             if pack_class is None:
                 coverage_packs[pack_name] = {
@@ -361,21 +380,31 @@ def validate_grid_with_packs_report(
 
             # Territory-aware mandatory fields loaded from backend JSON configs.
             # Falls back to model defaults for packs without JSON territory config.
-            default_fields = get_pack_mandatory_fields(pack_name.lower(), configured_territory)
+            default_fields = get_pack_mandatory_fields(pack_name, configured_territory)
 
             configured_ref = pack_config.get("UMR") or pack_config.get("UTIColumn")
+            trans_ref_candidates: list[str] = []
             if configured_ref is not None:
-                trans_ref_column = str(configured_ref)
-            else:
-                trans_ref_candidates = [
+                trans_ref_candidates.append(str(configured_ref).strip())
+            trans_ref_candidates.extend(
+                [
                     "Unique Market Reference (UMR)",
+                    "Agreement No",
                     "umr",
+                    "agreement no",
                     "policy_id",
                     "policy_reference",
                     "ref",
                     "reference",
                 ]
-                trans_ref_column = next((name for name in trans_ref_candidates if name in pack_data_frame.columns), "")
+            )
+
+            deduped_candidates: list[str] = []
+            for candidate in trans_ref_candidates:
+                if candidate and candidate not in deduped_candidates:
+                    deduped_candidates.append(candidate)
+
+            trans_ref_column = next((name for name in deduped_candidates if name in pack_data_frame.columns), "")
 
             if trans_ref_column not in pack_data_frame.columns:
                 coverage_packs[pack_name] = {
@@ -386,7 +415,7 @@ def validate_grid_with_packs_report(
                         "passedRows": 0,
                         "testsRun": 0,
                     },
-                    "warning": f"Missing UMR '{trans_ref_column}'",
+                    "warning": "Missing reference column (UMR/Agreement No)",
                 }
                 continue
 
@@ -422,7 +451,7 @@ def validate_grid_with_packs_report(
 
             # Single per-pack header/default schema check (not for base "bordereaux" alias).
             missing_default_fields: list[str] = []
-            include_header_schema_test = bool(default_fields) and pack_name.lower() != "bordereaux"
+            include_header_schema_test = bool(default_fields) and pack_name != "bordereaux"
             if include_header_schema_test:
                 normalized_present_columns = {_normalize_field_name(column_name) for column_name in pack_data_frame.columns}
                 normalized_mapped_fields: set[str] = set()

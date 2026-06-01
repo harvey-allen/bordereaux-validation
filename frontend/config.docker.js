@@ -11,7 +11,7 @@ const CONFIG = {
   API_KEY: "dev_bordereaux_key_12345",
 
   // Default test pack to select on load
-  DEFAULT_PACK: "premium",
+  DEFAULT_PACK: "risk_and_premium",
 
   // Default reference column name
   DEFAULT_REF_COLUMN: "Unique Market Reference (UMR)",

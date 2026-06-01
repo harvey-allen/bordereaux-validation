@@ -20,7 +20,7 @@ from app.auth import (
     check_pack_access,
     subscription_store,
 )
-from app.testpacks.core import TEST_PACKS
+from app.testpacks.core import TEST_PACKS, get_pack_name_variants, normalize_pack_name
 from app.validation import get_pack_territories, validate_grid_with_packs_report
 
 # Database imports (optional - gracefully handle if DB not available)
@@ -270,7 +270,7 @@ def health() -> dict[str, str]:
 @app.get("/api/v1/field-config/territories", response_model=TerritoryOptionsResponse)
 def get_field_config_territories(test_pack: str) -> TerritoryOptionsResponse:
     """Return available territory options for the given test pack."""
-    normalized_pack = str(test_pack or "").strip().lower()
+    normalized_pack = normalize_pack_name(test_pack)
     if not normalized_pack:
         raise HTTPException(status_code=400, detail="test_pack is required")
 
@@ -281,7 +281,7 @@ def get_field_config_territories(test_pack: str) -> TerritoryOptionsResponse:
 @app.get("/api/v1/rules-engine", response_model=RulesEngineResponse)
 def get_rules_engine_rules(test_pack: str | None = None) -> RulesEngineResponse:
     """Return test-pack rules for the Rules Engine UI."""
-    requested_pack = str(test_pack or "").strip().lower()
+    requested_pack = normalize_pack_name(test_pack)
     available_packs = sorted(TEST_PACKS.keys())
 
     if requested_pack:
@@ -292,6 +292,7 @@ def get_rules_engine_rules(test_pack: str | None = None) -> RulesEngineResponse:
         packs_to_scan = available_packs
 
     rules: list[RulesEngineRule] = []
+    signature_to_rule_index: dict[tuple[str, str, str, str, str | None], int] = {}
 
     for pack_name in packs_to_scan:
         pack_cls = TEST_PACKS.get(pack_name)
@@ -317,6 +318,25 @@ def get_rules_engine_rules(test_pack: str | None = None) -> RulesEngineResponse:
             test_type_name = test_type.name if hasattr(test_type, "name") else (str(test_type) if test_type else None)
 
             for target_column in target_columns:
+                signature = (
+                    rule_id,
+                    str(target_column),
+                    description,
+                    severity_name,
+                    test_type_name,
+                )
+
+                # When scanning all packs, inherited/base tests can appear once per pack.
+                # Keep one rule row and annotate it with all packs that provide it.
+                if not requested_pack and signature in signature_to_rule_index:
+                    rule_index = signature_to_rule_index[signature]
+                    current_packs = {
+                        p.strip() for p in rules[rule_index].pack.split(",") if p.strip()
+                    }
+                    current_packs.add(pack_name)
+                    rules[rule_index].pack = ", ".join(sorted(current_packs))
+                    continue
+
                 rules.append(
                     RulesEngineRule(
                         pack=pack_name,
@@ -327,6 +347,8 @@ def get_rules_engine_rules(test_pack: str | None = None) -> RulesEngineResponse:
                         test_type=test_type_name,
                     )
                 )
+                if not requested_pack:
+                    signature_to_rule_index[signature] = len(rules) - 1
 
     rules.sort(key=lambda item: (item.target_column.lower(), item.rule_id.lower(), item.pack.lower()))
     return RulesEngineResponse(packs=available_packs, rules=rules)
@@ -419,24 +441,46 @@ async def validate_range(
     cell_count = sum(len(row) for row in payload.values)
     check_cell_limit(subscription, cell_count)
     
-    if payload.testPacks:
-        check_pack_access(subscription, payload.testPacks)
+    normalized_test_packs: list[str] = []
+    seen_packs: set[str] = set()
+    for pack_name in payload.testPacks:
+        normalized_pack_name = normalize_pack_name(pack_name)
+        if not normalized_pack_name or normalized_pack_name in seen_packs:
+            continue
+        seen_packs.add(normalized_pack_name)
+        normalized_test_packs.append(normalized_pack_name)
 
-    effective_pack_configs = dict(payload.packConfigs or {})
+    normalized_pack_configs: dict[str, dict[str, Any]] = {}
+    for pack_name, pack_config in (payload.packConfigs or {}).items():
+        normalized_pack_name = normalize_pack_name(pack_name)
+        if not normalized_pack_name:
+            continue
+        existing = dict(normalized_pack_configs.get(normalized_pack_name, {}))
+        existing.update(dict(pack_config or {}))
+        normalized_pack_configs[normalized_pack_name] = existing
+
+    if normalized_test_packs:
+        check_pack_access(subscription, normalized_test_packs)
+
+    effective_pack_configs = dict(normalized_pack_configs)
 
     # Load persisted per-user/per-sheet/per-pack configs and merge with request config.
     if DB_AVAILABLE and db is not None and not subscription.metadata.get("is_dev_key") and payload.sheetName:
         subscription_user_id = subscription.metadata.get("user_id")
         if subscription_user_id is not None:
-            for pack_name in payload.testPacks:
-                stored_config = await pack_config_service.get_config(
-                    db,
-                    user_id=int(subscription_user_id),
-                    sheet_name=payload.sheetName,
-                    test_pack=pack_name,
-                )
+            for pack_name in normalized_test_packs:
+                stored_config = None
+                for variant in get_pack_name_variants(pack_name):
+                    stored_config = await pack_config_service.get_config(
+                        db,
+                        user_id=int(subscription_user_id),
+                        sheet_name=payload.sheetName,
+                        test_pack=variant,
+                    )
+                    if stored_config is not None:
+                        break
 
-                incoming_pack_config = payload.packConfigs.get(pack_name, {}) if payload.packConfigs else {}
+                incoming_pack_config = normalized_pack_configs.get(pack_name, {})
                 if stored_config is None:
                     effective_pack_configs[pack_name] = dict(incoming_pack_config or {})
                 else:
@@ -445,9 +489,9 @@ async def validate_range(
                     effective_pack_configs[pack_name] = merged_pack_config
 
             # Persist user-provided config updates for this user/sheet/pack.
-            if payload.packConfigs:
-                for pack_name, pack_config in payload.packConfigs.items():
-                    if pack_name not in payload.testPacks:
+            if normalized_pack_configs:
+                for pack_name, pack_config in normalized_pack_configs.items():
+                    if pack_name not in normalized_test_packs:
                         continue
                     await pack_config_service.upsert_config(
                         db,
@@ -463,7 +507,7 @@ async def validate_range(
             addresses=payload.addresses,
             values=payload.values,
             column_rules=payload.columnRules,
-            test_packs=payload.testPacks,
+            test_packs=normalized_test_packs,
             has_header_row=payload.hasHeaderRow,
             pack_configs=effective_pack_configs,
         )
@@ -501,7 +545,7 @@ async def validate_range(
                     session,
                     api_key=None if not subscription.metadata.get("is_dev_key") else subscription.api_key,
                     owner_email=subscription.owner_email if not subscription.metadata.get("is_dev_key") else None,
-                    test_packs=payload.testPacks,
+                    test_packs=normalized_test_packs,
                     coverage_data=coverage,
                     workbook_name=payload.workbookName,
                     sheet_name=payload.sheetName,
@@ -536,20 +580,26 @@ async def get_pack_config(
     if subscription.metadata.get("is_dev_key"):
         raise HTTPException(status_code=400, detail="Pack config persistence requires a database-backed user")
 
+    normalized_pack = normalize_pack_name(test_pack)
+
     subscription_user_id = subscription.metadata.get("user_id")
     if subscription_user_id is None:
         raise HTTPException(status_code=400, detail="Missing user context")
 
     async with async_session_maker() as session:
-        config = await pack_config_service.get_config(
-            session,
-            user_id=int(subscription_user_id),
-            sheet_name=sheet_name,
-            test_pack=test_pack,
-        )
+        config = None
+        for variant in get_pack_name_variants(normalized_pack):
+            config = await pack_config_service.get_config(
+                session,
+                user_id=int(subscription_user_id),
+                sheet_name=sheet_name,
+                test_pack=variant,
+            )
+            if config is not None:
+                break
 
     return PackConfigResponse(
-        test_pack=test_pack,
+        test_pack=normalized_pack,
         sheet_name=sheet_name,
         pack_config=config or {},
     )
@@ -566,6 +616,8 @@ async def upsert_pack_config(
     if subscription.metadata.get("is_dev_key"):
         raise HTTPException(status_code=400, detail="Pack config persistence requires a database-backed user")
 
+    normalized_pack = normalize_pack_name(payload.test_pack)
+
     subscription_user_id = subscription.metadata.get("user_id")
     if subscription_user_id is None:
         raise HTTPException(status_code=400, detail="Missing user context")
@@ -575,13 +627,13 @@ async def upsert_pack_config(
             session,
             user_id=int(subscription_user_id),
             sheet_name=payload.sheet_name,
-            test_pack=payload.test_pack,
+            test_pack=normalized_pack,
             pack_config=payload.pack_config,
             workbook_name=payload.workbook_name,
         )
 
     return PackConfigResponse(
-        test_pack=payload.test_pack,
+        test_pack=normalized_pack,
         sheet_name=payload.sheet_name,
         workbook_name=payload.workbook_name,
         pack_config=saved_config,

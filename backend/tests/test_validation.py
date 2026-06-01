@@ -420,10 +420,10 @@ def test_field_mappings_enable_model_based_tests_with_codes():
             ["", "INVALID", None],
         ],
         column_rules={},
-        test_packs=["premium"],
+        test_packs=["risk_and_premium"],
         has_header_row=True,
         pack_configs={
-            "premium": {
+            "risk_and_premium": {
                 "UMR": "policy_number",
                 "fieldMappings": {
                     "policy_id": "policy_number",
@@ -435,7 +435,7 @@ def test_field_mappings_enable_model_based_tests_with_codes():
         },
     )
 
-    premium_tests = report["coverage"]["packs"]["premium"]["tests"]
+    premium_tests = report["coverage"]["packs"]["risk_and_premium"]["tests"]
     assert "test_policy_id_required" in premium_tests
     assert premium_tests["test_policy_id_required"]["testCode"] == "Bpolicy_id1"
     assert premium_tests["test_currency_valid"]["testCode"] == "Bcurrency1"
@@ -458,10 +458,10 @@ def test_missing_default_columns_produce_critical_header_errors():
             ["POL-001", "GBP", 1000],
         ],
         column_rules={},
-        test_packs=["premium"],
+        test_packs=["risk_and_premium"],
         has_header_row=True,
         pack_configs={
-            "premium": {
+            "risk_and_premium": {
                 "UMR": "policy_number",
                 "territory": "UK",
                 "enabledTests": ["Bpolicy_id1", "Bcurrency1", "Bpremium_amount1"],
@@ -472,13 +472,13 @@ def test_missing_default_columns_produce_critical_header_errors():
     header_results = [r for r in report["results"] if r["rowIndex"] == 0]
     assert any(r["failCount"] > 0 for r in header_results)
     assert any("Bheaders1" in r["comment"] for r in header_results if r["failCount"] > 0)
-    assert "test_required_headers_present" in report["coverage"]["packs"]["premium"]["tests"]
-    assert report["coverage"]["packs"]["premium"]["tests"]["test_required_headers_present"]["failedRows"] == 1
+    assert "test_required_headers_present" in report["coverage"]["packs"]["risk_and_premium"]["tests"]
+    assert report["coverage"]["packs"]["risk_and_premium"]["tests"]["test_required_headers_present"]["failedRows"] == 1
 
 
 def test_default_missing_columns_resolved_by_field_mappings():
     """Mapping sheet names to model defaults should clear missing-default-column header errors."""
-    premium_required_fields = get_pack_mandatory_fields("premium", "UK")
+    premium_required_fields = get_pack_mandatory_fields("risk_and_premium", "UK")
     full_field_mapping = {
         field: "policy_number"
         for field in premium_required_fields
@@ -503,10 +503,10 @@ def test_default_missing_columns_resolved_by_field_mappings():
             ["POL-001", "GBP", 1000],
         ],
         column_rules={},
-        test_packs=["premium"],
+        test_packs=["risk_and_premium"],
         has_header_row=True,
         pack_configs={
-            "premium": {
+            "risk_and_premium": {
                 "UMR": "policy_number",
                 "territory": "UK",
                 "fieldMappings": full_field_mapping,
@@ -517,4 +517,4 @@ def test_default_missing_columns_resolved_by_field_mappings():
 
     header_results = [r for r in report["results"] if r["rowIndex"] == 0]
     assert all("Bheaders1" not in r["comment"] for r in header_results)
-    assert report["coverage"]["packs"]["premium"]["tests"]["test_required_headers_present"]["failedRows"] == 0
+    assert report["coverage"]["packs"]["risk_and_premium"]["tests"]["test_required_headers_present"]["failedRows"] == 0

@@ -9,6 +9,33 @@ from typing import Any, Callable
 import pandas as pd
 
 TEST_PACKS: dict[str, type["BaseTestPack"]] = {}
+PACK_NAME_ALIASES: dict[str, str] = {
+    "premium": "risk_and_premium",
+}
+
+
+def normalize_pack_name(name: str) -> str:
+    normalized = str(name or "").strip().lower()
+    if not normalized:
+        return ""
+    return PACK_NAME_ALIASES.get(normalized, normalized)
+
+
+def get_pack_name_variants(name: str) -> list[str]:
+    """
+    Return canonical then legacy aliases for a pack name.
+
+    Example: "premium" -> ["risk_and_premium", "premium"]
+    """
+    canonical = normalize_pack_name(name)
+    if not canonical:
+        return []
+
+    variants: list[str] = [canonical]
+    for alias, target in PACK_NAME_ALIASES.items():
+        if target == canonical and alias not in variants:
+            variants.append(alias)
+    return variants
 
 
 class Severity(IntEnum):
@@ -53,7 +80,9 @@ class PackTestCoverage:
 
 def register_pack(name: str) -> Callable[[type["BaseTestPack"]], type["BaseTestPack"]]:
     def decorator(pack_cls: type["BaseTestPack"]) -> type["BaseTestPack"]:
-        TEST_PACKS[name.lower()] = pack_cls
+        normalized_name = normalize_pack_name(name)
+        if normalized_name:
+            TEST_PACKS[normalized_name] = pack_cls
         return pack_cls
 
     return decorator
@@ -103,41 +132,12 @@ class BaseTestPack:
         self._df = df.copy()
         self.trans_ref = trans_ref
         self.enabled_tests = set(enabled_tests) if enabled_tests else None
-        self._test_code_map = self._build_test_code_map()
 
-    def _build_test_code_map(self) -> dict[str, str]:
-        """
-        Build deterministic test codes using format B{field_id}{n}.
-
-        Example: Bpolicy_id1, Bpremium_amount1, Bclaim_amount1.
-        """
-        code_map: dict[str, str] = {}
-        field_counters: dict[str, int] = {}
-
-        for attribute_name in dir(self):
-            if not attribute_name.startswith("test_"):
-                continue
-
-            method = getattr(self, attribute_name)
-            if not callable(method) or not getattr(method, "_is_registered_test", False):
-                continue
-
-            target_columns = getattr(method, "_target_columns", None)
-            if not target_columns:
-                legacy_column = self.test_column_map.get(attribute_name)
-                if legacy_column:
-                    target_columns = [legacy_column] if isinstance(legacy_column, str) else legacy_column
-
-            primary_field = "general"
-            if target_columns and len(target_columns) > 0:
-                primary_field = str(target_columns[0]).strip().lower() or "general"
-
-            field_id = re.sub(r"[^a-z0-9_]+", "_", primary_field).strip("_") or "general"
-            count = field_counters.get(field_id, 0) + 1
-            field_counters[field_id] = count
-            code_map[attribute_name] = f"B{field_id}{count}"
-
-        return code_map
+    @staticmethod
+    def _extract_test_code(method_name: str) -> str | None:
+        """Extract the CR code from a test method name, e.g. test_CR0002_1 -> CR0002."""
+        m = re.search(r"(CR\d+)", method_name, re.IGNORECASE)
+        return m.group(1).upper() if m else None
 
     def iter_registered_tests(self) -> list[Callable[[], pd.DataFrame | None]]:
         all_tests: list[Callable[[], pd.DataFrame | None]] = []
@@ -148,7 +148,7 @@ class BaseTestPack:
             method = getattr(self, attribute_name)
             if callable(method) and getattr(method, "_is_registered_test", False):
                 all_tests.append(method)
-                test_code = self._test_code_map.get(attribute_name)
+                test_code = self._extract_test_code(attribute_name)
                 short_name = attribute_name.replace("test_", "")
                 if self.enabled_tests is None:
                     filtered_tests.append(method)
@@ -175,7 +175,7 @@ class BaseTestPack:
         for method in self.iter_registered_tests():
             result = method()
             test_name = method.__name__
-            test_code = self._test_code_map.get(test_name)
+            test_code = self._extract_test_code(test_name)
             
             # Get target columns - support both new list format and legacy single column
             target_columns = getattr(method, "_target_columns", None)
@@ -248,4 +248,4 @@ class BaseTestPack:
 
 
 def get_pack_class(name: str) -> type[BaseTestPack] | None:
-    return TEST_PACKS.get(name.lower())
+    return TEST_PACKS.get(normalize_pack_name(name))

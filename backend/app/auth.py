@@ -23,6 +23,7 @@ from typing import Any
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import APIKeyHeader
+from app.testpacks.core import normalize_pack_name
 
 
 class SubscriptionTier(str, Enum):
@@ -47,14 +48,14 @@ TIER_CONFIGS: dict[SubscriptionTier, TierConfig] = {
         requests_per_day=5,
         requests_per_minute=5,
         max_cells_per_request=1000,
-        allowed_packs=["bordereaux", "premium", "claims"],
+        allowed_packs=["bordereaux", "risk_and_premium", "claims"],
         priority=1,
     ),
     SubscriptionTier.BORDEREAUX: TierConfig(
         requests_per_day=500,
         requests_per_minute=50,
         max_cells_per_request=10000,
-        allowed_packs=["bordereaux", "premium", "claims"],
+        allowed_packs=["bordereaux", "risk_and_premium", "claims"],
         priority=2,
     ),
 }
@@ -344,11 +345,14 @@ def check_pack_access(subscription: Subscription, requested_packs: list[str]) ->
     if allowed_packs is None:
         return  # All packs allowed
     
+    normalized_allowed = {normalize_pack_name(pack) for pack in allowed_packs}
+
     for pack in requested_packs:
-        if pack not in allowed_packs:
+        normalized_pack = normalize_pack_name(pack)
+        if normalized_pack not in normalized_allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Pack '{pack}' is not available on the {subscription.tier.value} tier. "
+                detail=f"Pack '{normalized_pack or pack}' is not available on the {subscription.tier.value} tier. "
                        f"Upgrade to access more test packs.",
             )
 

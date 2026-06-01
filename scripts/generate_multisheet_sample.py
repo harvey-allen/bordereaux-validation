@@ -15,7 +15,21 @@ ROW_COUNT = 10
 
 
 def load_pack_columns(pack_name: str, territory: str) -> list[str]:
-    config_path = FIELD_CONFIG_DIR / f"{pack_name}.json"
+    normalized_pack = str(pack_name or "").strip().lower()
+    candidate_names = [normalized_pack]
+    if normalized_pack == "risk_and_premium":
+        candidate_names.append("premium")
+
+    config_path = None
+    for candidate in candidate_names:
+        path = FIELD_CONFIG_DIR / f"{candidate}.json"
+        if path.exists():
+            config_path = path
+            break
+
+    if config_path is None:
+        raise FileNotFoundError(f"No field configuration found for pack '{pack_name}'")
+
     raw = json.loads(config_path.read_text(encoding="utf-8"))
     territory_entry = raw.get(territory, {})
 
@@ -93,7 +107,7 @@ def main() -> None:
     wb.remove(wb.active)
 
     source_file = OUTPUT_PATH.name
-    build_sheet(wb, "premium", "Premium_Submission_UK", TARGET_TERRITORY, source_file)
+    build_sheet(wb, "risk_and_premium", "Risk_and_Premium_Submission_UK", TARGET_TERRITORY, source_file)
     build_sheet(wb, "claims", "Claims_Submission_UK", TARGET_TERRITORY, source_file)
 
     wb.save(OUTPUT_PATH)

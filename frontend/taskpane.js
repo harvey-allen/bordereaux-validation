@@ -11,6 +11,16 @@ let lastValidationResults = [];
 let lastValidationSourceSheetName = null;
 let lastValidationExecutedTests = [];
 
+function formatPackLabel(packName) {
+  const normalized = String(packName || "").trim();
+  if (!normalized) {
+    return "";
+  }
+  return normalized
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function updateActionButtons() {
   const extractButton = document.getElementById("extractResults");
   const visualiseButton = document.getElementById("visualiseResults");
@@ -660,10 +670,10 @@ Office.onReady(async () => {
   const testPackSelect = document.getElementById("testPacks");
   testPackSelect.value = CONFIG.DEFAULT_PACK;
   if (!testPackSelect.value) {
-    testPackSelect.value = "premium";
+    testPackSelect.value = "risk_and_premium";
   }
   packConfigsByPack = {
-    premium: getDefaultPackConfig("premium"),
+    risk_and_premium: getDefaultPackConfig("risk_and_premium"),
     claims: getDefaultPackConfig("claims"),
   };
   currentPackSelection = String(testPackSelect.value || "").trim().toLowerCase();
@@ -736,6 +746,24 @@ function getWorkbookName() {
   } catch {
     return null;
   }
+}
+
+function resolveReferenceColumnIndex(headerRow, selectedPack) {
+  const configuredRef = String(
+    packConfigsByPack[String(selectedPack || "").trim().toLowerCase()]?.UMR
+      || "Unique Market Reference (UMR)"
+  ).trim();
+
+  const candidates = Array.from(new Set([
+    configuredRef,
+    "Unique Market Reference (UMR)",
+    "Agreement No",
+  ].filter(Boolean)));
+
+  return headerRow.findIndex((header) => {
+    const headerText = String(header || "").trim();
+    return candidates.includes(headerText);
+  });
 }
 
 function isCellEmpty(value) {
@@ -1044,10 +1072,7 @@ async function buildFailureExportRows() {
 
     const allValues = usedRange.values || [];
     const headerRow = allValues[0] || [];
-    const umrConfig = packConfigsByPack[currentPackSelection]?.UMR || "Unique Market Reference (UMR)";
-    const umrColumnIndex = headerRow.findIndex(
-      (header) => String(header || "").trim() === String(umrConfig || "").trim()
-    );
+    const umrColumnIndex = resolveReferenceColumnIndex(headerRow, currentPackSelection);
 
     const fieldNameMap = {};
     for (let index = 0; index < headerRow.length; index += 1) {
@@ -1189,8 +1214,7 @@ async function visualiseValidationResults() {
         if (!allValues || allValues.length === 0) return;
         const header = allValues[0] || [];
         totalFields = header.length || null;
-        const umrConfig = packConfigsByPack[currentPackSelection]?.UMR || "Unique Market Reference (UMR)";
-        const umrCol = header.findIndex(h => String(h || "").trim() === String(umrConfig || "").trim());
+        const umrCol = resolveReferenceColumnIndex(header, currentPackSelection);
         if (umrCol >= 0) {
           const umrSet = new Set();
           for (let i = 1; i < allValues.length; i++) {
@@ -1297,7 +1321,7 @@ async function visualiseValidationResults() {
     const escapeHtml = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
     const nowStr = new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
-    const packLabel = String(currentPackSelection || 'Unknown').replace(/\b\w/g, c => c.toUpperCase());
+    const packLabel = formatPackLabel(currentPackSelection || "Unknown");
 
     const html = `<!doctype html>
 <html lang="en">
@@ -1715,7 +1739,7 @@ async function openRulesEngine() {
     const packs = Array.isArray(payload?.packs) ? payload.packs : [];
     const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
     const nowStr = new Date().toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
-    const packLabel = String(selectedPack || "All Packs").replace(/\b\w/g, (c) => c.toUpperCase());
+    const packLabel = formatPackLabel(selectedPack || "All Packs");
 
     const win = window.open("", "_blank");
     if (!win) {
@@ -1755,6 +1779,7 @@ async function openRulesEngine() {
       --crit-bg: #fee2e2;
       --crit-fg: #991b1b;
       --radius: 10px;
+      --rule-columns: minmax(250px, 1.6fr) minmax(120px, 0.7fr) minmax(150px, 0.9fr) minmax(220px, 1.2fr);
       --shadow: 0 1px 2px rgba(15,23,42,.04), 0 4px 16px rgba(15,23,42,.06);
       --font: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       --nav-bg: #0f1117;
@@ -1809,14 +1834,38 @@ async function openRulesEngine() {
     .group-head { padding: 12px 14px; border-bottom: 1px solid var(--border); background: #fcfcff; }
     .group-title { margin: 0; font-size: 14px; }
     .group-sub { margin: 4px 0 0; color: var(--text-3); font-size: 11px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 12px; vertical-align: top; }
-    th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); background: #fafafa; }
-    tr:last-child td { border-bottom: none; }
-    .rule-main td { border-bottom: none; }
-    .desc-cell {
-      padding-top: 0; padding-bottom: 12px; color: var(--text-2);
+    .rule-grid { width: 100%; }
+    .rule-grid-head,
+    .rule-main {
+      display: grid;
+      grid-template-columns: var(--rule-columns);
+    }
+    .rule-grid-head {
+      background: #fafafa;
       border-bottom: 1px solid var(--border);
+    }
+    .rule-head-cell,
+    .rule-cell,
+    .desc-cell {
+      padding: 10px 12px;
+      font-size: 12px;
+      vertical-align: top;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .rule-head-cell {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--text-3);
+      font-weight: 600;
+    }
+    .rule-main { border-bottom: none; }
+    .rule-block { border-bottom: 1px solid var(--border); }
+    .rule-block:last-child { border-bottom: none; }
+    .desc-cell {
+      grid-column: 1 / -1;
+      padding-top: 0; padding-bottom: 12px; color: var(--text-2);
       line-height: 1.45;
     }
     .desc-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); margin-right: 8px; }
@@ -1833,6 +1882,25 @@ async function openRulesEngine() {
     @media (max-width: 1024px) {
       .layout { grid-template-columns: 1fr; }
       .sidebar { position: static; max-height: none; }
+    }
+    @media (max-width: 860px) {
+      :root {
+        --rule-columns: minmax(0, 1fr) minmax(110px, 0.8fr);
+      }
+      .rule-grid-head,
+      .rule-main {
+        grid-template-columns: var(--rule-columns);
+      }
+      .rule-head-cell:nth-child(3),
+      .rule-head-cell:nth-child(4),
+      .rule-cell--type,
+      .rule-cell--pack {
+        grid-column: 1 / -1;
+        padding-top: 0;
+      }
+      .rule-cell--severity {
+        justify-self: start;
+      }
     }
   </style>
 </head>
@@ -1902,7 +1970,7 @@ async function openRulesEngine() {
         PACKS.forEach((pack) => {
           const opt = document.createElement("option");
           opt.value = String(pack || "");
-          opt.textContent = String(pack || "").replace(/\b\w/g, (c) => c.toUpperCase());
+          opt.textContent = String(pack || "").replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
           packFilter.appendChild(opt);
         });
 
@@ -1917,8 +1985,11 @@ async function openRulesEngine() {
 
         return ALL_RULES
           .filter((rule) => {
-            const pack = norm(rule.pack);
-            if (selected && pack !== selected) return false;
+            const packNames = String(rule.pack || "")
+              .split(",")
+              .map((item) => norm(item))
+              .filter(Boolean);
+            if (selected && !packNames.includes(selected)) return false;
 
             if (!q) return true;
             const haystack = [
@@ -1980,6 +2051,13 @@ async function openRulesEngine() {
         });
       }
 
+      function scrollGroupIntoView(groupId) {
+        const target = document.getElementById(groupId);
+        if (!target) return;
+
+        target.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+      }
+
       function severityClass(sev) {
         const normalized = clean(sev).toUpperCase();
         if (normalized === "CRITICAL") return "sev-CRITICAL";
@@ -2016,39 +2094,54 @@ async function openRulesEngine() {
           head.appendChild(title);
           head.appendChild(sub);
 
-          const table = document.createElement("table");
-          table.innerHTML = "<thead><tr><th>Rule ID</th><th>Severity</th><th>Test Type</th><th>Pack</th></tr></thead>";
-          const body = document.createElement("tbody");
+          const grid = document.createElement("div");
+          grid.className = "rule-grid";
+
+          const gridHead = document.createElement("div");
+          gridHead.className = "rule-grid-head";
+          ["Rule ID", "Severity", "Test Type", "Pack"].forEach((heading) => {
+            const cell = document.createElement("div");
+            cell.className = "rule-head-cell";
+            cell.textContent = heading;
+            gridHead.appendChild(cell);
+          });
+          grid.appendChild(gridHead);
 
           group.rows.forEach((rule) => {
-            const tr = document.createElement("tr");
-            tr.className = "rule-main";
+            const block = document.createElement("div");
+            block.className = "rule-block";
 
-            const tdId = document.createElement("td");
-            tdId.className = "mono";
+            const row = document.createElement("div");
+            row.className = "rule-main";
+
+            const tdId = document.createElement("div");
+            tdId.className = "rule-cell mono";
             tdId.textContent = clean(rule.rule_id) || "—";
 
-            const tdSeverity = document.createElement("td");
+            const tdSeverity = document.createElement("div");
+            tdSeverity.className = "rule-cell rule-cell--severity";
             const sevBadge = document.createElement("span");
             sevBadge.className = "badge " + severityClass(rule.severity);
             sevBadge.textContent = clean(rule.severity) || "ERROR";
             tdSeverity.appendChild(sevBadge);
 
-            const tdType = document.createElement("td");
+            const tdType = document.createElement("div");
+            tdType.className = "rule-cell rule-cell--type";
             tdType.textContent = clean(rule.test_type) || "—";
 
-            const tdPack = document.createElement("td");
-            tdPack.textContent = clean(rule.pack) || "—";
+            const tdPack = document.createElement("div");
+            tdPack.className = "rule-cell rule-cell--pack";
+            tdPack.textContent = clean(rule.pack)
+              ? String(rule.pack).replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+              : "—";
 
-            tr.appendChild(tdId);
-            tr.appendChild(tdSeverity);
-            tr.appendChild(tdType);
-            tr.appendChild(tdPack);
-            body.appendChild(tr);
+            row.appendChild(tdId);
+            row.appendChild(tdSeverity);
+            row.appendChild(tdType);
+            row.appendChild(tdPack);
+            block.appendChild(row);
 
-            const descTr = document.createElement("tr");
-            const descTd = document.createElement("td");
-            descTd.colSpan = 4;
+            const descTd = document.createElement("div");
             descTd.className = "desc-cell";
             const label = document.createElement("span");
             label.className = "desc-label";
@@ -2057,13 +2150,12 @@ async function openRulesEngine() {
             text.textContent = clean(rule.description) || "—";
             descTd.appendChild(label);
             descTd.appendChild(text);
-            descTr.appendChild(descTd);
-            body.appendChild(descTr);
+            block.appendChild(descTd);
+            grid.appendChild(block);
           });
 
-          table.appendChild(body);
           section.appendChild(head);
-          section.appendChild(table);
+          section.appendChild(grid);
           groupsContainer.appendChild(section);
         });
       }
@@ -2078,6 +2170,23 @@ async function openRulesEngine() {
       setupPackFilter();
       searchInput.addEventListener("input", render);
       packFilter.addEventListener("change", render);
+      indexList.addEventListener("click", (event) => {
+        const link = event.target.closest("a.index-link");
+        if (!link) return;
+
+        const href = String(link.getAttribute("href") || "");
+        if (!href.startsWith("#")) return;
+
+        event.preventDefault();
+        const groupId = href.slice(1);
+        scrollGroupIntoView(groupId);
+
+        if (window.history && typeof window.history.replaceState === "function") {
+          window.history.replaceState(null, "", href);
+        } else {
+          window.location.hash = href;
+        }
+      });
       render();
     })();
   </script>
