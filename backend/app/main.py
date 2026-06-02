@@ -583,7 +583,7 @@ async def validate_range(
             addresses=payload.addresses,
             values=payload.values,
             column_rules=payload.columnRules,
-            test_packs=normalized_test_packs,
+            test_packs=payload.testPacks,
             has_header_row=payload.hasHeaderRow,
             pack_configs=effective_pack_configs,
         )

@@ -50,9 +50,8 @@ class Severity(IntEnum):
 class TestType(Enum):
     """Categorise tests by intent to help triage and filtering."""
     LOGIC = "LOGIC"
-    QUALITY = "QUALITY"
-    MISSING = "MISSING"
-    LOOKUP = "LOOKUP"
+    DATA_TYPE = "DATA_TYPE"
+    COMPLETENESS = "COMPLETENESS"
     OTHER = "OTHER"
 
 @dataclass
@@ -97,6 +96,7 @@ def register_test(
     description: str | None = None,
     severity: Severity = Severity.ERROR,
     test_type: TestType | str | None = None,
+    test_code: str | None = None,
 ) -> Callable[..., Any]:
     """
     Register a test method in a test pack.
@@ -109,6 +109,7 @@ def register_test(
     """
     def decorator(test_func: Callable[..., pd.DataFrame | None]) -> Callable[..., pd.DataFrame | None]:
         setattr(test_func, "_is_registered_test", True)
+        setattr(test_func, "_test_code", test_code)
         # Support both single column and multiple columns
         if target_columns:
             setattr(test_func, "_target_columns", target_columns)
@@ -150,6 +151,7 @@ class BaseTestPack:
             if callable(method) and getattr(method, "_is_registered_test", False):
                 all_tests.append(method)
                 test_code = self._extract_test_code(attribute_name)
+                legacy_test_code = getattr(method, "_test_code", None)
                 short_name = attribute_name.replace("test_", "")
                 if self.enabled_tests is None:
                     filtered_tests.append(method)
@@ -159,6 +161,7 @@ class BaseTestPack:
                     attribute_name in self.enabled_tests
                     or short_name in self.enabled_tests
                     or test_code in self.enabled_tests
+                    or legacy_test_code in self.enabled_tests
                 ):
                     filtered_tests.append(method)
 
@@ -176,7 +179,7 @@ class BaseTestPack:
         for method in self.iter_registered_tests():
             result = method()
             test_name = method.__name__
-            test_code = self._extract_test_code(test_name)
+            test_code = getattr(method, "_test_code", None) or self._extract_test_code(test_name)
             
             # Get target columns - support both new list format and legacy single column
             target_columns = getattr(method, "_target_columns", None)

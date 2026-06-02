@@ -296,6 +296,7 @@ def validate_grid_with_packs_report(
                     severity_scores[(row_index, col_index)] += base_result.fail_count * 2
 
     coverage_packs: dict[str, Any] = {}
+    pack_display_names: dict[str, str] = {}
 
     if test_packs:
         if not has_header_row:
@@ -312,11 +313,13 @@ def validate_grid_with_packs_report(
         normalized_test_packs: list[str] = []
         seen_packs: set[str] = set()
         for pack_name in test_packs:
+            requested_pack_name = str(pack_name).strip().lower()
             normalized_pack_name = normalize_pack_name(pack_name)
             if not normalized_pack_name or normalized_pack_name in seen_packs:
                 continue
             seen_packs.add(normalized_pack_name)
             normalized_test_packs.append(normalized_pack_name)
+            pack_display_names[normalized_pack_name] = requested_pack_name or normalized_pack_name
 
         raw_pack_configs = pack_configs or {}
         pack_configs = {}
@@ -330,8 +333,9 @@ def validate_grid_with_packs_report(
 
         for pack_name in normalized_test_packs:
             pack_class = get_pack_class(pack_name)
+            coverage_pack_name = pack_display_names.get(pack_name, pack_name)
             if pack_class is None:
-                coverage_packs[pack_name] = {
+                coverage_packs[coverage_pack_name] = {
                     "tests": {},
                     "totals": {
                         "evaluatedRows": 0,
@@ -420,7 +424,7 @@ def validate_grid_with_packs_report(
             trans_ref_column = next((name for name in deduped_candidates if name in pack_data_frame.columns), "")
 
             if trans_ref_column not in pack_data_frame.columns:
-                coverage_packs[pack_name] = {
+                coverage_packs[coverage_pack_name] = {
                     "tests": {},
                     "totals": {
                         "evaluatedRows": 0,
@@ -495,7 +499,7 @@ def validate_grid_with_packs_report(
                 else:
                     passed_total += 1
 
-            coverage_packs[pack_name] = {
+            coverage_packs[coverage_pack_name] = {
                 "tests": tests_coverage,
                 "totals": {
                     "evaluatedRows": evaluated_total,
@@ -507,12 +511,12 @@ def validate_grid_with_packs_report(
 
             # Missing default model fields are critical header errors unless mapped.
             if missing_default_fields:
-                if "warnings" not in coverage_packs[pack_name]:
-                    coverage_packs[pack_name]["warnings"] = []
-                coverage_packs[pack_name]["warnings"].append(
+                if "warnings" not in coverage_packs[coverage_pack_name]:
+                    coverage_packs[coverage_pack_name]["warnings"] = []
+                coverage_packs[coverage_pack_name]["warnings"].append(
                     f"Missing default columns: {', '.join(missing_default_fields)}"
                 )
-                coverage_packs[pack_name]["missingDefaultFields"] = missing_default_fields
+                coverage_packs[coverage_pack_name]["missingDefaultFields"] = missing_default_fields
 
                 missing_columns_text = ", ".join(missing_default_fields)
                 header_message = (
