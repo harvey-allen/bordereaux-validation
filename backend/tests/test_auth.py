@@ -250,15 +250,6 @@ class TestTierRestrictions:
         assert config.allowed_packs is not None
         assert "risk_and_premium" in config.allowed_packs
         assert "claims" in config.allowed_packs
-        assert "csrd" not in config.allowed_packs
-
-    def test_sustainability_tier_includes_sustainability_packs(self):
-        """SUSTAINABILITY tier should include CSRD and TCFD packs."""
-        config = TIER_CONFIGS[SubscriptionTier.SUSTAINABILITY]
-        assert config.allowed_packs is not None
-        assert "csrd" in config.allowed_packs
-        assert "tcfd" in config.allowed_packs
-        assert "risk_and_premium" not in config.allowed_packs
 
     def test_developer_has_higher_limits(self):
         """DEVELOPER tier should have higher limits than BORDEREAUX."""

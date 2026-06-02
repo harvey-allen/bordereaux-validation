@@ -15,11 +15,7 @@ let lastValidationPack = null;
 const DEFAULT_PACK_OPTIONS = [
   { value: "risk_and_premium", label: "Risk and Premium" },
   { value: "claims", label: "Claims" },
-  { value: "csrd", label: "CSRD" },
-  { value: "tcfd", label: "TCFD" },
 ];
-
-const SUSTAINABILITY_PACKS = new Set(["csrd", "tcfd"]);
 
 function formatPackLabel(packName) {
   const normalized = String(packName || "").trim();
@@ -203,6 +199,7 @@ async function buildSankeyPngBase64(exportRows) {
   // Colour mapping requested: pass (light green), fail (light red), warning (yellow), error (orange), critical (red)
   const COLOR = {
     ALL: '#e5e7eb',
+    TOTAL: '#e5e7eb',
     PASS: '#c8f7d4', // light green
     FAIL: '#ffd6d6', // light red
     INFO: '#d9d9d9',
@@ -243,7 +240,7 @@ async function buildSankeyPngBase64(exportRows) {
   nodeColourMap.set('All Tests', COLOR.ALL);
   nodeColourMap.set('Passed Tests', COLOR.PASS);
   nodeColourMap.set('Failed Tests', COLOR.FAIL);
-  nodeColourMap.set('Total Tests', COLOR.DEFAULT);
+  nodeColourMap.set('Total Tests', COLOR.TOTAL);
   // Map severities
   nodeColourMap.set('INFO', COLOR.INFO);
   nodeColourMap.set('WARNING', COLOR.WARNING);
@@ -399,8 +396,6 @@ function getDefaultPackConfig(selectedPack) {
   const defaultRefByPack = {
     risk_and_premium: "Unique Market Reference (UMR)",
     claims: "Unique Market Reference (UMR)",
-    csrd: "Company Identifier",
-    tcfd: "Entity Name",
   };
 
   return {
@@ -517,19 +512,8 @@ function applyTerritoryToPackConfig(packName, territory) {
 function updateTerritoryVisibilityForPack(packName) {
   const normalizedPack = String(packName || "").trim().toLowerCase();
   const territoryGroup = document.getElementById("territoryGroup");
-  const territorySelect = document.getElementById("territory");
-  const hideTerritory = SUSTAINABILITY_PACKS.has(normalizedPack);
-
   if (territoryGroup) {
-    territoryGroup.style.display = hideTerritory ? "none" : "";
-  }
-
-  if (hideTerritory) {
-    if (territorySelect) {
-      territorySelect.value = "";
-      territorySelect.innerHTML = "";
-    }
-    applyTerritoryToPackConfig(normalizedPack, "");
+    territoryGroup.style.display = "";
   }
 }
 
@@ -575,12 +559,6 @@ async function syncTerritorySelectorForSelectedPack() {
   }
 
   updateTerritoryVisibilityForPack(selectedPack);
-  if (SUSTAINABILITY_PACKS.has(selectedPack)) {
-    if (currentPackSelection === selectedPack) {
-      renderSelectedPackConfig(selectedPack);
-    }
-    return;
-  }
 
   const availableTerritories = await fetchTerritoriesForPack(selectedPack);
   territorySelect.innerHTML = "";
@@ -1602,7 +1580,8 @@ async function visualiseValidationResults() {
     .bar-row { display:grid; grid-template-columns:200px 1fr 52px; align-items:center; gap:10px; padding:5px 0; border-bottom:1px solid #f3f4f6; }
     .bar-row:last-child { border-bottom:none; }
     .bar-label { font-size:12px; color:var(--text-1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .bar-track { background:#f0f2f5; border-radius:4px; height:12px; overflow:hidden; display:flex; }
+    .bar-track { background:#f0f2f5; border-radius:4px; height:12px; overflow:hidden; position:relative; }
+    .bar-fill { height:100%; display:flex; border-radius:4px; overflow:hidden; }
     .bar-seg { height:100%; transition:width .3s ease; }
     .bar-seg.warn { background:#fde68a; }
     .bar-seg.error { background:#fdba74; }
@@ -1761,19 +1740,23 @@ async function visualiseValidationResults() {
     container.appendChild(legend);
 
     rows.forEach((r) => {
-      const warningPct = max ? ((r.WARNING || 0) / max) * 100 : 0;
-      const errorPct = max ? ((r.ERROR || 0) / max) * 100 : 0;
-      const criticalPct = max ? ((r.CRITICAL || 0) / max) * 100 : 0;
+      const total = Number(r.total || 0);
+      const barPct = max ? (total / max) * 100 : 0;
+      const warningPct = total ? ((r.WARNING || 0) / total) * 100 : 0;
+      const errorPct = total ? ((r.ERROR || 0) / total) * 100 : 0;
+      const criticalPct = total ? ((r.CRITICAL || 0) / total) * 100 : 0;
       const row = document.createElement('div');
       row.className = 'bar-row';
       row.innerHTML =
         '<div class="bar-label" title="' + String(r.label || '').replace(/"/g,'&quot;') + '">' + String(r.label || '') + '</div>' +
         '<div class="bar-track">' +
-          '<div class="bar-seg warn" style="width:' + warningPct + '%" title="Warning: ' + (r.WARNING || 0) + '"></div>' +
-          '<div class="bar-seg error" style="width:' + errorPct + '%" title="Error: ' + (r.ERROR || 0) + '"></div>' +
-          '<div class="bar-seg critical" style="width:' + criticalPct + '%" title="Critical: ' + (r.CRITICAL || 0) + '"></div>' +
+          '<div class="bar-fill" style="width:' + barPct + '%">' +
+            '<div class="bar-seg warn" style="width:' + warningPct + '%" title="Warning: ' + (r.WARNING || 0) + '"></div>' +
+            '<div class="bar-seg error" style="width:' + errorPct + '%" title="Error: ' + (r.ERROR || 0) + '"></div>' +
+            '<div class="bar-seg critical" style="width:' + criticalPct + '%" title="Critical: ' + (r.CRITICAL || 0) + '"></div>' +
+          '</div>' +
         '</div>' +
-        '<div class="bar-count">' + (r.total || 0) + '</div>';
+        '<div class="bar-count">' + total + '</div>';
       container.appendChild(row);
     });
   }

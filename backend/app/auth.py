@@ -29,7 +29,6 @@ from app.testpacks.core import normalize_pack_name
 class SubscriptionTier(str, Enum):
     """Subscription tiers with different rate limits and features."""
     BORDEREAUX = "bordereaux"
-    SUSTAINABILITY = "sustainability"
     DEVELOPER = "developer"
     # Legacy tier kept for backwards compatibility with historical DB rows.
     TRIAL = "trial"
@@ -47,8 +46,6 @@ def coerce_subscription_tier(value: str | SubscriptionTier) -> SubscriptionTier:
         return SubscriptionTier.BORDEREAUX
     if normalized in {"dev", "developer", "internal"}:
         return SubscriptionTier.DEVELOPER
-    if normalized == "sustainability":
-        return SubscriptionTier.SUSTAINABILITY
     return SubscriptionTier.BORDEREAUX if normalized == "" else SubscriptionTier(normalized)
 
 
@@ -71,13 +68,6 @@ TIER_CONFIGS: dict[SubscriptionTier, TierConfig] = {
         allowed_packs=["risk_and_premium", "claims"],
         priority=2,
     ),
-    SubscriptionTier.SUSTAINABILITY: TierConfig(
-        requests_per_day=500,
-        requests_per_minute=50,
-        max_cells_per_request=10000,
-        allowed_packs=["csrd", "tcfd"],
-        priority=2,
-    ),
     SubscriptionTier.DEVELOPER: TierConfig(
         requests_per_day=1_000_000,
         requests_per_minute=10_000,
@@ -89,7 +79,7 @@ TIER_CONFIGS: dict[SubscriptionTier, TierConfig] = {
         requests_per_day=500,
         requests_per_minute=50,
         max_cells_per_request=10000,
-        allowed_packs=["risk_and_premium", "claims", "csrd", "tcfd"],
+        allowed_packs=["risk_and_premium", "claims"],
         priority=2,
     ),
 }

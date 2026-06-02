@@ -269,7 +269,7 @@ class SubscriptionService:
             del self._cache_ttl[old_hash]
 
         # Generate new key
-        new_api_key = generate_api_key(SubscriptionTier(db_sub.tier))
+        new_api_key = generate_api_key(coerce_subscription_tier(db_sub.tier))
         db_sub.api_key_hash = hash_api_key(new_api_key)
         db_sub.api_key_prefix = new_api_key[:12] + "..."
         
