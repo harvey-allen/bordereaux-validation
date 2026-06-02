@@ -1,0 +1,12 @@
+{
+  "Global": {
+    "mandatory": [
+      { "field": "Entity Name" },
+      { "field": "Scenario Name" },
+      { "field": "Metric Name" },
+      { "field": "Metric Value" },
+      { "field": "Climate Risk Category" },
+      { "field": "Horizon" }
+    ]
+  }
+}
