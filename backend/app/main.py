@@ -18,6 +18,7 @@ from app.auth import (
     SubscriptionTier,
     check_cell_limit,
     check_pack_access,
+    get_subscription_allowed_packs,
     subscription_store,
 )
 from app.testpacks.core import TEST_PACKS, get_pack_name_variants, normalize_pack_name
@@ -148,11 +149,17 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Bordereaux Validation API",
+    title="Reporting Validation API",
     version="1.0.0",
-    description="Excel data validation API for bordereaux processing with subscription-based access.",
+    description="Excel data validation API for configurable reporting test packs with subscription-based access.",
     lifespan=lifespan,
 )
+
+
+class TestPackCatalogResponse(BaseModel):
+    all_packs: list[str]
+    allowed_packs: list[str] | None
+    default_pack: str | None
 
 app.add_middleware(
     CORSMiddleware,
@@ -409,13 +416,37 @@ def get_subscription_info(
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> SubscriptionInfoResponse:
     """Get subscription details for your API key."""
+    allowed_packs = get_subscription_allowed_packs(subscription)
     return SubscriptionInfoResponse(
         tier=subscription.tier.value,
         owner_email=subscription.owner_email,
         is_active=subscription.is_active,
         expires_at=subscription.expires_at.isoformat() if subscription.expires_at else None,
-        allowed_packs=subscription.config.allowed_packs,
+        allowed_packs=allowed_packs,
         max_cells_per_request=subscription.config.max_cells_per_request,
+    )
+
+
+@app.get("/api/v1/test-packs", response_model=TestPackCatalogResponse)
+def get_test_pack_catalog(
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> TestPackCatalogResponse:
+    """Return all packs plus the packs available for the authenticated subscription."""
+    all_packs = sorted(TEST_PACKS.keys())
+    allowed = get_subscription_allowed_packs(subscription)
+
+    if allowed is None:
+        effective_allowed = all_packs
+    else:
+        allowed_set = set(allowed)
+        effective_allowed = [pack_name for pack_name in all_packs if pack_name in allowed_set]
+
+    default_pack = effective_allowed[0] if effective_allowed else None
+
+    return TestPackCatalogResponse(
+        all_packs=all_packs,
+        allowed_packs=effective_allowed,
+        default_pack=default_pack,
     )
 
 
@@ -458,6 +489,11 @@ async def validate_range(
         existing = dict(normalized_pack_configs.get(normalized_pack_name, {}))
         existing.update(dict(pack_config or {}))
         normalized_pack_configs[normalized_pack_name] = existing
+
+    unknown_packs = [pack_name for pack_name in normalized_test_packs if pack_name not in TEST_PACKS]
+    if unknown_packs:
+        unique_unknown = ", ".join(sorted(set(unknown_packs)))
+        raise HTTPException(status_code=400, detail=f"Unknown test pack(s): {unique_unknown}")
 
     if normalized_test_packs:
         check_pack_access(subscription, normalized_test_packs)

@@ -14,7 +14,7 @@ const CONFIG = {
   DEFAULT_PACK: "risk_and_premium",
 
   // Default reference column name
-  DEFAULT_REF_COLUMN: "Unique Market Reference (UMR)",
+  DEFAULT_REF_COLUMN: "ID",
 
   // Maximum cells per validation chunk (to avoid payload size limits)
   MAX_CELLS_PER_CHUNK: 5000,

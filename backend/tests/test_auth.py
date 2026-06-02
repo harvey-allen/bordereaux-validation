@@ -32,28 +32,28 @@ class TestSubscriptionStore:
         store = SubscriptionStore()
         sub = store.get_subscription("dev_bordereaux_key_12345")
         assert sub is not None
-        assert sub.tier == SubscriptionTier.BORDEREAUX
+        assert sub.tier == SubscriptionTier.DEVELOPER
         assert sub.is_active
 
     def test_generate_api_key(self):
         """Should generate valid API keys."""
         store = SubscriptionStore()
         key = store.generate_api_key(
-            tier=SubscriptionTier.TRIAL,
+            tier=SubscriptionTier.BORDEREAUX,
             owner_email="test@example.com",
         )
         
-        assert key.startswith("bx_tri_")
+        assert key.startswith("bx_bor_")
         sub = store.get_subscription(key)
         assert sub is not None
-        assert sub.tier == SubscriptionTier.TRIAL
+        assert sub.tier == SubscriptionTier.BORDEREAUX
         assert sub.owner_email == "test@example.com"
 
     def test_generate_key_with_expiry(self):
         """Should create keys with expiration dates."""
         store = SubscriptionStore()
         key = store.generate_api_key(
-            tier=SubscriptionTier.TRIAL,
+            tier=SubscriptionTier.BORDEREAUX,
             owner_email="trial@example.com",
             expires_in_days=30,
         )
@@ -66,7 +66,7 @@ class TestSubscriptionStore:
         """Should be able to revoke API keys."""
         store = SubscriptionStore()
         key = store.generate_api_key(
-            tier=SubscriptionTier.TRIAL,
+            tier=SubscriptionTier.BORDEREAUX,
             owner_email="revoke@example.com",
         )
         
@@ -124,11 +124,12 @@ class TestRateLimiting:
     def test_check_rate_limit_blocks_over_minute_limit(self):
         """Should block requests over minute limit."""
         store = SubscriptionStore()
-        key = store.generate_api_key(SubscriptionTier.TRIAL, "test@example.com")
+        key = store.generate_api_key(SubscriptionTier.BORDEREAUX, "test@example.com")
         sub = store.get_subscription(key)
         
-        # Exhaust minute limit (5 for TRIAL tier)
-        for _ in range(5):
+        # Exhaust minute limit for BORDEREAUX tier
+        minute_limit = sub.config.requests_per_minute
+        for _ in range(minute_limit):
             store.record_request(sub)
         
         allowed, error = store.check_rate_limit(sub)
@@ -174,7 +175,7 @@ class TestAPIAuthentication:
                 "values": [["Unique Market Reference (UMR)", "premium_amount"], ["POL001", "1000"]],
                 "testPacks": ["bordereaux"],
                 "hasHeaderRow": True,
-                "packConfigs": {"bordereaux": {"UMR": "Unique Market Reference (UMR)"}},
+                "packConfigs": {"bordereaux": {"ID": "Unique Market Reference (UMR)"}},
             },
         )
         assert response.status_code == 200
@@ -223,7 +224,7 @@ class TestAPIAuthentication:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["tier"] == "bordereaux"
+        assert data["tier"] == "developer"
         assert data["is_active"] is True
 
 
@@ -243,25 +244,29 @@ class TestTierRestrictions:
             assert config.requests_per_minute > 0
             assert config.max_cells_per_request > 0
 
-    def test_trial_tier_has_pack_restrictions(self):
-        """TRIAL tier should have limited pack access."""
-        config = TIER_CONFIGS[SubscriptionTier.TRIAL]
-        assert config.allowed_packs is not None
-        assert "bordereaux" in config.allowed_packs
-
-    def test_bordereaux_tier_includes_bordereaux_pack(self):
-        """BORDEREAUX tier should include the bordereaux pack."""
+    def test_bordereaux_tier_has_pack_restrictions(self):
+        """BORDEREAUX tier should have limited pack access."""
         config = TIER_CONFIGS[SubscriptionTier.BORDEREAUX]
         assert config.allowed_packs is not None
-        assert "bordereaux" in config.allowed_packs
+        assert "risk_and_premium" in config.allowed_packs
+        assert "claims" in config.allowed_packs
+        assert "csrd" not in config.allowed_packs
 
-    def test_bordereaux_has_higher_limits(self):
-        """BORDEREAUX tier should have higher limits than TRIAL."""
+    def test_sustainability_tier_includes_sustainability_packs(self):
+        """SUSTAINABILITY tier should include CSRD and TCFD packs."""
+        config = TIER_CONFIGS[SubscriptionTier.SUSTAINABILITY]
+        assert config.allowed_packs is not None
+        assert "csrd" in config.allowed_packs
+        assert "tcfd" in config.allowed_packs
+        assert "risk_and_premium" not in config.allowed_packs
+
+    def test_developer_has_higher_limits(self):
+        """DEVELOPER tier should have higher limits than BORDEREAUX."""
+        developer = TIER_CONFIGS[SubscriptionTier.DEVELOPER]
         bordereaux = TIER_CONFIGS[SubscriptionTier.BORDEREAUX]
-        trial = TIER_CONFIGS[SubscriptionTier.TRIAL]
         
-        assert bordereaux.requests_per_day > trial.requests_per_day
-        assert bordereaux.max_cells_per_request > trial.max_cells_per_request
+        assert developer.requests_per_day > bordereaux.requests_per_day
+        assert developer.max_cells_per_request > bordereaux.max_cells_per_request
 
 
 # =============================================================================

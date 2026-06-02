@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bordereaux Validator</title>
+    <title>Reporting Validator</title>
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
     <script src="./config.js"></script>
     <!-- D3 and Sankey for client-side Sankey generation -->
@@ -26,17 +26,18 @@
     </style>
   </head>
   <body>
-    <h2>Bordereaux Validator</h2>
-    <div class="hint">Configure your bordereaux validation settings</div>
+    <h2>Reporting Validator</h2>
+    <div class="hint">Configure validation settings for your subscribed test packs</div>
 
     <label for="testPacks">Test Pack</label>
     <select id="testPacks">
-      <option value="risk_and_premium">Risk and Premium</option>
-      <option value="claims">Claims</option>
+      <option value="">Loading subscribed packs...</option>
     </select>
 
-    <label for="territory">Territory</label>
-    <select id="territory"></select>
+    <div id="territoryGroup">
+      <label for="territory">Territory</label>
+      <select id="territory"></select>
+    </div>
 
     <label for="packConfigs">Test Configuration (JSON)</label>
     <textarea id="packConfigs"></textarea>

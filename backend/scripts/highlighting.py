@@ -92,7 +92,7 @@ def apply_highlighting(
         column_rules={},
         test_packs=packs,
         has_header_row=True,
-        pack_configs={"bordereaux": {"Unique Market Reference (UMR)": trans_ref_column}},
+        pack_configs={"bordereaux": {"ID": trans_ref_column}},
     )
 
     highlighted = 0

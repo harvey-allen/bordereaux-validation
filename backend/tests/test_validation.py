@@ -178,7 +178,7 @@ def test_validate_range_with_bordereaux_pack():
             "columnRules": {},
             "testPacks": ["bordereaux"],
             "hasHeaderRow": True,
-            "packConfigs": {"bordereaux": {"UMR": "policy_id"}},
+            "packConfigs": {"bordereaux": {"ID": "policy_id"}},
             "includeCoverage": True,
         },
     )
@@ -208,9 +208,8 @@ def test_validate_range_unknown_pack():
             "includeCoverage": True,
         },
     )
-    # Should be blocked because subscription doesn't include this pack
-    assert response.status_code == 403
-    assert "not available" in response.json()["detail"]
+    assert response.status_code == 400
+    assert "Unknown test pack" in response.json()["detail"]
 
 
 def test_validate_range_coverage_disabled():
@@ -252,7 +251,7 @@ def test_bordereaux_policy_id_required():
         column_rules={},
         test_packs=["bordereaux"],
         has_header_row=True,
-        pack_configs={"bordereaux": {"UMR": "policy_id"}},
+        pack_configs={"bordereaux": {"ID": "policy_id"}},
     )
     
     # Find the test results for policy_id_required
@@ -275,7 +274,7 @@ def test_bordereaux_premium_required():
         column_rules={},
         test_packs=["bordereaux"],
         has_header_row=True,
-        pack_configs={"bordereaux": {"UMR": "policy_id"}},
+        pack_configs={"bordereaux": {"ID": "policy_id"}},
     )
     
     pack_tests = report["coverage"]["packs"]["bordereaux"]["tests"]
@@ -297,7 +296,7 @@ def test_bordereaux_currency_valid():
         column_rules={},
         test_packs=["bordereaux"],
         has_header_row=True,
-        pack_configs={"bordereaux": {"UMR": "policy_id"}},
+        pack_configs={"bordereaux": {"ID": "policy_id"}},
     )
     
     pack_tests = report["coverage"]["packs"]["bordereaux"]["tests"]
@@ -319,7 +318,7 @@ def test_bordereaux_marine_requires_vessel():
         column_rules={},
         test_packs=["bordereaux"],
         has_header_row=True,
-        pack_configs={"bordereaux": {"UMR": "policy_id"}},
+        pack_configs={"bordereaux": {"ID": "policy_id"}},
     )
     
     pack_tests = report["coverage"]["packs"]["bordereaux"]["tests"]
@@ -341,7 +340,7 @@ def test_bordereaux_claim_within_limit():
         column_rules={},
         test_packs=["bordereaux"],
         has_header_row=True,
-        pack_configs={"bordereaux": {"UMR": "policy_id"}},
+        pack_configs={"bordereaux": {"ID": "policy_id"}},
     )
     
     pack_tests = report["coverage"]["packs"]["bordereaux"]["tests"]
@@ -369,7 +368,7 @@ def test_severity_score_affects_heatmap():
         column_rules={},
         test_packs=["bordereaux"],
         has_header_row=True,
-        pack_configs={"bordereaux": {"UMR": "policy_id"}},
+        pack_configs={"bordereaux": {"ID": "policy_id"}},
     )
     
     # Find results with failures
@@ -395,7 +394,7 @@ def test_multiple_columns_affected_by_single_test():
         column_rules={},
         test_packs=["bordereaux"],
         has_header_row=True,
-        pack_configs={"bordereaux": {"UMR": "policy_id"}},
+        pack_configs={"bordereaux": {"ID": "policy_id"}},
     )
     
     # Both claim_amount (B2) and policy_limit (C2) should be highlighted
@@ -424,7 +423,7 @@ def test_field_mappings_enable_model_based_tests_with_codes():
         has_header_row=True,
         pack_configs={
             "risk_and_premium": {
-                "UMR": "policy_number",
+                "ID": "policy_number",
                 "fieldMappings": {
                     "policy_id": "policy_number",
                     "currency": "premium_currency",
@@ -462,7 +461,7 @@ def test_missing_default_columns_produce_critical_header_errors():
         has_header_row=True,
         pack_configs={
             "risk_and_premium": {
-                "UMR": "policy_number",
+                "ID": "policy_number",
                 "territory": "UK",
                 "enabledTests": ["Bpolicy_id1", "Bcurrency1", "Bpremium_amount1"],
             }
@@ -507,7 +506,7 @@ def test_default_missing_columns_resolved_by_field_mappings():
         has_header_row=True,
         pack_configs={
             "risk_and_premium": {
-                "UMR": "policy_number",
+                "ID": "policy_number",
                 "territory": "UK",
                 "fieldMappings": full_field_mapping,
                 "enabledTests": ["Bpolicy_id1", "Bcurrency1", "Bpremium_amount1"],

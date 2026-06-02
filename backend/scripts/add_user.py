@@ -22,7 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--tier",
         choices=[tier.value for tier in SubscriptionTier],
-        default=SubscriptionTier.TRIAL.value,
+        default=SubscriptionTier.BORDEREAUX.value,
         help="Subscription tier.",
     )
     parser.add_argument(

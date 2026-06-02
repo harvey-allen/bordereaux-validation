@@ -11,6 +11,7 @@ from .core import (
 )
 
 from . import bordereaux as _bordereaux
+from . import sustainability as _sustainability
 
 __all__ = [
     "BaseTestPack",

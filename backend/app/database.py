@@ -75,7 +75,7 @@ class UserSubscription(Base):
     tier: Mapped[str] = mapped_column(
         SQLEnum(SubscriptionTier, name="subscription_tier", create_constraint=True),
         nullable=False,
-        default=SubscriptionTier.TRIAL,
+        default=SubscriptionTier.BORDEREAUX,
     )
     
     # Status
