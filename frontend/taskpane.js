@@ -805,8 +805,46 @@ async function hydrateSelectedPackConfigFromServer() {
   }
 }
 
+function initializeValidatorTabs() {
+  const tabs = [
+    {
+      button: document.getElementById("tabConfiguration"),
+      panel: document.getElementById("panelConfiguration"),
+    },
+    {
+      button: document.getElementById("tabControl"),
+      panel: document.getElementById("panelControl"),
+    },
+    {
+      button: document.getElementById("tabAnalysis"),
+      panel: document.getElementById("panelAnalysis"),
+    },
+  ];
+
+  if (tabs.some((tab) => !tab.button || !tab.panel)) {
+    return;
+  }
+
+  const activateTab = (targetButtonId) => {
+    for (const { button, panel } of tabs) {
+      const isActive = button.id === targetButtonId;
+      button.setAttribute("aria-selected", isActive ? "true" : "false");
+      button.tabIndex = isActive ? 0 : -1;
+      panel.classList.toggle("active", isActive);
+    }
+  };
+
+  for (const { button } of tabs) {
+    button.addEventListener("click", () => activateTab(button.id));
+  }
+
+  activateTab("tabConfiguration");
+}
+
 
 Office.onReady(async () => {
+  initializeValidatorTabs();
+
   const testPackSelect = document.getElementById("testPacks");
   const excelUserEmail = getExcelUserEmail();
   const availablePacks = populatePackSelect(await loadSubscribedPackValues(excelUserEmail));
@@ -849,6 +887,7 @@ Office.onReady(async () => {
   document.getElementById("extractResults")?.addEventListener("click", extractValidationResults);
   document.getElementById("visualiseResults")?.addEventListener("click", visualiseValidationResults);
   document.getElementById("rulesEngine")?.addEventListener("click", openRulesEngine);
+  document.getElementById("generateTemplate")?.addEventListener("click", generateTemplate);
   // Initialize button states (Extract / Visualise disabled until validation run)
   updateActionButtons();
 });
@@ -2362,6 +2401,93 @@ async function openRulesEngine() {
   } finally {
     if (rulesButton) {
       rulesButton.disabled = false;
+    }
+  }
+}
+
+async function generateTemplate() {
+  const button = document.getElementById("generateTemplate");
+  const backendUrl = CONFIG.BACKEND_URL;
+  const excelUserEmail = getExcelUserEmail();
+
+  if (!button) return;
+
+  try {
+    button.disabled = true;
+    setStatus("Generating template...");
+
+    // Get the selected test pack and territory
+    const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
+    const selectedTerritory = String(document.getElementById("territory")?.value || "").trim();
+
+    if (!selectedPack) {
+      throw new Error("Please select a test pack first");
+    }
+
+    if (!selectedTerritory) {
+      throw new Error("Please select a territory first");
+    }
+
+    // Fetch template headers from backend
+    const response = await fetch(
+      `${backendUrl}/api/v1/generate-template?test_pack=${encodeURIComponent(selectedPack)}&territory=${encodeURIComponent(selectedTerritory)}`,
+      {
+        method: "GET",
+        headers: {
+          "X-Excel-User-Email": excelUserEmail,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP ${response.status}`);
+    }
+
+    const templateData = await response.json();
+    const headers = templateData.headers || [];
+
+    if (headers.length === 0) {
+      throw new Error("No fields available for this pack and territory");
+    }
+
+    // Create new worksheet and add template
+    await Excel.run(async (context) => {
+      const workbook = context.workbook;
+      const sheets = workbook.worksheets;
+
+      // Create a new worksheet with a name based on the pack and territory
+      const sheetName = `${formatPackLabel(selectedPack)} - ${selectedTerritory}`.substring(0, 31);
+      const newSheet = sheets.add(sheetName);
+
+      // Calculate the range for all header columns
+      const lastCol = columnToA1(headers.length - 1);
+      const headerRangeAddress = `A1:${lastCol}1`;
+      
+      // Add headers to the first row
+      const headerRange = newSheet.getRange(headerRangeAddress);
+      headerRange.values = [headers];
+
+      // Format the header row
+      headerRange.format.font.bold = true;
+      headerRange.format.fill.color = "#1d4ed8";
+      headerRange.format.font.color = "#ffffff";
+
+      // Auto-fit columns
+      headerRange.format.autofitColumns();
+
+      // Activate the new sheet
+      newSheet.activate();
+
+      await context.sync();
+    });
+
+    setStatus(`Template generated with ${headers.length} fields in new sheet: ${sheetName}`);
+  } catch (error) {
+    setStatus(`Template generation failed: ${error?.message || "Unexpected error"}`, true);
+  } finally {
+    if (button) {
+      button.disabled = false;
     }
   }
 }

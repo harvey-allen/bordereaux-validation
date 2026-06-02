@@ -10,44 +10,219 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
     <style>
-      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 16px; color: #222; }
-      h2 { margin-bottom: 8px; }
-      label { display: block; margin-top: 12px; font-weight: 600; }
-      input, textarea, select, button { width: 100%; margin-top: 6px; padding: 8px; box-sizing: border-box; }
-      textarea { min-height: 140px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-      select { appearance: none; background: #fff; cursor: pointer; }
-      button { background: #0f6cbd; border: none; color: #fff; border-radius: 4px; cursor: pointer; }
-      /* Disabled buttons indicate they cannot be run */
-      button:disabled { background: #8c8c8c; cursor: not-allowed; }
-      /* Keep secondary class same visual when enabled (useful semantic grouping) */
-      .btn-secondary { background: #0f6cbd; }
-      .status { margin-top: 10px; font-size: 13px; }
-      .hint { font-size: 12px; color: #666; margin-top: 4px; }
+      :root {
+        --bg: #f5f8fc;
+        --surface: #ffffff;
+        --surface-muted: #f8fafc;
+        --border: #dbe4ef;
+        --text: #0f172a;
+        --text-muted: #475569;
+        --primary: #1d4ed8;
+        --primary-strong: #1e40af;
+        --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      }
+
+      body {
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 14px;
+        color: var(--text);
+        background: linear-gradient(180deg, #f7faff 0%, #f4f8fc 100%);
+      }
+
+      .app-shell {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        padding: 14px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: -0.01em;
+      }
+
+      .hint {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+
+      .tabs {
+        display: inline-flex;
+        gap: 6px;
+        margin-top: 14px;
+        padding: 4px;
+        border-radius: 10px;
+        background: var(--surface-muted);
+        border: 1px solid var(--border);
+      }
+
+      .tab-button {
+        width: auto;
+        margin-top: 0;
+        padding: 7px 12px;
+        background: transparent;
+        color: var(--text-muted);
+        border: none;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .tab-button[aria-selected="true"] {
+        background: var(--surface);
+        color: var(--text);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+      }
+
+      label {
+        display: block;
+        margin-top: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #334155;
+      }
+
+      input, textarea, select, button {
+        width: 100%;
+        margin-top: 6px;
+        padding: 9px 10px;
+        box-sizing: border-box;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        font-size: 13px;
+      }
+
+      select,
+      textarea,
+      input {
+        background: #fff;
+        color: var(--text);
+      }
+
+      select:focus,
+      textarea:focus,
+      input:focus,
+      button:focus-visible,
+      .tab-button:focus-visible {
+        outline: 2px solid rgba(37, 99, 235, 0.4);
+        outline-offset: 1px;
+      }
+
+      textarea {
+        min-height: 170px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        line-height: 1.45;
+      }
+
+      button {
+        background: var(--primary);
+        color: #fff;
+        border: 1px solid var(--primary);
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      button:hover:not(:disabled) {
+        background: var(--primary-strong);
+      }
+
+      button:disabled {
+        background: #cbd5e1;
+        border-color: #cbd5e1;
+        color: #64748b;
+        cursor: not-allowed;
+      }
+
+      .btn-secondary {
+        background: #f8fafc;
+        border-color: var(--border);
+        color: #1e293b;
+      }
+
+      .btn-secondary:hover:not(:disabled) {
+        background: #eef2f7;
+      }
+
+      .tab-panel {
+        display: none;
+        margin-top: 12px;
+      }
+      .tab-panel.active { display: block; }
+
+      .panel-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      .actions-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .status {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--text-muted);
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: var(--surface-muted);
+        border: 1px dashed var(--border);
+        min-height: 34px;
+      }
     </style>
   </head>
   <body>
-    <h2>Reporting Validator</h2>
-    <div class="hint">Configure validation settings for your subscribed test packs</div>
+    <div class="app-shell">
+      <h2>Reporting Validator</h2>
+      <div class="hint">Configure validation settings for your subscribed test packs</div>
 
-    <label for="testPacks">Test Pack</label>
-    <select id="testPacks">
-      <option value="">Loading subscribed packs...</option>
-    </select>
+      <div class="tabs" role="tablist" aria-label="Validator sections">
+        <button id="tabConfiguration" class="tab-button" role="tab" aria-selected="true" aria-controls="panelConfiguration">Configuration</button>
+        <button id="tabControl" class="tab-button" role="tab" aria-selected="false" aria-controls="panelControl">Control</button>
+        <button id="tabAnalysis" class="tab-button" role="tab" aria-selected="false" aria-controls="panelAnalysis">Analysis</button>
+      </div>
 
-    <div id="territoryGroup">
-      <label for="territory">Territory</label>
-      <select id="territory"></select>
+      <section id="panelConfiguration" class="tab-panel active panel-card" role="tabpanel" aria-labelledby="tabConfiguration">
+        <label for="testPacks">Test Pack</label>
+        <select id="testPacks">
+          <option value="">Loading subscribed packs...</option>
+        </select>
+
+        <div id="territoryGroup">
+          <label for="territory">Territory</label>
+          <select id="territory"></select>
+        </div>
+
+        <button id="generateTemplate" class="btn-secondary">Generate Template</button>
+
+        <label for="packConfigs">Test Configuration (JSON)</label>
+        <textarea id="packConfigs"></textarea>
+      </section>
+
+      <section id="panelControl" class="tab-panel panel-card" role="tabpanel" aria-labelledby="tabControl">
+        <div class="actions-grid">
+          <button id="runValidation">Validate</button>
+          <button id="clearTable" class="btn-secondary">Clear</button>
+          <button id="extractResults" class="btn-secondary">Extract</button>
+        </div>
+        <div class="status" id="status"></div>
+      </section>
+
+      <section id="panelAnalysis" class="tab-panel panel-card" role="tabpanel" aria-labelledby="tabAnalysis">
+        <div class="actions-grid">
+          <button id="visualiseResults" class="btn-secondary">Visualise</button>
+          <button id="rulesEngine" class="btn-secondary">Rules Engine</button>
+        </div>
+      </section>
     </div>
-
-    <label for="packConfigs">Test Configuration (JSON)</label>
-    <textarea id="packConfigs"></textarea>
-
-    <button id="runValidation">Validate</button>
-    <button id="clearTable" class="btn-secondary">Clear</button>
-    <button id="extractResults" class="btn-secondary">Extract</button>
-    <button id="visualiseResults" class="btn-secondary">Visualise</button>
-    <button id="rulesEngine" class="btn-secondary">Rules Engine</button>
-    <div class="status" id="status"></div>
 
     <script src="./taskpane.js"></script>
   </body>

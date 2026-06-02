@@ -22,7 +22,7 @@ from app.auth import (
     subscription_store,
 )
 from app.testpacks.core import TEST_PACKS, get_pack_name_variants, normalize_pack_name
-from app.validation import get_pack_territories, validate_grid_with_packs_report
+from app.validation import get_pack_territories, get_pack_mandatory_fields, validate_grid_with_packs_report
 
 # Database imports (optional - gracefully handle if DB not available)
 try:
@@ -128,6 +128,14 @@ class RegisterResponse(BaseModel):
     tier: str
     is_new_user: bool
     message: str
+
+
+class TemplateResponse(BaseModel):
+    """Response containing template field headers for a test pack."""
+    test_pack: str
+    territory: str
+    headers: list[str]
+    total_fields: int
 
 
 @asynccontextmanager
@@ -283,6 +291,38 @@ def get_field_config_territories(test_pack: str) -> TerritoryOptionsResponse:
 
     territories = get_pack_territories(normalized_pack)
     return TerritoryOptionsResponse(test_pack=normalized_pack, territories=territories)
+
+
+@app.get("/api/v1/generate-template", response_model=TemplateResponse)
+def generate_template(test_pack: str, territory: str | None = None) -> TemplateResponse:
+    """Generate a template with field headers for the given test pack and territory."""
+    normalized_pack = normalize_pack_name(test_pack)
+    if not normalized_pack:
+        raise HTTPException(status_code=400, detail="test_pack is required")
+
+    # Get available territories if none specified
+    territories = get_pack_territories(normalized_pack)
+    if not territories:
+        raise HTTPException(status_code=400, detail=f"No territories found for test pack '{normalized_pack}'")
+
+    # Use first territory if none specified
+    selected_territory = territory or territories[0]
+
+    # Get mandatory fields for the pack and territory
+    headers = get_pack_mandatory_fields(normalized_pack, selected_territory)
+    
+    if not headers:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"No mandatory fields found for test pack '{normalized_pack}' and territory '{selected_territory}'"
+        )
+
+    return TemplateResponse(
+        test_pack=normalized_pack,
+        territory=selected_territory,
+        headers=headers,
+        total_fields=len(headers),
+    )
 
 
 @app.get("/api/v1/rules-engine", response_model=RulesEngineResponse)
