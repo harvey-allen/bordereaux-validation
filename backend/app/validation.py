@@ -382,7 +382,12 @@ def validate_grid_with_packs_report(
             # Falls back to model defaults for packs without JSON territory config.
             default_fields = get_pack_mandatory_fields(pack_name, configured_territory)
 
-            configured_ref = pack_config.get("UMR") or pack_config.get("UTIColumn")
+            configured_ref = (
+                pack_config.get("ID")
+                or pack_config.get("id")
+                or pack_config.get("UMR")
+                or pack_config.get("UTIColumn")
+            )
             trans_ref_candidates: list[str] = []
             if configured_ref is not None:
                 trans_ref_candidates.append(str(configured_ref).strip())
@@ -390,8 +395,16 @@ def validate_grid_with_packs_report(
                 [
                     "Unique Market Reference (UMR)",
                     "Agreement No",
+                    "Record ID",
+                    "Submission ID",
+                    "Company Identifier",
+                    "Entity Name",
                     "umr",
                     "agreement no",
+                    "record id",
+                    "submission id",
+                    "company identifier",
+                    "entity name",
                     "policy_id",
                     "policy_reference",
                     "ref",

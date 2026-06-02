@@ -10,6 +10,7 @@ import pandas as pd
 
 TEST_PACKS: dict[str, type["BaseTestPack"]] = {}
 PACK_NAME_ALIASES: dict[str, str] = {
+    "bordereaux": "risk_and_premium",
     "premium": "risk_and_premium",
 }
 

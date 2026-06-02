@@ -18,10 +18,11 @@ from app.auth import (
     SubscriptionTier,
     check_cell_limit,
     check_pack_access,
+    get_subscription_allowed_packs,
     subscription_store,
 )
 from app.testpacks.core import TEST_PACKS, get_pack_name_variants, normalize_pack_name
-from app.validation import get_pack_territories, validate_grid_with_packs_report
+from app.validation import get_pack_territories, get_pack_mandatory_fields, validate_grid_with_packs_report
 
 # Database imports (optional - gracefully handle if DB not available)
 try:
@@ -129,6 +130,14 @@ class RegisterResponse(BaseModel):
     message: str
 
 
+class TemplateResponse(BaseModel):
+    """Response containing template field headers for a test pack."""
+    test_pack: str
+    territory: str
+    headers: list[str]
+    total_fields: int
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan - initialize and cleanup database."""
@@ -148,11 +157,17 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Bordereaux Validation API",
+    title="Reporting Validation API",
     version="1.0.0",
-    description="Excel data validation API for bordereaux processing with subscription-based access.",
+    description="Excel data validation API for configurable reporting test packs with subscription-based access.",
     lifespan=lifespan,
 )
+
+
+class TestPackCatalogResponse(BaseModel):
+    all_packs: list[str]
+    allowed_packs: list[str] | None
+    default_pack: str | None
 
 app.add_middleware(
     CORSMiddleware,
@@ -276,6 +291,38 @@ def get_field_config_territories(test_pack: str) -> TerritoryOptionsResponse:
 
     territories = get_pack_territories(normalized_pack)
     return TerritoryOptionsResponse(test_pack=normalized_pack, territories=territories)
+
+
+@app.get("/api/v1/generate-template", response_model=TemplateResponse)
+def generate_template(test_pack: str, territory: str | None = None) -> TemplateResponse:
+    """Generate a template with field headers for the given test pack and territory."""
+    normalized_pack = normalize_pack_name(test_pack)
+    if not normalized_pack:
+        raise HTTPException(status_code=400, detail="test_pack is required")
+
+    # Get available territories if none specified
+    territories = get_pack_territories(normalized_pack)
+    if not territories:
+        raise HTTPException(status_code=400, detail=f"No territories found for test pack '{normalized_pack}'")
+
+    # Use first territory if none specified
+    selected_territory = territory or territories[0]
+
+    # Get mandatory fields for the pack and territory
+    headers = get_pack_mandatory_fields(normalized_pack, selected_territory)
+    
+    if not headers:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"No mandatory fields found for test pack '{normalized_pack}' and territory '{selected_territory}'"
+        )
+
+    return TemplateResponse(
+        test_pack=normalized_pack,
+        territory=selected_territory,
+        headers=headers,
+        total_fields=len(headers),
+    )
 
 
 @app.get("/api/v1/rules-engine", response_model=RulesEngineResponse)
@@ -409,13 +456,37 @@ def get_subscription_info(
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> SubscriptionInfoResponse:
     """Get subscription details for your API key."""
+    allowed_packs = get_subscription_allowed_packs(subscription)
     return SubscriptionInfoResponse(
         tier=subscription.tier.value,
         owner_email=subscription.owner_email,
         is_active=subscription.is_active,
         expires_at=subscription.expires_at.isoformat() if subscription.expires_at else None,
-        allowed_packs=subscription.config.allowed_packs,
+        allowed_packs=allowed_packs,
         max_cells_per_request=subscription.config.max_cells_per_request,
+    )
+
+
+@app.get("/api/v1/test-packs", response_model=TestPackCatalogResponse)
+def get_test_pack_catalog(
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> TestPackCatalogResponse:
+    """Return all packs plus the packs available for the authenticated subscription."""
+    all_packs = sorted(TEST_PACKS.keys())
+    allowed = get_subscription_allowed_packs(subscription)
+
+    if allowed is None:
+        effective_allowed = all_packs
+    else:
+        allowed_set = set(allowed)
+        effective_allowed = [pack_name for pack_name in all_packs if pack_name in allowed_set]
+
+    default_pack = effective_allowed[0] if effective_allowed else None
+
+    return TestPackCatalogResponse(
+        all_packs=all_packs,
+        allowed_packs=effective_allowed,
+        default_pack=default_pack,
     )
 
 
@@ -458,6 +529,11 @@ async def validate_range(
         existing = dict(normalized_pack_configs.get(normalized_pack_name, {}))
         existing.update(dict(pack_config or {}))
         normalized_pack_configs[normalized_pack_name] = existing
+
+    unknown_packs = [pack_name for pack_name in normalized_test_packs if pack_name not in TEST_PACKS]
+    if unknown_packs:
+        unique_unknown = ", ".join(sorted(set(unknown_packs)))
+        raise HTTPException(status_code=400, detail=f"Unknown test pack(s): {unique_unknown}")
 
     if normalized_test_packs:
         check_pack_access(subscription, normalized_test_packs)

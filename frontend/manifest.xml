@@ -6,10 +6,10 @@
            xsi:type="TaskPaneApp">
   <Id>1f3f71d5-1a30-48cb-b123-2a14f048e9fd</Id>
   <Version>1.0.0.0</Version>
-  <ProviderName>Bordereaux Validator</ProviderName>
+  <ProviderName>Reporting Validator</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="Bordereaux Validator"/>
-  <Description DefaultValue="Validate bordereaux data with a Python backend."/>
+  <DisplayName DefaultValue="Reporting Validator"/>
+  <Description DefaultValue="Validate reporting data with a Python backend and subscribed test packs."/>
   <IconUrl DefaultValue="https://img.icons8.com/color/32/microsoft-excel-2019--v1.png"/>
   <HighResolutionIconUrl DefaultValue="https://img.icons8.com/color/96/microsoft-excel-2019--v1.png"/>
   <SupportUrl DefaultValue="https://localhost"/>
@@ -77,7 +77,7 @@
         <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/taskpane.html"/>
       </bt:Urls>
       <bt:ShortStrings>
-        <bt:String id="GetStarted.Title" DefaultValue="Get started with Bordereaux Validator"/>
+        <bt:String id="GetStarted.Title" DefaultValue="Get started with Reporting Validator"/>
         <bt:String id="CommandsGroup.Label" DefaultValue="Data Quality"/>
         <bt:String id="TaskpaneButton.Label" DefaultValue="Open Validator"/>
       </bt:ShortStrings>

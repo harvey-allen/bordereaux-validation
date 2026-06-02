@@ -28,8 +28,25 @@ from app.testpacks.core import normalize_pack_name
 
 class SubscriptionTier(str, Enum):
     """Subscription tiers with different rate limits and features."""
-    TRIAL = "trial"
     BORDEREAUX = "bordereaux"
+    DEVELOPER = "developer"
+    # Legacy tier kept for backwards compatibility with historical DB rows.
+    TRIAL = "trial"
+
+
+def coerce_subscription_tier(value: str | SubscriptionTier) -> SubscriptionTier:
+    """Normalize incoming tier values, including legacy aliases."""
+    if isinstance(value, SubscriptionTier):
+        if value == SubscriptionTier.TRIAL:
+            return SubscriptionTier.BORDEREAUX
+        return value
+
+    normalized = str(value or "").strip().lower()
+    if normalized in {"trial", "starter", "basic"}:
+        return SubscriptionTier.BORDEREAUX
+    if normalized in {"dev", "developer", "internal"}:
+        return SubscriptionTier.DEVELOPER
+    return SubscriptionTier.BORDEREAUX if normalized == "" else SubscriptionTier(normalized)
 
 
 @dataclass
@@ -44,18 +61,25 @@ class TierConfig:
 
 # Tier configurations
 TIER_CONFIGS: dict[SubscriptionTier, TierConfig] = {
-    SubscriptionTier.TRIAL: TierConfig(
-        requests_per_day=5,
-        requests_per_minute=5,
-        max_cells_per_request=1000,
-        allowed_packs=["bordereaux", "risk_and_premium", "claims"],
-        priority=1,
-    ),
     SubscriptionTier.BORDEREAUX: TierConfig(
         requests_per_day=500,
         requests_per_minute=50,
         max_cells_per_request=10000,
-        allowed_packs=["bordereaux", "risk_and_premium", "claims"],
+        allowed_packs=["risk_and_premium", "claims"],
+        priority=2,
+    ),
+    SubscriptionTier.DEVELOPER: TierConfig(
+        requests_per_day=1_000_000,
+        requests_per_minute=10_000,
+        max_cells_per_request=1_000_000,
+        allowed_packs=None,
+        priority=99,
+    ),
+    SubscriptionTier.TRIAL: TierConfig(
+        requests_per_day=500,
+        requests_per_minute=50,
+        max_cells_per_request=10000,
+        allowed_packs=["risk_and_premium", "claims"],
         priority=2,
     ),
 }
@@ -85,7 +109,7 @@ class Subscription:
     def config(self) -> TierConfig:
         if self.metadata.get("is_admin"):
             return ADMIN_TIER_CONFIG
-        return TIER_CONFIGS[self.tier]
+        return TIER_CONFIGS.get(self.tier, TIER_CONFIGS[SubscriptionTier.BORDEREAUX])
 
     @property
     def is_expired(self) -> bool:
@@ -151,7 +175,7 @@ class SubscriptionStore:
         self._subscriptions[key_hash] = Subscription(
             api_key=dev_key,
             api_key_hash=key_hash,
-            tier=SubscriptionTier.BORDEREAUX,
+            tier=SubscriptionTier.DEVELOPER,
             owner_email="dev@example.com",
             created_at=datetime.utcnow(),
             expires_at=None,
@@ -340,7 +364,7 @@ async def check_rate_limit(
 
 def check_pack_access(subscription: Subscription, requested_packs: list[str]) -> None:
     """Verify subscription has access to requested test packs."""
-    allowed_packs = subscription.config.allowed_packs
+    allowed_packs = get_subscription_allowed_packs(subscription)
     
     if allowed_packs is None:
         return  # All packs allowed
@@ -355,6 +379,32 @@ def check_pack_access(subscription: Subscription, requested_packs: list[str]) ->
                 detail=f"Pack '{normalized_pack or pack}' is not available on the {subscription.tier.value} tier. "
                        f"Upgrade to access more test packs.",
             )
+
+
+def get_subscription_allowed_packs(subscription: Subscription) -> list[str] | None:
+    """
+    Resolve the list of packs available for a subscription.
+
+    Priority:
+    1) Metadata override (`allowed_packs_override`) from persisted subscription data
+    2) Tier configuration defaults
+    """
+    override = subscription.metadata.get("allowed_packs_override")
+    raw_allowed = override if override is not None else subscription.config.allowed_packs
+
+    if raw_allowed is None:
+        return None
+
+    normalized_allowed: list[str] = []
+    seen: set[str] = set()
+    for pack_name in raw_allowed:
+        normalized = normalize_pack_name(pack_name)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        normalized_allowed.append(normalized)
+
+    return normalized_allowed
 
 
 def check_cell_limit(subscription: Subscription, cell_count: int) -> None:

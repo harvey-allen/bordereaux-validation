@@ -11,6 +11,7 @@ Handles:
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import secrets
 import time
@@ -22,12 +23,12 @@ from typing import Any
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import RateLimitState, Subscription, SubscriptionTier, TIER_CONFIGS
+from app.auth import RateLimitState, Subscription, SubscriptionTier, TIER_CONFIGS, coerce_subscription_tier
 from app.database import RequestLog, UserSubscription
 
 
 # Get default tier from environment
-DEFAULT_TIER = SubscriptionTier(os.getenv("DEFAULT_SUBSCRIPTION_TIER", "trial"))
+DEFAULT_TIER = coerce_subscription_tier(os.getenv("DEFAULT_SUBSCRIPTION_TIER", "bordereaux"))
 ADMIN_EMAILS = {
     email.strip().lower()
     for email in os.getenv("ADMIN_EMAILS", "harveyallen2001@gmail.com").split(",")
@@ -200,7 +201,7 @@ class SubscriptionService:
                 display_name="Harvey Allen",
                 api_key_hash=key_hash,
                 api_key_prefix=api_key[:12] + "...",
-                tier=SubscriptionTier.BORDEREAUX,
+                tier=SubscriptionTier.DEVELOPER,
                 is_active=True,
                 created_at=datetime.now(timezone.utc),
             )
@@ -268,7 +269,7 @@ class SubscriptionService:
             del self._cache_ttl[old_hash]
 
         # Generate new key
-        new_api_key = generate_api_key(SubscriptionTier(db_sub.tier))
+        new_api_key = generate_api_key(coerce_subscription_tier(db_sub.tier))
         db_sub.api_key_hash = hash_api_key(new_api_key)
         db_sub.api_key_prefix = new_api_key[:12] + "..."
         
@@ -375,10 +376,26 @@ class SubscriptionService:
 
     def _db_to_subscription(self, db_sub: UserSubscription) -> Subscription:
         """Convert database model to Subscription dataclass."""
+        extra_data: dict[str, Any] = {}
+        if db_sub.extra_data:
+            try:
+                parsed = json.loads(db_sub.extra_data)
+                if isinstance(parsed, dict):
+                    extra_data = parsed
+            except Exception:
+                extra_data = {}
+
+        allowed_packs_override = None
+        for key in ("allowed_packs", "allowedPacks", "test_packs", "testPacks"):
+            value = extra_data.get(key)
+            if isinstance(value, list):
+                allowed_packs_override = [str(item) for item in value if str(item or "").strip()]
+                break
+
         return Subscription(
             api_key=db_sub.api_key_prefix,
             api_key_hash=db_sub.api_key_hash,
-            tier=SubscriptionTier(db_sub.tier) if isinstance(db_sub.tier, str) else db_sub.tier,
+            tier=coerce_subscription_tier(db_sub.tier) if isinstance(db_sub.tier, str) else coerce_subscription_tier(db_sub.tier),
             owner_email=db_sub.email,
             created_at=db_sub.created_at,
             expires_at=db_sub.expires_at,
@@ -388,6 +405,7 @@ class SubscriptionService:
                 "excel_user_id": db_sub.excel_user_id,
                 "display_name": db_sub.display_name,
                 "is_admin": db_sub.email.strip().lower() in ADMIN_EMAILS,
+                "allowed_packs_override": allowed_packs_override,
             },
         )
 

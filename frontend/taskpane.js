@@ -10,6 +10,12 @@ let territoriesByPack = {};
 let lastValidationResults = [];
 let lastValidationSourceSheetName = null;
 let lastValidationExecutedTests = [];
+let lastValidationPack = null;
+
+const DEFAULT_PACK_OPTIONS = [
+  { value: "risk_and_premium", label: "Risk and Premium" },
+  { value: "claims", label: "Claims" },
+];
 
 function formatPackLabel(packName) {
   const normalized = String(packName || "").trim();
@@ -19,6 +25,72 @@ function formatPackLabel(packName) {
   return normalized
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getDefaultPackValues() {
+  return DEFAULT_PACK_OPTIONS.map((pack) => pack.value);
+}
+
+function getPackLabel(packName) {
+  const normalized = String(packName || "").trim().toLowerCase();
+  const known = DEFAULT_PACK_OPTIONS.find((pack) => pack.value === normalized);
+  return known?.label || formatPackLabel(normalized);
+}
+
+function populatePackSelect(packValues) {
+  const select = document.getElementById("testPacks");
+  if (!select) {
+    return [];
+  }
+
+  const normalizedValues = Array.from(new Set(
+    (Array.isArray(packValues) ? packValues : [])
+      .map((value) => String(value || "").trim().toLowerCase())
+      .filter(Boolean)
+  ));
+
+  const valuesToRender = normalizedValues.length > 0 ? normalizedValues : getDefaultPackValues();
+
+  select.innerHTML = "";
+  for (const packName of valuesToRender) {
+    const option = document.createElement("option");
+    option.value = packName;
+    option.textContent = getPackLabel(packName);
+    select.appendChild(option);
+  }
+
+  return valuesToRender;
+}
+
+async function loadSubscribedPackValues(excelUserEmail) {
+  try {
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/test-packs`, {
+      method: "GET",
+      headers: {
+        "X-Excel-User-Email": excelUserEmail,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return getDefaultPackValues();
+    }
+
+    const payload = await response.json().catch(() => ({}));
+    const allowedPacks = Array.isArray(payload?.allowed_packs)
+      ? payload.allowed_packs
+      : (Array.isArray(payload?.all_packs) ? payload.all_packs : []);
+
+    const normalized = Array.from(new Set(
+      allowedPacks
+        .map((value) => String(value || "").trim().toLowerCase())
+        .filter(Boolean)
+    ));
+
+    return normalized.length > 0 ? normalized : getDefaultPackValues();
+  } catch {
+    return getDefaultPackValues();
+  }
 }
 
 function updateActionButtons() {
@@ -127,6 +199,7 @@ async function buildSankeyPngBase64(exportRows) {
   // Colour mapping requested: pass (light green), fail (light red), warning (yellow), error (orange), critical (red)
   const COLOR = {
     ALL: '#e5e7eb',
+    TOTAL: '#e5e7eb',
     PASS: '#c8f7d4', // light green
     FAIL: '#ffd6d6', // light red
     INFO: '#d9d9d9',
@@ -167,7 +240,7 @@ async function buildSankeyPngBase64(exportRows) {
   nodeColourMap.set('All Tests', COLOR.ALL);
   nodeColourMap.set('Passed Tests', COLOR.PASS);
   nodeColourMap.set('Failed Tests', COLOR.FAIL);
-  nodeColourMap.set('Total Tests', COLOR.DEFAULT);
+  nodeColourMap.set('Total Tests', COLOR.TOTAL);
   // Map severities
   nodeColourMap.set('INFO', COLOR.INFO);
   nodeColourMap.set('WARNING', COLOR.WARNING);
@@ -319,10 +392,45 @@ async function insertSankeyImageIntoResults(exportRows) {
 
 function getDefaultPackConfig(selectedPack) {
   const normalizedPack = String(selectedPack || "").trim().toLowerCase();
+
+  const defaultRefByPack = {
+    risk_and_premium: "Unique Market Reference (UMR)",
+    claims: "Unique Market Reference (UMR)",
+  };
+
   return {
     testPack: normalizedPack,
-    UMR: "Unique Market Reference (UMR)",
+    ID: defaultRefByPack[normalizedPack] || "Record ID",
   };
+}
+
+function normalizePackConfigShape(config, selectedPack) {
+  const normalizedPack = String(selectedPack || "").trim().toLowerCase();
+  const next = { ...(config || {}) };
+  const fallbackId = getDefaultPackConfig(normalizedPack).ID;
+
+  const resolvedId = String(
+    next.ID
+      || next.id
+      || next.UMR
+      || next.UTIColumn
+      || fallbackId
+      || ""
+  ).trim();
+
+  if (resolvedId) {
+    next.ID = resolvedId;
+  }
+
+  delete next.id;
+  delete next.UMR;
+  delete next.UTIColumn;
+
+  if (normalizedPack) {
+    next.testPack = normalizedPack;
+  }
+
+  return next;
 }
 
 function heatmapColor(severityScore, maxSeverityScore) {
@@ -374,7 +482,7 @@ function withDefaultEnabledTests(packConfigs, selectedPack) {
     existingPackConfig.enabledTests = normalizedEnabledTests;
   }
 
-  nextConfigs[normalizedPack] = existingPackConfig;
+  nextConfigs[normalizedPack] = normalizePackConfigShape(existingPackConfig, normalizedPack);
   return nextConfigs;
 }
 
@@ -399,6 +507,14 @@ function applyTerritoryToPackConfig(packName, territory) {
   }
 
   packConfigsByPack[normalizedPack] = existingConfig;
+}
+
+function updateTerritoryVisibilityForPack(packName) {
+  const normalizedPack = String(packName || "").trim().toLowerCase();
+  const territoryGroup = document.getElementById("territoryGroup");
+  if (territoryGroup) {
+    territoryGroup.style.display = "";
+  }
 }
 
 async function fetchTerritoriesForPack(packName) {
@@ -441,6 +557,8 @@ async function syncTerritorySelectorForSelectedPack() {
   if (!selectedPack || !territorySelect) {
     return;
   }
+
+  updateTerritoryVisibilityForPack(selectedPack);
 
   const availableTerritories = await fetchTerritoriesForPack(selectedPack);
   territorySelect.innerHTML = "";
@@ -494,10 +612,10 @@ function parsePackConfigInput(packConfigText, selectedPack) {
   const nestedConfig = parsed[normalizedPack];
 
   if (nestedConfig && typeof nestedConfig === "object" && !Array.isArray(nestedConfig)) {
-    return nestedConfig;
+    return normalizePackConfigShape(nestedConfig, normalizedPack);
   }
 
-  return directConfig;
+  return normalizePackConfigShape(directConfig, normalizedPack);
 }
 
 function renderSelectedPackConfig(selectedPack) {
@@ -665,17 +783,65 @@ async function hydrateSelectedPackConfigFromServer() {
   }
 }
 
+function initializeValidatorTabs() {
+  const tabs = [
+    {
+      button: document.getElementById("tabConfiguration"),
+      panel: document.getElementById("panelConfiguration"),
+    },
+    {
+      button: document.getElementById("tabControl"),
+      panel: document.getElementById("panelControl"),
+    },
+    {
+      button: document.getElementById("tabAnalysis"),
+      panel: document.getElementById("panelAnalysis"),
+    },
+  ];
+
+  if (tabs.some((tab) => !tab.button || !tab.panel)) {
+    return;
+  }
+
+  const activateTab = (targetButtonId) => {
+    for (const { button, panel } of tabs) {
+      const isActive = button.id === targetButtonId;
+      button.setAttribute("aria-selected", isActive ? "true" : "false");
+      button.tabIndex = isActive ? 0 : -1;
+      panel.classList.toggle("active", isActive);
+    }
+  };
+
+  for (const { button } of tabs) {
+    button.addEventListener("click", () => activateTab(button.id));
+  }
+
+  activateTab("tabConfiguration");
+}
+
 
 Office.onReady(async () => {
+  initializeValidatorTabs();
+
   const testPackSelect = document.getElementById("testPacks");
-  testPackSelect.value = CONFIG.DEFAULT_PACK;
+  const excelUserEmail = getExcelUserEmail();
+  const availablePacks = populatePackSelect(await loadSubscribedPackValues(excelUserEmail));
+
+  const defaultPackFromConfig = String(CONFIG.DEFAULT_PACK || "").trim().toLowerCase();
+  const fallbackPack = availablePacks[0] || "risk_and_premium";
+  const initialPack = availablePacks.includes(defaultPackFromConfig)
+    ? defaultPackFromConfig
+    : fallbackPack;
+
+  testPackSelect.value = initialPack;
   if (!testPackSelect.value) {
-    testPackSelect.value = "risk_and_premium";
+    testPackSelect.value = fallbackPack;
   }
-  packConfigsByPack = {
-    risk_and_premium: getDefaultPackConfig("risk_and_premium"),
-    claims: getDefaultPackConfig("claims"),
-  };
+
+  packConfigsByPack = Object.fromEntries(
+    availablePacks.map((packName) => [packName, getDefaultPackConfig(packName)])
+  );
+
   currentPackSelection = String(testPackSelect.value || "").trim().toLowerCase();
   renderSelectedPackConfig(currentPackSelection);
   await syncTerritorySelectorForSelectedPack();
@@ -699,6 +865,7 @@ Office.onReady(async () => {
   document.getElementById("extractResults")?.addEventListener("click", extractValidationResults);
   document.getElementById("visualiseResults")?.addEventListener("click", visualiseValidationResults);
   document.getElementById("rulesEngine")?.addEventListener("click", openRulesEngine);
+  document.getElementById("generateTemplate")?.addEventListener("click", generateTemplate);
   // Initialize button states (Extract / Visualise disabled until validation run)
   updateActionButtons();
 });
@@ -749,8 +916,12 @@ function getWorkbookName() {
 }
 
 function resolveReferenceColumnIndex(headerRow, selectedPack) {
+  const currentPackConfig = packConfigsByPack[String(selectedPack || "").trim().toLowerCase()] || {};
   const configuredRef = String(
-    packConfigsByPack[String(selectedPack || "").trim().toLowerCase()]?.UMR
+    currentPackConfig.ID
+      || currentPackConfig.id
+      || currentPackConfig.UMR
+      || currentPackConfig.UTIColumn
       || "Unique Market Reference (UMR)"
   ).trim();
 
@@ -758,6 +929,10 @@ function resolveReferenceColumnIndex(headerRow, selectedPack) {
     configuredRef,
     "Unique Market Reference (UMR)",
     "Agreement No",
+    "Record ID",
+    "Submission ID",
+    "Company Identifier",
+    "Entity Name",
   ].filter(Boolean)));
 
   return headerRow.findIndex((header) => {
@@ -1043,9 +1218,6 @@ async function applyResultsToSheet(results, maxSeverityScore) {
 
     await context.sync();
   });
-
-  // Store results for extraction
-  lastValidationResults = results;
 }
 
 async function buildFailureExportRows() {
@@ -1321,14 +1493,14 @@ async function visualiseValidationResults() {
     const escapeHtml = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
     const nowStr = new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
-    const packLabel = formatPackLabel(currentPackSelection || "Unknown");
+    const packLabel = formatPackLabel(lastValidationPack || currentPackSelection || "Unknown");
 
     const html = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Bordereaux Validation — Results</title>
+  <title>Reporting Validation — Results</title>
   <style>
     :root {
       --bg:        #f8f9fb;
@@ -1408,7 +1580,8 @@ async function visualiseValidationResults() {
     .bar-row { display:grid; grid-template-columns:200px 1fr 52px; align-items:center; gap:10px; padding:5px 0; border-bottom:1px solid #f3f4f6; }
     .bar-row:last-child { border-bottom:none; }
     .bar-label { font-size:12px; color:var(--text-1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .bar-track { background:#f0f2f5; border-radius:4px; height:12px; overflow:hidden; display:flex; }
+    .bar-track { background:#f0f2f5; border-radius:4px; height:12px; overflow:hidden; position:relative; }
+    .bar-fill { height:100%; display:flex; border-radius:4px; overflow:hidden; }
     .bar-seg { height:100%; transition:width .3s ease; }
     .bar-seg.warn { background:#fde68a; }
     .bar-seg.error { background:#fdba74; }
@@ -1462,7 +1635,7 @@ async function visualiseValidationResults() {
     Axios
   </a>
   <div class="nav-divider"></div>
-  <span class="nav-title">Bordereaux Validation</span>
+  <span class="nav-title">Reporting Validation</span>
   <div class="nav-spacer"></div>
   <span class="nav-meta">Pack: <strong style="color:#fff">${escapeHtml(packLabel)}</strong></span>
   <div class="nav-divider"></div>
@@ -1475,7 +1648,7 @@ async function visualiseValidationResults() {
   <div class="page-header">
     <div>
       <h1>Validation Results</h1>
-      <p>Overview of Bordereaux validation testing — review failures by test, field and submission. Broken down by severity and test type.</p>
+      <p>Overview of validation testing for the selected pack — review failures by test, field and submission.</p>
     </div>
   </div>
 
@@ -1567,19 +1740,23 @@ async function visualiseValidationResults() {
     container.appendChild(legend);
 
     rows.forEach((r) => {
-      const warningPct = max ? ((r.WARNING || 0) / max) * 100 : 0;
-      const errorPct = max ? ((r.ERROR || 0) / max) * 100 : 0;
-      const criticalPct = max ? ((r.CRITICAL || 0) / max) * 100 : 0;
+      const total = Number(r.total || 0);
+      const barPct = max ? (total / max) * 100 : 0;
+      const warningPct = total ? ((r.WARNING || 0) / total) * 100 : 0;
+      const errorPct = total ? ((r.ERROR || 0) / total) * 100 : 0;
+      const criticalPct = total ? ((r.CRITICAL || 0) / total) * 100 : 0;
       const row = document.createElement('div');
       row.className = 'bar-row';
       row.innerHTML =
         '<div class="bar-label" title="' + String(r.label || '').replace(/"/g,'&quot;') + '">' + String(r.label || '') + '</div>' +
         '<div class="bar-track">' +
-          '<div class="bar-seg warn" style="width:' + warningPct + '%" title="Warning: ' + (r.WARNING || 0) + '"></div>' +
-          '<div class="bar-seg error" style="width:' + errorPct + '%" title="Error: ' + (r.ERROR || 0) + '"></div>' +
-          '<div class="bar-seg critical" style="width:' + criticalPct + '%" title="Critical: ' + (r.CRITICAL || 0) + '"></div>' +
+          '<div class="bar-fill" style="width:' + barPct + '%">' +
+            '<div class="bar-seg warn" style="width:' + warningPct + '%" title="Warning: ' + (r.WARNING || 0) + '"></div>' +
+            '<div class="bar-seg error" style="width:' + errorPct + '%" title="Error: ' + (r.ERROR || 0) + '"></div>' +
+            '<div class="bar-seg critical" style="width:' + criticalPct + '%" title="Critical: ' + (r.CRITICAL || 0) + '"></div>' +
+          '</div>' +
         '</div>' +
-        '<div class="bar-count">' + (r.total || 0) + '</div>';
+        '<div class="bar-count">' + total + '</div>';
       container.appendChild(row);
     });
   }
@@ -1723,8 +1900,13 @@ async function openRulesEngine() {
 
   try {
     setStatus("Loading rules engine...");
+    const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
+    const rulesUrl = new URL(`${CONFIG.BACKEND_URL}/api/v1/rules-engine`);
+    if (selectedPack) {
+      rulesUrl.searchParams.set("test_pack", selectedPack);
+    }
 
-    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/rules-engine`, {
+    const response = await fetch(rulesUrl.toString(), {
       method: "GET",
       cache: "no-store",
     });
@@ -1737,7 +1919,6 @@ async function openRulesEngine() {
     const payload = await response.json().catch(() => ({}));
     const rules = Array.isArray(payload?.rules) ? payload.rules : [];
     const packs = Array.isArray(payload?.packs) ? payload.packs : [];
-    const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
     const nowStr = new Date().toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
     const packLabel = formatPackLabel(selectedPack || "All Packs");
 
@@ -1911,7 +2092,7 @@ async function openRulesEngine() {
       Axios
     </a>
     <div class="nav-divider"></div>
-    <span class="nav-title">Bordereaux Validation</span>
+    <span class="nav-title">Reporting Validation</span>
     <div class="nav-spacer"></div>
     <span class="nav-meta">Pack: <strong style="color:#fff">${packLabel}</strong></span>
     <div class="nav-divider"></div>
@@ -2207,6 +2388,93 @@ async function openRulesEngine() {
   }
 }
 
+async function generateTemplate() {
+  const button = document.getElementById("generateTemplate");
+  const backendUrl = CONFIG.BACKEND_URL;
+  const excelUserEmail = getExcelUserEmail();
+
+  if (!button) return;
+
+  try {
+    button.disabled = true;
+    setStatus("Generating template...");
+
+    // Get the selected test pack and territory
+    const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
+    const selectedTerritory = String(document.getElementById("territory")?.value || "").trim();
+
+    if (!selectedPack) {
+      throw new Error("Please select a test pack first");
+    }
+
+    if (!selectedTerritory) {
+      throw new Error("Please select a territory first");
+    }
+
+    // Fetch template headers from backend
+    const response = await fetch(
+      `${backendUrl}/api/v1/generate-template?test_pack=${encodeURIComponent(selectedPack)}&territory=${encodeURIComponent(selectedTerritory)}`,
+      {
+        method: "GET",
+        headers: {
+          "X-Excel-User-Email": excelUserEmail,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP ${response.status}`);
+    }
+
+    const templateData = await response.json();
+    const headers = templateData.headers || [];
+
+    if (headers.length === 0) {
+      throw new Error("No fields available for this pack and territory");
+    }
+
+    // Create new worksheet and add template
+    await Excel.run(async (context) => {
+      const workbook = context.workbook;
+      const sheets = workbook.worksheets;
+
+      // Create a new worksheet with a name based on the pack and territory
+      const sheetName = `${formatPackLabel(selectedPack)} - ${selectedTerritory}`.substring(0, 31);
+      const newSheet = sheets.add(sheetName);
+
+      // Calculate the range for all header columns
+      const lastCol = columnToA1(headers.length - 1);
+      const headerRangeAddress = `A1:${lastCol}1`;
+      
+      // Add headers to the first row
+      const headerRange = newSheet.getRange(headerRangeAddress);
+      headerRange.values = [headers];
+
+      // Format the header row
+      headerRange.format.font.bold = true;
+      headerRange.format.fill.color = "#1d4ed8";
+      headerRange.format.font.color = "#ffffff";
+
+      // Auto-fit columns
+      headerRange.format.autofitColumns();
+
+      // Activate the new sheet
+      newSheet.activate();
+
+      await context.sync();
+    });
+
+    setStatus(`Template generated with ${headers.length} fields in new sheet: ${sheetName}`);
+  } catch (error) {
+    setStatus(`Template generation failed: ${error?.message || "Unexpected error"}`, true);
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+  }
+}
+
 async function runValidation() {
   const button = document.getElementById("runValidation");
   const clearButton = document.getElementById("clearTable");
@@ -2253,6 +2521,8 @@ async function runValidation() {
     const selectionMeta = await resolveValidationRangeMeta();
     lastValidationSourceSheetName = selectionMeta.sheetName || null;
     lastValidationExecutedTests = [];
+    lastValidationResults = [];
+    lastValidationPack = selectedPack;
 
     if (clearButton) {
       clearButton.disabled = true;
@@ -2272,6 +2542,7 @@ async function runValidation() {
     );
 
     let failedCount = 0;
+    const aggregatedResults = [];
     const executedTestNames = new Set();
     const coverageWarnings = new Set();
 
@@ -2334,6 +2605,7 @@ async function runValidation() {
 
       const data = await response.json();
       const results = data.results || [];
+      aggregatedResults.push(...results);
       // Use severityScore for heatmap scaling (falls back to failCount for compatibility)
       const maxSeverityScore = Math.max(
         ...results.map((result) => result.severityScore !== undefined ? result.severityScore : result.failCount || 0),
@@ -2363,6 +2635,7 @@ async function runValidation() {
     }
 
     const packName = testPacks[0];
+    lastValidationResults = aggregatedResults;
     lastValidationExecutedTests = Array.from(executedTestNames).sort();
     const warningText = Array.from(coverageWarnings).join(" | ");
     const statusMessage = `Validation complete with ${packName}: ${failedCount} cells failed at least one test.`;
