@@ -11,6 +11,7 @@ let lastValidationResults = [];
 let lastValidationSourceSheetName = null;
 let lastValidationExecutedTests = [];
 let lastValidationPack = null;
+const APP_LOGO_URL = `${window.location.origin}/AXIOS.png`;
 
 const DEFAULT_PACK_OPTIONS = [
   { value: "risk_and_premium", label: "Risk and Premium" },
@@ -35,6 +36,10 @@ function getPackLabel(packName) {
   const normalized = String(packName || "").trim().toLowerCase();
   const known = DEFAULT_PACK_OPTIONS.find((pack) => pack.value === normalized);
   return known?.label || formatPackLabel(normalized);
+}
+
+function formatTestTypeLabel(testType) {
+  return String(testType || "").trim().replace(/[_-]+/g, " ");
 }
 
 function populatePackSelect(packValues) {
@@ -212,9 +217,8 @@ async function buildSankeyPngBase64(exportRows) {
 
   const TEST_TYPE_COLOR = {
     LOGIC: '#60a5fa',   // blue
-    QUALITY: '#a78bfa', // purple
-    MISSING: '#f9a8d4', // pink
-    LOOKUP: '#93c5fd',  // light blue
+    DATA_TYPE: '#a78bfa', // purple
+    COMPLETENESS: '#f9a8d4', // pink
     OTHER: '#d1d5db',   // grey
   };
 
@@ -1530,7 +1534,7 @@ async function visualiseValidationResults() {
     /* ── Nav ── */
     .nav { display:flex; align-items:center; gap:16px; padding:0 24px; height:52px; background:var(--nav-bg); border-bottom:1px solid #1e2028; position:sticky; top:0; z-index:100; }
     .nav-logo { display:flex; align-items:center; gap:8px; color:#fff; font-size:14px; font-weight:600; letter-spacing:-.2px; text-decoration:none; }
-    .nav-logo svg { flex-shrink:0; }
+    .nav-logo img { width:20px; height:20px; object-fit:contain; border-radius:5px; flex-shrink:0; }
     .nav-divider { width:1px; height:20px; background:#2e3140; }
     .nav-title { color:var(--nav-text); font-size:13px; }
     .nav-spacer { flex:1; }
@@ -1631,7 +1635,7 @@ async function visualiseValidationResults() {
 
 <nav class="nav">
   <a class="nav-logo" href="#">
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect width="20" height="20" rx="5" fill="#4f6ef7"/><path d="M5 14L8 8l3 4 2-3 2 5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <img src="${escapeHtml(APP_LOGO_URL)}" alt="Axios logo" />
     Axios
   </a>
   <div class="nav-divider"></div>
@@ -1934,6 +1938,12 @@ async function openRulesEngine() {
       .replace(/&/g, "\\u0026")
       .replace(/\u2028/g, "\\u2028")
       .replace(/\u2029/g, "\\u2029");
+    const escapeHtml = (s) => String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#39;");
 
     const html = `<!doctype html>
 <html lang="en">
@@ -1970,6 +1980,7 @@ async function openRulesEngine() {
     html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text-1); font-family: var(--font); }
     .nav { display:flex; align-items:center; gap:16px; padding:0 24px; height:52px; background:var(--nav-bg); border-bottom:1px solid #1e2028; position:sticky; top:0; z-index:100; }
     .nav-logo { display:flex; align-items:center; gap:8px; color:#fff; font-size:14px; font-weight:600; letter-spacing:-.2px; text-decoration:none; }
+    .nav-logo img { width:20px; height:20px; object-fit:contain; border-radius:5px; flex-shrink:0; }
     .nav-divider { width:1px; height:20px; background:#2e3140; }
     .nav-title { color:var(--nav-text); font-size:13px; }
     .nav-spacer { flex:1; }
@@ -2088,15 +2099,15 @@ async function openRulesEngine() {
 <body>
   <nav class="nav">
     <a class="nav-logo" href="#">
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect width="20" height="20" rx="5" fill="#4f6ef7"/><path d="M5 14L8 8l3 4 2-3 2 5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <img src="${escapeHtml(APP_LOGO_URL)}" alt="Axios logo" />
       Axios
     </a>
     <div class="nav-divider"></div>
     <span class="nav-title">Reporting Validation</span>
     <div class="nav-spacer"></div>
-    <span class="nav-meta">Pack: <strong style="color:#fff">${packLabel}</strong></span>
+    <span class="nav-meta">Pack: <strong style="color:#fff">${escapeHtml(packLabel)}</strong></span>
     <div class="nav-divider"></div>
-    <span class="nav-meta">${nowStr}</span>
+    <span class="nav-meta">${escapeHtml(nowStr)}</span>
     <span class="nav-badge" id="summary"></span>
   </nav>
 
@@ -2139,6 +2150,7 @@ async function openRulesEngine() {
 
       const norm = (value) => String(value || "").trim().toLowerCase();
       const clean = (value) => String(value || "").trim();
+      const formatTestTypeLabel = (value) => String(value || "").trim().replace(/[_-]+/g, " ");
       const slug = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "field";
 
       function setupPackFilter() {
@@ -2178,7 +2190,7 @@ async function openRulesEngine() {
               rule.target_column,
               rule.description,
               rule.severity,
-              rule.test_type,
+                formatTestTypeLabel(rule.test_type),
               rule.pack,
             ].map(norm).join(" ");
             return haystack.includes(q);
@@ -2308,7 +2320,7 @@ async function openRulesEngine() {
 
             const tdType = document.createElement("div");
             tdType.className = "rule-cell rule-cell--type";
-            tdType.textContent = clean(rule.test_type) || "—";
+            tdType.textContent = formatTestTypeLabel(clean(rule.test_type)) || "—";
 
             const tdPack = document.createElement("div");
             tdPack.className = "rule-cell rule-cell--pack";

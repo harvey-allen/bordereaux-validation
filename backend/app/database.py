@@ -202,7 +202,7 @@ class TestResult(Base):
     # Severity level
     severity: Mapped[str] = mapped_column(String(20), nullable=False)  # INFO, WARNING, ERROR, CRITICAL
     severity_weight: Mapped[int] = mapped_column(Integer, nullable=False)  # 0, 1, 2, 3
-    # Test type categorisation (LOGIC, QUALITY, MISSING, LOOKUP, etc.)
+    # Test type categorisation (LOGIC, DATA_TYPE, COMPLETENESS, OTHER, etc.)
     test_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     
     # Results

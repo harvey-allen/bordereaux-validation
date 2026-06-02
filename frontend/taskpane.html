@@ -38,6 +38,19 @@
         padding: 14px;
       }
 
+      .brand-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .brand-header img {
+        width: 28px;
+        height: 28px;
+        object-fit: contain;
+        border-radius: 6px;
+      }
+
       h2 {
         margin: 0;
         font-size: 18px;
@@ -184,7 +197,10 @@
   </head>
   <body>
     <div class="app-shell">
-      <h2>Reporting Validator</h2>
+      <div class="brand-header">
+        <img src="./AXIOS.png" alt="Axios logo" />
+        <h2>Reporting Validator</h2>
+      </div>
       <div class="hint">Configure validation settings for your subscribed test packs</div>
 
       <div class="tabs" role="tablist" aria-label="Validator sections">
