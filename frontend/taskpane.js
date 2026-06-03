@@ -1906,9 +1906,8 @@ async function openRulesEngine() {
     setStatus("Loading rules engine...");
     const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
     const rulesUrl = new URL(`${CONFIG.BACKEND_URL}/api/v1/rules-engine`);
-    if (selectedPack) {
-      rulesUrl.searchParams.set("test_pack", selectedPack);
-    }
+    // Always fetch ALL rules so users can switch between packs in the filter
+    // Do not set test_pack parameter
 
     const response = await fetch(rulesUrl.toString(), {
       method: "GET",
@@ -1924,7 +1923,7 @@ async function openRulesEngine() {
     const rules = Array.isArray(payload?.rules) ? payload.rules : [];
     const packs = Array.isArray(payload?.packs) ? payload.packs : [];
     const nowStr = new Date().toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
-    const packLabel = formatPackLabel(selectedPack || "All Packs");
+    const packLabel = formatPackLabel(selectedPack || "all Packs");
 
     const win = window.open("", "_blank");
     if (!win) {
