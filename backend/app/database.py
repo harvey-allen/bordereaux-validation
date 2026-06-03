@@ -52,6 +52,42 @@ class Base(DeclarativeBase):
     pass
 
 
+class Organisation(Base):
+    """Organisation boundary for users and workbook/sheet contexts."""
+    __tablename__ = "organisations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class OrganisationWorkbookSheetKey(Base):
+    """Core unique key for organisation + workbook + sheet."""
+    __tablename__ = "organisation_workbook_sheet_keys"
+    __table_args__ = (
+        UniqueConstraint("organisation_id", "workbook_name", "sheet_name", name="uq_org_workbook_sheet"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    organisation_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("organisations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    workbook_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    sheet_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class UserSubscription(Base):
     """
     User subscription stored in PostgreSQL.
@@ -61,6 +97,13 @@ class UserSubscription(Base):
     __tablename__ = "user_subscriptions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    organisation_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("organisations.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     
     # Excel user identity (from Office.js)
     excel_user_id: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
@@ -73,7 +116,13 @@ class UserSubscription(Base):
     
     # Subscription details
     tier: Mapped[str] = mapped_column(
-        SQLEnum(SubscriptionTier, name="subscription_tier", create_constraint=True),
+        SQLEnum(
+            SubscriptionTier,
+            name="subscription_tier",
+            create_constraint=True,
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+            validate_strings=True,
+        ),
         nullable=False,
         default=SubscriptionTier.BORDEREAUX,
     )
@@ -228,7 +277,7 @@ class PackConfiguration(Base):
     """Persisted per-user test pack configuration by sheet."""
     __tablename__ = "pack_configurations"
     __table_args__ = (
-        UniqueConstraint("user_id", "sheet_name", "test_pack", name="uq_pack_config_user_sheet_pack"),
+        UniqueConstraint("user_id", "org_workbook_sheet_key_id", "test_pack", name="uq_pack_config_user_context_pack"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -236,6 +285,12 @@ class PackConfiguration(Base):
     user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("user_subscriptions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    org_workbook_sheet_key_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("organisation_workbook_sheet_keys.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -258,6 +313,32 @@ class PackConfiguration(Base):
     )
 
 
+class ValidationResultVersion(Base):
+    """Saved result versions keyed by organisation/workbook/sheet context."""
+    __tablename__ = "validation_result_versions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    org_workbook_sheet_key_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("organisation_workbook_sheet_keys.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("user_subscriptions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    results_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency for getting database sessions."""
     async with async_session_maker() as session:
@@ -271,6 +352,177 @@ async def init_db() -> None:
     """Initialize the database tables."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS organisations (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(255) UNIQUE NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                INSERT INTO organisations (name, created_at)
+                VALUES ('default', NOW())
+                ON CONFLICT (name) DO NOTHING
+                """
+            )
+        )
+
+        await conn.execute(
+            text("ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS organisation_id INTEGER")
+        )
+        await conn.execute(
+            text(
+                """
+                UPDATE user_subscriptions
+                SET organisation_id = (SELECT id FROM organisations WHERE name = 'default')
+                WHERE organisation_id IS NULL
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_constraint
+                        WHERE conname = 'fk_user_subscriptions_organisation_id'
+                    ) THEN
+                        ALTER TABLE user_subscriptions
+                        ADD CONSTRAINT fk_user_subscriptions_organisation_id
+                        FOREIGN KEY (organisation_id)
+                        REFERENCES organisations(id)
+                        ON DELETE RESTRICT;
+                    END IF;
+                END
+                $$;
+                """
+            )
+        )
+        await conn.execute(text("ALTER TABLE user_subscriptions ALTER COLUMN organisation_id SET NOT NULL"))
+
+        await conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS organisation_workbook_sheet_keys (
+                    id SERIAL PRIMARY KEY,
+                    organisation_id INTEGER NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+                    workbook_name VARCHAR(255) NOT NULL,
+                    sheet_name VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    CONSTRAINT uq_org_workbook_sheet UNIQUE (organisation_id, workbook_name, sheet_name)
+                )
+                """
+            )
+        )
+
+        await conn.execute(
+            text("ALTER TABLE pack_configurations ADD COLUMN IF NOT EXISTS org_workbook_sheet_key_id INTEGER")
+        )
+        await conn.execute(
+            text(
+                """
+                INSERT INTO organisation_workbook_sheet_keys (organisation_id, workbook_name, sheet_name, created_at)
+                SELECT DISTINCT
+                    us.organisation_id,
+                    COALESCE(NULLIF(pc.workbook_name, ''), '__unknown_workbook__') AS workbook_name,
+                    COALESCE(NULLIF(pc.sheet_name, ''), '__unknown_sheet__') AS sheet_name,
+                    NOW() AS created_at
+                FROM pack_configurations pc
+                JOIN user_subscriptions us ON us.id = pc.user_id
+                ON CONFLICT (organisation_id, workbook_name, sheet_name) DO NOTHING
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                UPDATE pack_configurations pc
+                SET org_workbook_sheet_key_id = ows.id
+                                FROM user_subscriptions us, organisation_workbook_sheet_keys ows
+                WHERE pc.user_id = us.id
+                                    AND ows.organisation_id = us.organisation_id
+                                    AND ows.workbook_name = COALESCE(NULLIF(pc.workbook_name, ''), '__unknown_workbook__')
+                                    AND ows.sheet_name = COALESCE(NULLIF(pc.sheet_name, ''), '__unknown_sheet__')
+                  AND pc.org_workbook_sheet_key_id IS NULL
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1
+                        FROM pg_constraint
+                        WHERE conname = 'uq_pack_config_user_sheet_pack'
+                    ) THEN
+                        ALTER TABLE pack_configurations DROP CONSTRAINT uq_pack_config_user_sheet_pack;
+                    END IF;
+                END
+                $$;
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_constraint
+                        WHERE conname = 'uq_pack_config_user_context_pack'
+                    ) THEN
+                        ALTER TABLE pack_configurations
+                        ADD CONSTRAINT uq_pack_config_user_context_pack
+                        UNIQUE (user_id, org_workbook_sheet_key_id, test_pack);
+                    END IF;
+                END
+                $$;
+                """
+            )
+        )
+
+        await conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS validation_result_versions (
+                    id SERIAL PRIMARY KEY,
+                    org_workbook_sheet_key_id INTEGER NOT NULL REFERENCES organisation_workbook_sheet_keys(id) ON DELETE CASCADE,
+                    user_id INTEGER NULL REFERENCES user_subscriptions(id) ON DELETE SET NULL,
+                    results_json JSONB NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'subscription_tier') THEN
+                        ALTER TYPE subscription_tier ADD VALUE IF NOT EXISTS 'BORDEREAUX';
+                        ALTER TYPE subscription_tier ADD VALUE IF NOT EXISTS 'DEVELOPER';
+                        ALTER TYPE subscription_tier ADD VALUE IF NOT EXISTS 'TRIAL';
+                        ALTER TYPE subscription_tier ADD VALUE IF NOT EXISTS 'bordereaux';
+                        ALTER TYPE subscription_tier ADD VALUE IF NOT EXISTS 'developer';
+                        ALTER TYPE subscription_tier ADD VALUE IF NOT EXISTS 'trial';
+                    END IF;
+                END
+                $$;
+                """
+            )
+        )
         await conn.execute(
             text("ALTER TABLE validation_runs ALTER COLUMN test_packs TYPE TEXT")
         )

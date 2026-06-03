@@ -24,7 +24,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import RateLimitState, Subscription, SubscriptionTier, TIER_CONFIGS, coerce_subscription_tier
-from app.database import RequestLog, UserSubscription
+from app.database import Organisation, RequestLog, UserSubscription
 
 
 # Get default tier from environment
@@ -76,12 +76,35 @@ class SubscriptionService:
         self._subscription_cache[subscription.api_key_hash] = subscription
         self._cache_ttl[subscription.api_key_hash] = time.time() + self._cache_duration
 
+    async def _get_or_create_organisation_id(
+        self,
+        db: AsyncSession,
+        *,
+        email: str,
+        organisation_name: str | None = None,
+    ) -> int:
+        normalized = (organisation_name or "").strip().lower()
+        if not normalized:
+            domain = email.strip().lower().split("@")[-1] if "@" in email else "default"
+            normalized = domain or "default"
+
+        result = await db.execute(
+            select(Organisation).where(func.lower(Organisation.name) == normalized)
+        )
+        organisation = result.scalar_one_or_none()
+        if organisation is None:
+            organisation = Organisation(name=normalized, created_at=datetime.now(timezone.utc))
+            db.add(organisation)
+            await db.flush()
+        return int(organisation.id)
+
     async def get_or_create_subscription(
         self,
         db: AsyncSession,
         excel_user_id: str,
         email: str,
         display_name: str | None = None,
+        organisation_name: str | None = None,
     ) -> tuple[Subscription, str]:
         """
         Get existing subscription or create a new one for an Excel user.
@@ -96,6 +119,14 @@ class SubscriptionService:
         db_sub = result.scalar_one_or_none()
 
         if db_sub:
+            if db_sub.organisation_id is None:
+                db_sub.organisation_id = await self._get_or_create_organisation_id(
+                    db,
+                    email=email,
+                    organisation_name=organisation_name,
+                )
+                await db.commit()
+                await db.refresh(db_sub)
             # Return existing subscription (api_key is not returned for security)
             subscription = self._db_to_subscription(db_sub)
             self._cache_subscription(subscription)
@@ -105,7 +136,14 @@ class SubscriptionService:
         api_key = generate_api_key(DEFAULT_TIER)
         key_hash = hash_api_key(api_key)
 
+        organisation_id = await self._get_or_create_organisation_id(
+            db,
+            email=email,
+            organisation_name=organisation_name,
+        )
+
         db_sub = UserSubscription(
+            organisation_id=organisation_id,
             excel_user_id=excel_user_id,
             email=email,
             display_name=display_name,
@@ -195,7 +233,13 @@ class SubscriptionService:
             api_key = generate_api_key(DEFAULT_TIER)
             key_hash = hash_api_key(api_key)
             excel_user_id = f"excel_{normalized_email.replace('@', '_at_').replace('.', '_')}"
+            organisation_id = await self._get_or_create_organisation_id(
+                db,
+                email=normalized_email,
+                organisation_name=None,
+            )
             db_sub = UserSubscription(
+                organisation_id=organisation_id,
                 excel_user_id=excel_user_id,
                 email=normalized_email,
                 display_name="Harvey Allen",
@@ -211,6 +255,14 @@ class SubscriptionService:
 
         if not db_sub:
             return None
+
+        # Backfill organisation_id for users created before the migration
+        if db_sub.organisation_id is None:
+            db_sub.organisation_id = await self._get_or_create_organisation_id(
+                db,
+                email=db_sub.email,
+                organisation_name=None,
+            )
 
         db_sub.last_used_at = datetime.now(timezone.utc)
         await db.commit()
@@ -402,6 +454,7 @@ class SubscriptionService:
             is_active=db_sub.is_active,
             metadata={
                 "user_id": db_sub.id,
+                "organisation_id": db_sub.organisation_id,
                 "excel_user_id": db_sub.excel_user_id,
                 "display_name": db_sub.display_name,
                 "is_admin": db_sub.email.strip().lower() in ADMIN_EMAILS,

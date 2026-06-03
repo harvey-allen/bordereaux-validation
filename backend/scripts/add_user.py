@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func, select
 
 from app.auth import SubscriptionTier
-from app.database import UserSubscription, async_session_maker
+from app.database import Organisation, UserSubscription, async_session_maker
 from app.subscription_service import generate_api_key, hash_api_key
 
 
@@ -35,6 +35,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Regenerate API key if user already exists.",
     )
+    parser.add_argument(
+        "--organisation",
+        default=None,
+        help="Organisation name (defaults to email domain).",
+    )
     return parser.parse_args()
 
 
@@ -52,12 +57,22 @@ async def add_or_update_user(args: argparse.Namespace) -> None:
     excel_user_id = (args.excel_user_id or default_excel_user_id(email)).strip()
     tier = SubscriptionTier(args.tier)
     is_active = not args.inactive
+    organisation_name = (args.organisation or email.split("@")[-1] or "default").strip().lower()
 
     async with async_session_maker() as session:
         result = await session.execute(
             select(UserSubscription).where(UserSubscription.excel_user_id == excel_user_id)
         )
         user = result.scalar_one_or_none()
+
+        org_result = await session.execute(
+            select(Organisation).where(func.lower(Organisation.name) == organisation_name)
+        )
+        organisation = org_result.scalar_one_or_none()
+        if organisation is None:
+            organisation = Organisation(name=organisation_name, created_at=datetime.now(timezone.utc))
+            session.add(organisation)
+            await session.flush()
 
         if user is None:
             result = await session.execute(
@@ -72,6 +87,7 @@ async def add_or_update_user(args: argparse.Namespace) -> None:
         if user is None:
             issued_api_key = generate_api_key(tier)
             user = UserSubscription(
+                organisation_id=int(organisation.id),
                 excel_user_id=excel_user_id,
                 email=email,
                 display_name=args.display_name,
@@ -84,6 +100,7 @@ async def add_or_update_user(args: argparse.Namespace) -> None:
             session.add(user)
             action = "created"
         else:
+            user.organisation_id = int(organisation.id)
             user.email = email
             user.excel_user_id = excel_user_id
             user.display_name = args.display_name if args.display_name is not None else user.display_name
@@ -104,6 +121,7 @@ async def add_or_update_user(args: argparse.Namespace) -> None:
     print(f"id={user.id}")
     print(f"email={user.email}")
     print(f"excel_user_id={user.excel_user_id}")
+    print(f"organisation={organisation_name}")
     print(f"tier={user.tier}")
     print(f"active={user.is_active}")
     print(f"api_key_prefix={user.api_key_prefix}")

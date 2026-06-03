@@ -11,6 +11,9 @@ let lastValidationResults = [];
 let lastValidationSourceSheetName = null;
 let lastValidationExecutedTests = [];
 let lastValidationPack = null;
+let lastValidationFailedTests = [];
+let lastValidationPassedTests = [];
+let savedVersionItems = [];
 const APP_LOGO_URL = `${window.location.origin}/AXIOS.png`;
 
 const DEFAULT_PACK_OPTIONS = [
@@ -101,9 +104,15 @@ async function loadSubscribedPackValues(excelUserEmail) {
 function updateActionButtons() {
   const extractButton = document.getElementById("extractResults");
   const visualiseButton = document.getElementById("visualiseResults");
+  const saveButton = document.getElementById("saveResultsVersion");
+  const deleteButton = document.getElementById("deleteResultsVersion");
+  const savedVersions = document.getElementById("savedVersions");
   const hasResults = Array.isArray(lastValidationResults) && lastValidationResults.length > 0;
+  const hasSavedVersionSelection = Boolean(savedVersions && savedVersions.value);
   if (extractButton) extractButton.disabled = !hasResults;
   if (visualiseButton) visualiseButton.disabled = !hasResults;
+  if (saveButton) saveButton.disabled = !hasResults;
+  if (deleteButton) deleteButton.disabled = !hasSavedVersionSelection;
 }
 
 // Build sankey summarising: Total Tests -> Passed/Failed -> Severity (failed) -> Test Type
@@ -744,6 +753,10 @@ async function hydrateSelectedPackConfigFromServer() {
     test_pack: selectedPack,
     sheet_name: sheetName,
   });
+  const workbookName = getWorkbookName();
+  if (workbookName) {
+    query.set("workbook_name", workbookName);
+  }
 
   try {
     const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/pack-config?${query.toString()}`, {
@@ -869,8 +882,12 @@ Office.onReady(async () => {
   document.getElementById("extractResults")?.addEventListener("click", extractValidationResults);
   document.getElementById("visualiseResults")?.addEventListener("click", visualiseValidationResults);
   document.getElementById("rulesEngine")?.addEventListener("click", openRulesEngine);
+  document.getElementById("saveResultsVersion")?.addEventListener("click", saveResultsVersion);
+  document.getElementById("deleteResultsVersion")?.addEventListener("click", deleteSelectedResultsVersion);
+  document.getElementById("savedVersions")?.addEventListener("change", updateActionButtons);
   document.getElementById("generateTemplate")?.addEventListener("click", generateTemplate);
   // Initialize button states (Extract / Visualise disabled until validation run)
+  await loadSavedResultVersions();
   updateActionButtons();
 });
 
@@ -916,6 +933,95 @@ function getWorkbookName() {
     return lastSegment ? decodeURIComponent(lastSegment) : null;
   } catch {
     return null;
+  }
+}
+
+function extractTestIdFromFailureMessage(testMessage) {
+  if (typeof testMessage === "string") {
+    const raw = String(testMessage || "").trim();
+    const match = raw.match(/^\[(.*?)\]\s+([A-Za-z0-9_]+):\s*(.*)$/);
+    return match ? String(match[2] || "").trim() : "";
+  }
+
+  if (typeof testMessage === "object" && testMessage !== null) {
+    return String(testMessage.testId || "").trim();
+  }
+
+  return "";
+}
+
+async function getCurrentResultsScope() {
+  const workbookName = getWorkbookName() || "__unknown_workbook__";
+  const activeSheetName = await getActiveSheetName();
+  const sheetName = String(lastValidationSourceSheetName || activeSheetName || "__unknown_sheet__").trim();
+  return {
+    workbookName,
+    sheetName: sheetName || "__unknown_sheet__",
+  };
+}
+
+function renderSavedVersionsDropdown(items) {
+  const select = document.getElementById("savedVersions");
+  if (!select) {
+    return;
+  }
+
+  savedVersionItems = Array.isArray(items) ? items : [];
+  select.innerHTML = "";
+
+  if (savedVersionItems.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "No saved versions";
+    select.appendChild(option);
+    updateActionButtons();
+    return;
+  }
+
+  for (const item of savedVersionItems) {
+    const option = document.createElement("option");
+    option.value = String(item.id);
+    const createdAt = new Date(item.created_at || item.createdAt || Date.now());
+    option.textContent = `Version ${item.id} — ${createdAt.toLocaleString()}`;
+    select.appendChild(option);
+  }
+
+  select.selectedIndex = 0;
+  updateActionButtons();
+}
+
+async function loadSavedResultVersions() {
+  const excelUserEmail = getExcelUserEmail();
+  if (!excelUserEmail) {
+    return;
+  }
+
+  const { workbookName, sheetName } = await getCurrentResultsScope();
+  const query = new URLSearchParams({
+    workbook_name: workbookName,
+    sheet_name: sheetName,
+    limit: "200",
+  });
+
+  try {
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/results/versions?${query.toString()}`, {
+      method: "GET",
+      headers: {
+        "X-Excel-User-Email": excelUserEmail,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      renderSavedVersionsDropdown([]);
+      return;
+    }
+
+    const payload = await response.json().catch(() => ({}));
+    const versions = Array.isArray(payload?.versions) ? payload.versions : [];
+    renderSavedVersionsDropdown(versions);
+  } catch {
+    renderSavedVersionsDropdown([]);
   }
 }
 
@@ -1347,6 +1453,113 @@ async function extractValidationResults() {
     if (extractButton) {
       extractButton.disabled = false;
     }
+  }
+}
+
+async function saveResultsVersion() {
+  const saveButton = document.getElementById("saveResultsVersion");
+  if (!Array.isArray(lastValidationResults) || lastValidationResults.length === 0) {
+    setStatus("No validation results to save. Please run validation first.", true);
+    return;
+  }
+
+  const excelUserEmail = getExcelUserEmail();
+  if (!excelUserEmail) {
+    setStatus("Could not determine Excel user email.", true);
+    return;
+  }
+
+  if (saveButton) {
+    saveButton.disabled = true;
+  }
+
+  try {
+    const { workbookName, sheetName } = await getCurrentResultsScope();
+    const failedTests = Array.isArray(lastValidationFailedTests)
+      ? lastValidationFailedTests.map((item) => ({
+          umr: String(item?.umr || ""),
+          test_id: String(item?.test_id || ""),
+        })).filter((item) => item.test_id)
+      : [];
+    const passedTests = Array.isArray(lastValidationPassedTests)
+      ? lastValidationPassedTests.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/results/versions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Excel-User-Email": excelUserEmail,
+      },
+      body: JSON.stringify({
+        workbook_name: workbookName,
+        sheet_name: sheetName,
+        failed_tests: failedTests,
+        passed_tests: passedTests,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const detail = formatBackendErrorDetail(errorData?.detail) || `HTTP ${response.status}`;
+      throw new Error(detail);
+    }
+
+    await loadSavedResultVersions();
+    setStatus("Saved current results version.");
+  } catch (error) {
+    setStatus(`Save failed: ${error?.message || "Unexpected error"}`, true);
+  } finally {
+    if (saveButton) {
+      saveButton.disabled = false;
+    }
+    updateActionButtons();
+  }
+}
+
+async function deleteSelectedResultsVersion() {
+  const deleteButton = document.getElementById("deleteResultsVersion");
+  const select = document.getElementById("savedVersions");
+  const selectedVersionId = Number(select?.value || 0);
+
+  if (!selectedVersionId) {
+    setStatus("Select a saved version to delete.", true);
+    return;
+  }
+
+  const excelUserEmail = getExcelUserEmail();
+  if (!excelUserEmail) {
+    setStatus("Could not determine Excel user email.", true);
+    return;
+  }
+
+  if (deleteButton) {
+    deleteButton.disabled = true;
+  }
+
+  try {
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/results/versions/${selectedVersionId}`, {
+      method: "DELETE",
+      headers: {
+        "X-Excel-User-Email": excelUserEmail,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const detail = formatBackendErrorDetail(errorData?.detail) || `HTTP ${response.status}`;
+      throw new Error(detail);
+    }
+
+    await loadSavedResultVersions();
+    setStatus(`Deleted saved version ${selectedVersionId}.`);
+  } catch (error) {
+    setStatus(`Delete failed: ${error?.message || "Unexpected error"}`, true);
+  } finally {
+    if (deleteButton) {
+      deleteButton.disabled = false;
+    }
+    updateActionButtons();
   }
 }
 
@@ -2533,6 +2746,8 @@ async function runValidation() {
     lastValidationSourceSheetName = selectionMeta.sheetName || null;
     lastValidationExecutedTests = [];
     lastValidationResults = [];
+    lastValidationFailedTests = [];
+    lastValidationPassedTests = [];
     lastValidationPack = selectedPack;
 
     if (clearButton) {
@@ -2555,7 +2770,11 @@ async function runValidation() {
     let failedCount = 0;
     const aggregatedResults = [];
     const executedTestNames = new Set();
+    const executedTestIds = new Set();
+    const failedTestIds = new Set();
+    const failedEntryByKey = new Map();
     const coverageWarnings = new Set();
+    const referenceColumnIndex = resolveReferenceColumnIndex(selectionMeta.headerValues, selectedPack);
 
     for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
       const chunkDataStartOffset = chunkIndex * rowsPerChunk;
@@ -2634,8 +2853,45 @@ async function runValidation() {
           }
         }
         const tests = packCoverage?.tests || {};
-        for (const testName of Object.keys(tests)) {
+        for (const [testName, testData] of Object.entries(tests)) {
           executedTestNames.add(`${packName}.${testName}`);
+          const testId = String(testData?.testCode || `${packName}.${testName}`).trim();
+          if (testId) {
+            executedTestIds.add(testId);
+            if (Number(testData?.failedRows || 0) > 0) {
+              failedTestIds.add(testId);
+            }
+          }
+        }
+      }
+
+      for (const result of results) {
+        if (!(Number(result?.rowIndex) > 0 && Number(result?.failCount) > 0)) {
+          continue;
+        }
+
+        const localRowIndex = Number(result.rowIndex) - 1;
+        const failedMessages = Array.isArray(result.failedTests) ? result.failedTests : [];
+        const rowValues = localRowIndex >= 0 ? chunkValues[localRowIndex] : null;
+        const umrValue = (
+          referenceColumnIndex >= 0 && Array.isArray(rowValues)
+            ? String(rowValues[referenceColumnIndex] ?? "").trim()
+            : ""
+        );
+
+        for (const failedMessage of failedMessages) {
+          const testId = extractTestIdFromFailureMessage(failedMessage);
+          if (!testId) {
+            continue;
+          }
+          failedTestIds.add(testId);
+          const dedupeKey = `${umrValue}::${testId}`;
+          if (!failedEntryByKey.has(dedupeKey)) {
+            failedEntryByKey.set(dedupeKey, {
+              umr: umrValue,
+              test_id: testId,
+            });
+          }
         }
       }
 
@@ -2648,8 +2904,11 @@ async function runValidation() {
     const packName = testPacks[0];
     lastValidationResults = aggregatedResults;
     lastValidationExecutedTests = Array.from(executedTestNames).sort();
+    lastValidationFailedTests = Array.from(failedEntryByKey.values());
+    lastValidationPassedTests = Array.from(executedTestIds).filter((testId) => !failedTestIds.has(testId)).sort();
     const warningText = Array.from(coverageWarnings).join(" | ");
     const statusMessage = `Validation complete with ${packName}: ${failedCount} cells failed at least one test.`;
+    await loadSavedResultVersions();
     setStatus(warningText ? `${statusMessage} Warning: ${warningText}.` : statusMessage, Boolean(warningText));
   } catch (error) {
     const message = error?.message || "Unexpected error";

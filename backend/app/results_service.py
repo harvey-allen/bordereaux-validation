@@ -12,7 +12,155 @@ from sqlalchemy import select, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database import ValidationRun, TestResult, UserSubscription
+from app.database import (
+    OrganisationWorkbookSheetKey,
+    TestResult,
+    UserSubscription,
+    ValidationResultVersion,
+    ValidationRun,
+)
+
+
+def _normalize_scope_value(value: str | None, *, fallback: str) -> str:
+    normalized = str(value or "").strip().lower()
+    return normalized or fallback
+
+
+async def _get_or_create_context_key(
+    session: AsyncSession,
+    *,
+    organisation_id: int,
+    workbook_name: str | None,
+    sheet_name: str | None,
+) -> OrganisationWorkbookSheetKey:
+    normalized_workbook = _normalize_scope_value(workbook_name, fallback="__unknown_workbook__")
+    normalized_sheet = _normalize_scope_value(sheet_name, fallback="__unknown_sheet__")
+
+    result = await session.execute(
+        select(OrganisationWorkbookSheetKey)
+        .where(OrganisationWorkbookSheetKey.organisation_id == organisation_id)
+        .where(OrganisationWorkbookSheetKey.workbook_name == normalized_workbook)
+        .where(OrganisationWorkbookSheetKey.sheet_name == normalized_sheet)
+    )
+    context_key = result.scalar_one_or_none()
+    if context_key is not None:
+        return context_key
+
+    context_key = OrganisationWorkbookSheetKey(
+        organisation_id=organisation_id,
+        workbook_name=normalized_workbook,
+        sheet_name=normalized_sheet,
+    )
+    session.add(context_key)
+    await session.flush()
+    return context_key
+
+
+async def save_results_version(
+    session: AsyncSession,
+    *,
+    organisation_id: int,
+    user_id: int | None,
+    workbook_name: str | None,
+    sheet_name: str | None,
+    failed_tests: list[dict[str, str]],
+    passed_tests: list[str],
+) -> ValidationResultVersion:
+    context_key = await _get_or_create_context_key(
+        session,
+        organisation_id=organisation_id,
+        workbook_name=workbook_name,
+        sheet_name=sheet_name,
+    )
+
+    version = ValidationResultVersion(
+        org_workbook_sheet_key_id=int(context_key.id),
+        user_id=user_id,
+        results_json={
+            "failed": [
+                {
+                    "umr": str(item.get("umr", "")),
+                    "test_id": str(item.get("test_id", "")),
+                }
+                for item in (failed_tests or [])
+            ],
+            "passed": [str(test_id) for test_id in (passed_tests or []) if str(test_id or "").strip()],
+        },
+        created_at=datetime.now(timezone.utc),
+    )
+    session.add(version)
+    await session.commit()
+    await session.refresh(version)
+    return version
+
+
+async def list_results_versions(
+    session: AsyncSession,
+    *,
+    organisation_id: int,
+    workbook_name: str | None,
+    sheet_name: str | None,
+    limit: int = 100,
+) -> list[ValidationResultVersion]:
+    context_key = await _get_or_create_context_key(
+        session,
+        organisation_id=organisation_id,
+        workbook_name=workbook_name,
+        sheet_name=sheet_name,
+    )
+    result = await session.execute(
+        select(ValidationResultVersion)
+        .where(ValidationResultVersion.org_workbook_sheet_key_id == int(context_key.id))
+        .order_by(desc(ValidationResultVersion.created_at))
+        .limit(limit)
+    )
+    return list(result.scalars().all())
+
+
+async def get_latest_results_version(
+    session: AsyncSession,
+    *,
+    organisation_id: int,
+    workbook_name: str | None,
+    sheet_name: str | None,
+) -> ValidationResultVersion | None:
+    context_key = await _get_or_create_context_key(
+        session,
+        organisation_id=organisation_id,
+        workbook_name=workbook_name,
+        sheet_name=sheet_name,
+    )
+    result = await session.execute(
+        select(ValidationResultVersion)
+        .where(ValidationResultVersion.org_workbook_sheet_key_id == int(context_key.id))
+        .order_by(desc(ValidationResultVersion.created_at))
+        .limit(1)
+    )
+    return result.scalars().first()
+
+
+async def delete_results_version(
+    session: AsyncSession,
+    *,
+    organisation_id: int,
+    version_id: int,
+) -> bool:
+    result = await session.execute(
+        select(ValidationResultVersion)
+        .join(
+            OrganisationWorkbookSheetKey,
+            ValidationResultVersion.org_workbook_sheet_key_id == OrganisationWorkbookSheetKey.id,
+        )
+        .where(ValidationResultVersion.id == version_id)
+        .where(OrganisationWorkbookSheetKey.organisation_id == organisation_id)
+    )
+    version = result.scalar_one_or_none()
+    if version is None:
+        return False
+
+    await session.delete(version)
+    await session.commit()
+    return True
 
 
 async def store_validation_results(

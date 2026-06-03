@@ -29,7 +29,16 @@ try:
     from sqlalchemy.ext.asyncio import AsyncSession
     from app.database import get_db, init_db, close_db, async_session_maker
     from app.subscription_service import subscription_service
-    from app.results_service import store_validation_results, get_validation_history, get_validation_run, get_test_statistics
+    from app.results_service import (
+        delete_results_version,
+        get_latest_results_version,
+        get_test_statistics,
+        get_validation_history,
+        get_validation_run,
+        list_results_versions,
+        save_results_version,
+        store_validation_results,
+    )
     from app.pack_config_service import pack_config_service
     DB_AVAILABLE = True
 except ImportError:
@@ -50,7 +59,7 @@ class ValidateRequest(BaseModel):
         description="Optional per-pack config, e.g. UMR",
     )
     includeCoverage: bool = Field(default=True, description="Include per-pack coverage report in response")
-    storeResults: bool = Field(default=True, description="Store results in database for history")
+    storeResults: bool = Field(default=False, description="Store results in legacy run-history tables")
     workbookName: str | None = Field(default=None, description="Name of the workbook being validated")
     sheetName: str | None = Field(default=None, description="Name of the sheet being validated")
     rangeAddress: str | None = Field(default=None, description="Address of the range being validated")
@@ -120,6 +129,7 @@ class RegisterRequest(BaseModel):
     excel_user_id: str = Field(description="Unique Excel user ID from Office.js")
     email: str = Field(description="User's email address")
     display_name: str | None = Field(default=None, description="User's display name")
+    organisation_name: str | None = Field(default=None, description="Optional organisation name")
 
 
 class RegisterResponse(BaseModel):
@@ -427,6 +437,7 @@ async def register_user(
         excel_user_id=request.excel_user_id,
         email=request.email,
         display_name=request.display_name,
+        organisation_name=request.organisation_name,
     )
 
     is_new = bool(api_key)
@@ -543,13 +554,16 @@ async def validate_range(
     # Load persisted per-user/per-sheet/per-pack configs and merge with request config.
     if DB_AVAILABLE and db is not None and not subscription.metadata.get("is_dev_key") and payload.sheetName:
         subscription_user_id = subscription.metadata.get("user_id")
-        if subscription_user_id is not None:
+        organisation_id = subscription.metadata.get("organisation_id")
+        if subscription_user_id is not None and organisation_id is not None:
             for pack_name in normalized_test_packs:
                 stored_config = None
                 for variant in get_pack_name_variants(pack_name):
                     stored_config = await pack_config_service.get_config(
                         db,
+                        organisation_id=int(organisation_id),
                         user_id=int(subscription_user_id),
+                        workbook_name=payload.workbookName,
                         sheet_name=payload.sheetName,
                         test_pack=variant,
                     )
@@ -571,11 +585,12 @@ async def validate_range(
                         continue
                     await pack_config_service.upsert_config(
                         db,
+                        organisation_id=int(organisation_id),
                         user_id=int(subscription_user_id),
+                        workbook_name=payload.workbookName,
                         sheet_name=payload.sheetName,
                         test_pack=pack_name,
                         pack_config=dict(pack_config or {}),
-                        workbook_name=payload.workbookName,
                     )
 
     try:
@@ -648,6 +663,7 @@ async def validate_range(
 async def get_pack_config(
     test_pack: str,
     sheet_name: str,
+    workbook_name: str | None = None,
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> PackConfigResponse:
     """Get persisted test-pack config for the authenticated user and sheet."""
@@ -659,7 +675,8 @@ async def get_pack_config(
     normalized_pack = normalize_pack_name(test_pack)
 
     subscription_user_id = subscription.metadata.get("user_id")
-    if subscription_user_id is None:
+    organisation_id = subscription.metadata.get("organisation_id")
+    if subscription_user_id is None or organisation_id is None:
         raise HTTPException(status_code=400, detail="Missing user context")
 
     async with async_session_maker() as session:
@@ -667,7 +684,9 @@ async def get_pack_config(
         for variant in get_pack_name_variants(normalized_pack):
             config = await pack_config_service.get_config(
                 session,
+                organisation_id=int(organisation_id),
                 user_id=int(subscription_user_id),
+                workbook_name=workbook_name,
                 sheet_name=sheet_name,
                 test_pack=variant,
             )
@@ -677,6 +696,7 @@ async def get_pack_config(
     return PackConfigResponse(
         test_pack=normalized_pack,
         sheet_name=sheet_name,
+        workbook_name=workbook_name,
         pack_config=config or {},
     )
 
@@ -695,17 +715,19 @@ async def upsert_pack_config(
     normalized_pack = normalize_pack_name(payload.test_pack)
 
     subscription_user_id = subscription.metadata.get("user_id")
-    if subscription_user_id is None:
+    organisation_id = subscription.metadata.get("organisation_id")
+    if subscription_user_id is None or organisation_id is None:
         raise HTTPException(status_code=400, detail="Missing user context")
 
     async with async_session_maker() as session:
         saved_config = await pack_config_service.upsert_config(
             session,
+            organisation_id=int(organisation_id),
             user_id=int(subscription_user_id),
+            workbook_name=payload.workbook_name,
             sheet_name=payload.sheet_name,
             test_pack=normalized_pack,
             pack_config=payload.pack_config,
-            workbook_name=payload.workbook_name,
         )
 
     return PackConfigResponse(
@@ -748,6 +770,35 @@ class TestStatisticsResponse(BaseModel):
     total_failed: int
     pass_rate: float
     tests: dict[str, dict[str, Any]]
+
+
+class FailedTestItem(BaseModel):
+    umr: str = ""
+    test_id: str
+
+
+class SaveResultsVersionRequest(BaseModel):
+    workbook_name: str | None = None
+    sheet_name: str
+    failed_tests: list[FailedTestItem] = Field(default_factory=list)
+    passed_tests: list[str] = Field(default_factory=list)
+
+
+class SavedResultsVersionItem(BaseModel):
+    id: int
+    created_at: str
+
+
+class SavedResultsVersionListResponse(BaseModel):
+    versions: list[SavedResultsVersionItem]
+
+
+class LatestResultsVersionResponse(BaseModel):
+    id: int
+    created_at: str
+    workbook_name: str
+    sheet_name: str
+    results: dict[str, Any]
 
 
 @app.get("/api/v1/history", response_model=ValidationHistoryResponse)
@@ -890,3 +941,125 @@ async def get_statistics(
         )
         
         return TestStatisticsResponse(**stats)
+
+
+@app.post("/api/v1/results/versions", response_model=SavedResultsVersionItem)
+async def save_results(
+    payload: SaveResultsVersionRequest,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> SavedResultsVersionItem:
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    if subscription.metadata.get("is_dev_key"):
+        raise HTTPException(status_code=400, detail="Results version persistence requires a database-backed user")
+
+    user_id = subscription.metadata.get("user_id")
+    organisation_id = subscription.metadata.get("organisation_id")
+    if user_id is None or organisation_id is None:
+        raise HTTPException(status_code=400, detail="Missing user context")
+
+    async with async_session_maker() as session:
+        saved = await save_results_version(
+            session,
+            organisation_id=int(organisation_id),
+            user_id=int(user_id),
+            workbook_name=payload.workbook_name,
+            sheet_name=payload.sheet_name,
+            failed_tests=[{"umr": item.umr, "test_id": item.test_id} for item in payload.failed_tests],
+            passed_tests=payload.passed_tests,
+        )
+        return SavedResultsVersionItem(id=saved.id, created_at=saved.created_at.isoformat())
+
+
+@app.get("/api/v1/results/versions", response_model=SavedResultsVersionListResponse)
+async def get_result_versions(
+    sheet_name: str,
+    workbook_name: str | None = None,
+    limit: int = 100,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> SavedResultsVersionListResponse:
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    if subscription.metadata.get("is_dev_key"):
+        raise HTTPException(status_code=400, detail="Results version persistence requires a database-backed user")
+
+    organisation_id = subscription.metadata.get("organisation_id")
+    if organisation_id is None:
+        raise HTTPException(status_code=400, detail="Missing user context")
+
+    async with async_session_maker() as session:
+        versions = await list_results_versions(
+            session,
+            organisation_id=int(organisation_id),
+            workbook_name=workbook_name,
+            sheet_name=sheet_name,
+            limit=max(1, min(limit, 500)),
+        )
+        return SavedResultsVersionListResponse(
+            versions=[
+                SavedResultsVersionItem(
+                    id=item.id,
+                    created_at=item.created_at.isoformat(),
+                )
+                for item in versions
+            ]
+        )
+
+
+@app.get("/api/v1/results/latest", response_model=LatestResultsVersionResponse)
+async def get_latest_results(
+    sheet_name: str,
+    workbook_name: str | None = None,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> LatestResultsVersionResponse:
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    if subscription.metadata.get("is_dev_key"):
+        raise HTTPException(status_code=400, detail="Results version persistence requires a database-backed user")
+
+    organisation_id = subscription.metadata.get("organisation_id")
+    if organisation_id is None:
+        raise HTTPException(status_code=400, detail="Missing user context")
+
+    async with async_session_maker() as session:
+        latest = await get_latest_results_version(
+            session,
+            organisation_id=int(organisation_id),
+            workbook_name=workbook_name,
+            sheet_name=sheet_name,
+        )
+        if latest is None:
+            raise HTTPException(status_code=404, detail="No saved result versions found")
+
+        return LatestResultsVersionResponse(
+            id=latest.id,
+            created_at=latest.created_at.isoformat(),
+            workbook_name=(workbook_name or "").strip() or "__unknown_workbook__",
+            sheet_name=(sheet_name or "").strip() or "__unknown_sheet__",
+            results=dict(latest.results_json or {}),
+        )
+
+
+@app.delete("/api/v1/results/versions/{version_id}")
+async def remove_result_version(
+    version_id: int,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> dict[str, Any]:
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    if subscription.metadata.get("is_dev_key"):
+        raise HTTPException(status_code=400, detail="Results version persistence requires a database-backed user")
+
+    organisation_id = subscription.metadata.get("organisation_id")
+    if organisation_id is None:
+        raise HTTPException(status_code=400, detail="Missing user context")
+
+    async with async_session_maker() as session:
+        deleted = await delete_results_version(
+            session,
+            organisation_id=int(organisation_id),
+            version_id=version_id,
+        )
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Saved result version not found")
+        return {"deleted": True, "version_id": version_id}
