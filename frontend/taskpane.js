@@ -13,6 +13,9 @@ let lastValidationExecutedTests = [];
 let lastValidationPack = null;
 let lastValidationFailedTests = [];
 let lastValidationPassedTests = [];
+let lastValidationPassedUmrs = [];
+let savedResultsVersionExists = false;
+let savedResultsVersionCreatedAt = null;
 let savedVersionItems = [];
 const APP_LOGO_URL = `${window.location.origin}/AXIOS.png`;
 
@@ -113,6 +116,71 @@ function updateActionButtons() {
   if (visualiseButton) visualiseButton.disabled = !hasResults;
   if (saveButton) saveButton.disabled = !hasResults;
   if (deleteButton) deleteButton.disabled = !hasSavedVersionSelection;
+}
+
+function updateSaveButtonLabel() {
+  const saveButton = document.getElementById("saveResultsVersion");
+  if (!saveButton) {
+    return;
+  }
+  saveButton.textContent = savedResultsVersionExists ? "Update Report" : "Save Report";
+}
+
+function renderSavedVersionsDropdown(items) {
+  const select = document.getElementById("savedVersions");
+  if (!select) {
+    return;
+  }
+
+  savedVersionItems = Array.isArray(items) ? items : [];
+  select.innerHTML = "";
+
+  if (savedVersionItems.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "No saved versions";
+    select.appendChild(option);
+    updateActionButtons();
+    return;
+  }
+
+  for (const item of savedVersionItems) {
+    const option = document.createElement("option");
+    option.value = String(item.id || "");
+    const versionTimestamp = new Date(
+      item.updated_at
+      || item.updatedAt
+      || item.created_at
+      || item.createdAt
+      || Date.now()
+    );
+    option.textContent = `Version ${versionTimestamp.toLocaleString()}`;
+    select.appendChild(option);
+  }
+
+  select.selectedIndex = 0;
+  updateActionButtons();
+}
+
+function updateSavedResultsInfo() {
+  const info = document.getElementById("savedResultsInfo");
+  if (!info) {
+    updateSaveButtonLabel();
+    return;
+  }
+
+  if (!savedResultsVersionExists) {
+    info.textContent = "Saved version: none";
+    updateSaveButtonLabel();
+    return;
+  }
+
+  const date = savedResultsVersionCreatedAt ? new Date(savedResultsVersionCreatedAt) : null;
+  const label = date && !Number.isNaN(date.getTime())
+    ? date.toLocaleString()
+    : "available";
+  info.textContent = `Saved version: ${label}`;
+  updateSaveButtonLabel();
 }
 
 // Build sankey summarising: Total Tests -> Passed/Failed -> Severity (failed) -> Test Type
@@ -887,7 +955,7 @@ Office.onReady(async () => {
   document.getElementById("savedVersions")?.addEventListener("change", updateActionButtons);
   document.getElementById("generateTemplate")?.addEventListener("click", generateTemplate);
   // Initialize button states (Extract / Visualise disabled until validation run)
-  await loadSavedResultVersions();
+  await checkSavedResultsVersion();
   updateActionButtons();
 });
 
@@ -960,39 +1028,14 @@ async function getCurrentResultsScope() {
   };
 }
 
-function renderSavedVersionsDropdown(items) {
-  const select = document.getElementById("savedVersions");
-  if (!select) {
-    return;
-  }
-
-  savedVersionItems = Array.isArray(items) ? items : [];
-  select.innerHTML = "";
-
-  if (savedVersionItems.length === 0) {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = "No saved versions";
-    select.appendChild(option);
-    updateActionButtons();
-    return;
-  }
-
-  for (const item of savedVersionItems) {
-    const option = document.createElement("option");
-    option.value = String(item.id);
-    const createdAt = new Date(item.created_at || item.createdAt || Date.now());
-    option.textContent = `Version ${item.id} — ${createdAt.toLocaleString()}`;
-    select.appendChild(option);
-  }
-
-  select.selectedIndex = 0;
-  updateActionButtons();
-}
-
-async function loadSavedResultVersions() {
+async function checkSavedResultsVersion() {
   const excelUserEmail = getExcelUserEmail();
   if (!excelUserEmail) {
+    savedResultsVersionExists = false;
+    savedResultsVersionCreatedAt = null;
+    renderSavedVersionsDropdown([]);
+    updateSavedResultsInfo();
+    updateActionButtons();
     return;
   }
 
@@ -1000,7 +1043,6 @@ async function loadSavedResultVersions() {
   const query = new URLSearchParams({
     workbook_name: workbookName,
     sheet_name: sheetName,
-    limit: "200",
   });
 
   try {
@@ -1013,15 +1055,29 @@ async function loadSavedResultVersions() {
     });
 
     if (!response.ok) {
+      savedResultsVersionExists = false;
+      savedResultsVersionCreatedAt = null;
       renderSavedVersionsDropdown([]);
+      updateSavedResultsInfo();
+      updateActionButtons();
       return;
     }
 
     const payload = await response.json().catch(() => ({}));
     const versions = Array.isArray(payload?.versions) ? payload.versions : [];
     renderSavedVersionsDropdown(versions);
+    savedResultsVersionExists = versions.length > 0;
+    savedResultsVersionCreatedAt = savedResultsVersionExists
+      ? String(versions[0]?.updated_at || versions[0]?.updatedAt || versions[0]?.created_at || versions[0]?.createdAt || "").trim() || null
+      : null;
+    updateSavedResultsInfo();
+    updateActionButtons();
   } catch {
+    savedResultsVersionExists = false;
+    savedResultsVersionCreatedAt = null;
     renderSavedVersionsDropdown([]);
+    updateSavedResultsInfo();
+    updateActionButtons();
   }
 }
 
@@ -1474,15 +1530,20 @@ async function saveResultsVersion() {
   }
 
   try {
+    const isUpdate = savedResultsVersionExists;
     const { workbookName, sheetName } = await getCurrentResultsScope();
     const failedTests = Array.isArray(lastValidationFailedTests)
       ? lastValidationFailedTests.map((item) => ({
+          id: String(item?.id || item?.umr || ""),
           umr: String(item?.umr || ""),
           test_id: String(item?.test_id || ""),
         })).filter((item) => item.test_id)
       : [];
     const passedTests = Array.isArray(lastValidationPassedTests)
       ? lastValidationPassedTests.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    const passedUmrs = Array.isArray(lastValidationPassedUmrs)
+      ? lastValidationPassedUmrs.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
 
     const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/results/versions`, {
@@ -1496,6 +1557,7 @@ async function saveResultsVersion() {
         sheet_name: sheetName,
         failed_tests: failedTests,
         passed_tests: passedTests,
+        passed_umrs: passedUmrs,
       }),
     });
 
@@ -1505,8 +1567,8 @@ async function saveResultsVersion() {
       throw new Error(detail);
     }
 
-    await loadSavedResultVersions();
-    setStatus("Saved current results version.");
+    await checkSavedResultsVersion();
+    setStatus(isUpdate ? "Updated current results version." : "Saved current results version.");
   } catch (error) {
     setStatus(`Save failed: ${error?.message || "Unexpected error"}`, true);
   } finally {
@@ -1551,7 +1613,7 @@ async function deleteSelectedResultsVersion() {
       throw new Error(detail);
     }
 
-    await loadSavedResultVersions();
+    await checkSavedResultsVersion();
     setStatus(`Deleted saved version ${selectedVersionId}.`);
   } catch (error) {
     setStatus(`Delete failed: ${error?.message || "Unexpected error"}`, true);
@@ -2773,6 +2835,8 @@ async function runValidation() {
     const executedTestIds = new Set();
     const failedTestIds = new Set();
     const failedEntryByKey = new Map();
+    const umrsInData = new Set();  // Track all UMRs seen in data
+    const failedUmrs = new Set();  // Track UMRs that had failures
     const coverageWarnings = new Set();
     const referenceColumnIndex = resolveReferenceColumnIndex(selectionMeta.headerValues, selectedPack);
 
@@ -2879,6 +2943,11 @@ async function runValidation() {
             : ""
         );
 
+        if (umrValue) {
+          umrsInData.add(umrValue);
+          failedUmrs.add(umrValue);
+        }
+
         for (const failedMessage of failedMessages) {
           const testId = extractTestIdFromFailureMessage(failedMessage);
           if (!testId) {
@@ -2889,6 +2958,7 @@ async function runValidation() {
           if (!failedEntryByKey.has(dedupeKey)) {
             failedEntryByKey.set(dedupeKey, {
               umr: umrValue,
+              id: umrValue,
               test_id: testId,
             });
           }
@@ -2906,9 +2976,10 @@ async function runValidation() {
     lastValidationExecutedTests = Array.from(executedTestNames).sort();
     lastValidationFailedTests = Array.from(failedEntryByKey.values());
     lastValidationPassedTests = Array.from(executedTestIds).filter((testId) => !failedTestIds.has(testId)).sort();
+    lastValidationPassedUmrs = Array.from(umrsInData).filter((umr) => !failedUmrs.has(umr)).sort();
+    await checkSavedResultsVersion();
     const warningText = Array.from(coverageWarnings).join(" | ");
     const statusMessage = `Validation complete with ${packName}: ${failedCount} cells failed at least one test.`;
-    await loadSavedResultVersions();
     setStatus(warningText ? `${statusMessage} Warning: ${warningText}.` : statusMessage, Boolean(warningText));
   } catch (error) {
     const message = error?.message || "Unexpected error";

@@ -520,7 +520,7 @@ def validate_grid_with_packs_report(
 
                 missing_columns_text = ", ".join(missing_default_fields)
                 header_message = (
-                    f"[CRITICAL] Bheaders1: Missing required columns for {pack_name}: {missing_columns_text}. "
+                    f"[CRITICAL] Header: Missing required columns for {pack_name}: {missing_columns_text}. "
                     "Map sheet headers via fieldMappings to resolve."
                 )
 

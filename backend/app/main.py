@@ -30,12 +30,12 @@ try:
     from app.database import get_db, init_db, close_db, async_session_maker
     from app.subscription_service import subscription_service
     from app.results_service import (
+        delete_results_version_by_id,
         delete_results_version,
-        get_latest_results_version,
+        get_results_version,
         get_test_statistics,
         get_validation_history,
         get_validation_run,
-        list_results_versions,
         save_results_version,
         store_validation_results,
     )
@@ -773,20 +773,29 @@ class TestStatisticsResponse(BaseModel):
 
 
 class FailedTestItem(BaseModel):
-    umr: str = ""
+    umr: str | None = None  # Legacy
+    id: str | None = None   # New name
     test_id: str
+
+    @property
+    def umr_or_id(self) -> str:
+        """Return id if present, else umr, else empty string."""
+        return (self.id or self.umr or "").strip()
 
 
 class SaveResultsVersionRequest(BaseModel):
     workbook_name: str | None = None
     sheet_name: str
+    test_packs: str | list[str] | None = None
     failed_tests: list[FailedTestItem] = Field(default_factory=list)
     passed_tests: list[str] = Field(default_factory=list)
+    passed_umrs: list[str] = Field(default_factory=list)
 
 
 class SavedResultsVersionItem(BaseModel):
     id: int
     created_at: str
+    updated_at: str
 
 
 class SavedResultsVersionListResponse(BaseModel):
@@ -796,6 +805,7 @@ class SavedResultsVersionListResponse(BaseModel):
 class LatestResultsVersionResponse(BaseModel):
     id: int
     created_at: str
+    updated_at: str
     workbook_name: str
     sheet_name: str
     results: dict[str, Any]
@@ -965,17 +975,22 @@ async def save_results(
             user_id=int(user_id),
             workbook_name=payload.workbook_name,
             sheet_name=payload.sheet_name,
-            failed_tests=[{"umr": item.umr, "test_id": item.test_id} for item in payload.failed_tests],
+            test_packs=payload.test_packs,
+            failed_tests=[{"umr": item.umr_or_id, "id": item.umr_or_id, "test_id": item.test_id} for item in payload.failed_tests],
             passed_tests=payload.passed_tests,
+            passed_umrs=payload.passed_umrs,
         )
-        return SavedResultsVersionItem(id=saved.id, created_at=saved.created_at.isoformat())
+        return SavedResultsVersionItem(
+            id=saved.id,
+            created_at=saved.created_at.isoformat(),
+            updated_at=saved.updated_at.isoformat(),
+        )
 
 
 @app.get("/api/v1/results/versions", response_model=SavedResultsVersionListResponse)
 async def get_result_versions(
     sheet_name: str,
     workbook_name: str | None = None,
-    limit: int = 100,
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> SavedResultsVersionListResponse:
     if not DB_AVAILABLE:
@@ -988,20 +1003,22 @@ async def get_result_versions(
         raise HTTPException(status_code=400, detail="Missing user context")
 
     async with async_session_maker() as session:
-        versions = await list_results_versions(
+        version = await get_results_version(
             session,
             organisation_id=int(organisation_id),
             workbook_name=workbook_name,
             sheet_name=sheet_name,
-            limit=max(1, min(limit, 500)),
         )
+        if version is None:
+            return SavedResultsVersionListResponse(versions=[])
+        
         return SavedResultsVersionListResponse(
             versions=[
                 SavedResultsVersionItem(
-                    id=item.id,
-                    created_at=item.created_at.isoformat(),
+                    id=version.id,
+                    created_at=version.created_at.isoformat(),
+                    updated_at=version.updated_at.isoformat(),
                 )
-                for item in versions
             ]
         )
 
@@ -1022,7 +1039,7 @@ async def get_latest_results(
         raise HTTPException(status_code=400, detail="Missing user context")
 
     async with async_session_maker() as session:
-        latest = await get_latest_results_version(
+        latest = await get_results_version(
             session,
             organisation_id=int(organisation_id),
             workbook_name=workbook_name,
@@ -1034,14 +1051,48 @@ async def get_latest_results(
         return LatestResultsVersionResponse(
             id=latest.id,
             created_at=latest.created_at.isoformat(),
+            updated_at=latest.updated_at.isoformat(),
             workbook_name=(workbook_name or "").strip() or "__unknown_workbook__",
             sheet_name=(sheet_name or "").strip() or "__unknown_sheet__",
             results=dict(latest.results_json or {}),
         )
 
 
-@app.delete("/api/v1/results/versions/{version_id}")
+@app.delete("/api/v1/results/versions")
 async def remove_result_version(
+    sheet_name: str,
+    workbook_name: str | None = None,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> dict[str, Any]:
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    if subscription.metadata.get("is_dev_key"):
+        raise HTTPException(status_code=400, detail="Results version persistence requires a database-backed user")
+
+    organisation_id = subscription.metadata.get("organisation_id")
+    if organisation_id is None:
+        raise HTTPException(status_code=400, detail="Missing user context")
+
+    async with async_session_maker() as session:
+        from app.results_service import _get_or_create_sheet_key
+        sheet_key = await _get_or_create_sheet_key(
+            session,
+            organisation_id=int(organisation_id),
+            workbook_name=workbook_name,
+            sheet_name=sheet_name,
+        )
+        deleted = await delete_results_version(
+            session,
+            organisation_id=int(organisation_id),
+            sheet_key_id=int(sheet_key.id),
+        )
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Saved result version not found")
+        return {"deleted": True, "sheet_key_id": sheet_key.id}
+
+
+@app.delete("/api/v1/results/versions/{version_id}")
+async def remove_result_version_by_id(
     version_id: int,
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> dict[str, Any]:
@@ -1055,7 +1106,7 @@ async def remove_result_version(
         raise HTTPException(status_code=400, detail="Missing user context")
 
     async with async_session_maker() as session:
-        deleted = await delete_results_version(
+        deleted = await delete_results_version_by_id(
             session,
             organisation_id=int(organisation_id),
             version_id=version_id,

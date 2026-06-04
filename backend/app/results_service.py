@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import (
-    OrganisationWorkbookSheetKey,
+    SheetKey,
     TestResult,
     UserSubscription,
     ValidationResultVersion,
@@ -26,34 +26,46 @@ def _normalize_scope_value(value: str | None, *, fallback: str) -> str:
     return normalized or fallback
 
 
-async def _get_or_create_context_key(
+async def _get_or_create_sheet_key(
     session: AsyncSession,
     *,
     organisation_id: int,
     workbook_name: str | None,
     sheet_name: str | None,
-) -> OrganisationWorkbookSheetKey:
+    test_pack: str | None = None,
+) -> SheetKey:
     normalized_workbook = _normalize_scope_value(workbook_name, fallback="__unknown_workbook__")
     normalized_sheet = _normalize_scope_value(sheet_name, fallback="__unknown_sheet__")
 
     result = await session.execute(
-        select(OrganisationWorkbookSheetKey)
-        .where(OrganisationWorkbookSheetKey.organisation_id == organisation_id)
-        .where(OrganisationWorkbookSheetKey.workbook_name == normalized_workbook)
-        .where(OrganisationWorkbookSheetKey.sheet_name == normalized_sheet)
+        select(SheetKey)
+        .where(SheetKey.organisation_id == organisation_id)
+        .where(SheetKey.workbook_name == normalized_workbook)
+        .where(SheetKey.sheet_name == normalized_sheet)
     )
-    context_key = result.scalar_one_or_none()
-    if context_key is not None:
-        return context_key
+    sheet_key = result.scalar_one_or_none()
+    
+    now = datetime.now(timezone.utc)
+    
+    if sheet_key is not None:
+        # Update test_pack if provided and different
+        if test_pack and sheet_key.test_pack != test_pack:
+            sheet_key.test_pack = test_pack
+            sheet_key.updated_at = now
+            await session.flush()
+        return sheet_key
 
-    context_key = OrganisationWorkbookSheetKey(
+    sheet_key = SheetKey(
         organisation_id=organisation_id,
         workbook_name=normalized_workbook,
         sheet_name=normalized_sheet,
+        test_pack=test_pack,
+        created_at=now,
+        updated_at=now,
     )
-    session.add(context_key)
+    session.add(sheet_key)
     await session.flush()
-    return context_key
+    return sheet_key
 
 
 async def save_results_version(
@@ -63,68 +75,102 @@ async def save_results_version(
     user_id: int | None,
     workbook_name: str | None,
     sheet_name: str | None,
+    test_packs: str | list[str] | None,
     failed_tests: list[dict[str, str]],
     passed_tests: list[str],
+    passed_umrs: list[str] | None = None,
 ) -> ValidationResultVersion:
-    context_key = await _get_or_create_context_key(
+    """
+    Save (upsert) a single result version per sheet_key.
+    Updates the test_pack on the sheet_key from the validation run.
+    
+    JSON structure:
+    {
+        "failed": [
+            {"id": "UMR1", "tests": ["test_id_1", "test_id_2"]},
+            ...
+        ],
+        "passed_umrs": ["UMR2", "UMR3"],
+        "passed_tests": ["test_id_1", "test_id_2", ...],
+        "passed_ids": ["test_id_1", "test_id_2", ...]  (legacy)
+    }
+    """
+    # Extract test_pack from list (take first or join)
+    if isinstance(test_packs, list):
+        test_pack = test_packs[0] if test_packs else None
+    else:
+        test_pack = test_packs
+    
+    sheet_key = await _get_or_create_sheet_key(
         session,
         organisation_id=organisation_id,
         workbook_name=workbook_name,
         sheet_name=sheet_name,
+        test_pack=test_pack,
     )
 
-    version = ValidationResultVersion(
-        org_workbook_sheet_key_id=int(context_key.id),
-        user_id=user_id,
-        results_json={
-            "failed": [
-                {
-                    "umr": str(item.get("umr", "")),
-                    "test_id": str(item.get("test_id", "")),
-                }
-                for item in (failed_tests or [])
-            ],
-            "passed": [str(test_id) for test_id in (passed_tests or []) if str(test_id or "").strip()],
-        },
-        created_at=datetime.now(timezone.utc),
+    # Build failed UMR map: {umr -> [test_ids]}
+    failed_by_umr: dict[str, list[str]] = {}
+    for item in (failed_tests or []):
+        umr = str(item.get("umr") or item.get("id") or "")
+        test_id = str(item.get("test_id", ""))
+        if umr and test_id:
+            if umr not in failed_by_umr:
+                failed_by_umr[umr] = []
+            failed_by_umr[umr].append(test_id)
+
+    passed_test_list = [str(test_id) for test_id in (passed_tests or []) if str(test_id or "").strip()]
+    passed_umr_list = [str(umr) for umr in (passed_umrs or []) if str(umr or "").strip()]
+
+    results_json = {
+        "failed": [
+            {"id": umr, "tests": tests}
+            for umr, tests in failed_by_umr.items()
+        ],
+        "passed_umrs": passed_umr_list,
+        "passed_tests": passed_test_list,
+        "passed_ids": passed_test_list,  # Legacy compatibility
+    }
+
+    # Check if version exists for this sheet_key
+    result = await session.execute(
+        select(ValidationResultVersion)
+        .where(ValidationResultVersion.sheet_key_id == int(sheet_key.id))
     )
-    session.add(version)
+    version = result.scalar_one_or_none()
+
+    now = datetime.now(timezone.utc)
+
+    if version is None:
+        # Create new version
+        version = ValidationResultVersion(
+            sheet_key_id=int(sheet_key.id),
+            user_id=user_id,
+            results_json=results_json,
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(version)
+    else:
+        # Update existing version
+        version.results_json = results_json
+        version.user_id = user_id
+        version.updated_at = now
+
     await session.commit()
     await session.refresh(version)
     return version
 
 
-async def list_results_versions(
-    session: AsyncSession,
-    *,
-    organisation_id: int,
-    workbook_name: str | None,
-    sheet_name: str | None,
-    limit: int = 100,
-) -> list[ValidationResultVersion]:
-    context_key = await _get_or_create_context_key(
-        session,
-        organisation_id=organisation_id,
-        workbook_name=workbook_name,
-        sheet_name=sheet_name,
-    )
-    result = await session.execute(
-        select(ValidationResultVersion)
-        .where(ValidationResultVersion.org_workbook_sheet_key_id == int(context_key.id))
-        .order_by(desc(ValidationResultVersion.created_at))
-        .limit(limit)
-    )
-    return list(result.scalars().all())
-
-
-async def get_latest_results_version(
+async def get_results_version(
     session: AsyncSession,
     *,
     organisation_id: int,
     workbook_name: str | None,
     sheet_name: str | None,
 ) -> ValidationResultVersion | None:
-    context_key = await _get_or_create_context_key(
+    """Get the single saved result version for a sheet (or None if not found)."""
+    sheet_key = await _get_or_create_sheet_key(
         session,
         organisation_id=organisation_id,
         workbook_name=workbook_name,
@@ -132,27 +178,45 @@ async def get_latest_results_version(
     )
     result = await session.execute(
         select(ValidationResultVersion)
-        .where(ValidationResultVersion.org_workbook_sheet_key_id == int(context_key.id))
-        .order_by(desc(ValidationResultVersion.created_at))
-        .limit(1)
+        .where(ValidationResultVersion.sheet_key_id == int(sheet_key.id))
     )
-    return result.scalars().first()
+    return result.scalar_one_or_none()
 
 
 async def delete_results_version(
     session: AsyncSession,
     *,
     organisation_id: int,
-    version_id: int,
+    sheet_key_id: int,
 ) -> bool:
+    """Delete the result version for a specific sheet_key (validates org ownership)."""
     result = await session.execute(
         select(ValidationResultVersion)
-        .join(
-            OrganisationWorkbookSheetKey,
-            ValidationResultVersion.org_workbook_sheet_key_id == OrganisationWorkbookSheetKey.id,
-        )
+        .join(SheetKey, ValidationResultVersion.sheet_key_id == SheetKey.id)
+        .where(ValidationResultVersion.sheet_key_id == sheet_key_id)
+        .where(SheetKey.organisation_id == organisation_id)
+    )
+    version = result.scalar_one_or_none()
+    if version is None:
+        return False
+
+    await session.delete(version)
+    await session.commit()
+    return True
+
+
+async def delete_results_version_by_id(
+    session: AsyncSession,
+    *,
+    organisation_id: int,
+    version_id: int,
+) -> bool:
+    """Delete a specific result version id, constrained to organisation ownership."""
+    result = await session.execute(
+        select(ValidationResultVersion)
+        .join(SheetKey, ValidationResultVersion.sheet_key_id == SheetKey.id)
         .where(ValidationResultVersion.id == version_id)
-        .where(OrganisationWorkbookSheetKey.organisation_id == organisation_id)
+        .where(SheetKey.organisation_id == organisation_id)
     )
     version = result.scalar_one_or_none()
     if version is None:
