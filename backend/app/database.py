@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 from sqlalchemy import BigInteger, Boolean, DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text, JSON, UniqueConstraint, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -115,7 +115,7 @@ class UserSubscription(Base):
     # Excel user identity (from Office.js)
     excel_user_id: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     email: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
-    display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    display_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
     # API key (hashed)
     api_key_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
@@ -143,11 +143,11 @@ class UserSubscription(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Extra data (JSON-like text field for flexibility)
-    extra_data: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extra_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     def __repr__(self) -> str:
         return f"<UserSubscription(email={self.email}, tier={self.tier}, active={self.is_active})>"
@@ -170,7 +170,7 @@ class RequestLog(Base):
         index=True,
     )
     endpoint: Mapped[str] = mapped_column(String(100), nullable=True)
-    cell_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cell_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
 
 class ValidationRun(Base):
@@ -187,17 +187,17 @@ class ValidationRun(Base):
         nullable=False,
         index=True,
     )
-    user_id: Mapped[int | None] = mapped_column(
+    user_id: Mapped[Optional[int]] = mapped_column(
         Integer,
         ForeignKey("user_subscriptions.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
-    api_key_hash: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    api_key_hash: Mapped[Optional[str]] = mapped_column(String(64), index=True, nullable=True)
 
-    workbook_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    sheet_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    range_address: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    workbook_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    sheet_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    range_address: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     test_packs: Mapped[str] = mapped_column(Text, nullable=False)  # comma-separated
 
     total_rows: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -205,7 +205,7 @@ class ValidationRun(Base):
     failed_cells: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     passed_cells: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="completed", nullable=False)
-    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Per-pack/test breakdown stored as the coverage report packs dict
     coverage_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
@@ -245,7 +245,7 @@ class PackConfiguration(Base):
     sheet_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     test_pack: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
 
-    workbook_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    workbook_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     config_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
     created_at: Mapped[datetime] = mapped_column(
@@ -275,7 +275,7 @@ class ValidationResultVersion(Base):
         nullable=False,
         index=True,
     )
-    user_id: Mapped[int | None] = mapped_column(
+    user_id: Mapped[Optional[int]] = mapped_column(
         Integer,
         ForeignKey("user_subscriptions.id", ondelete="SET NULL"),
         nullable=True,
