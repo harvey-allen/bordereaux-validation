@@ -19,6 +19,79 @@ let savedResultsVersionCreatedAt = null;
 let savedVersionItems = [];
 const APP_LOGO_URL = `${window.location.origin}/AXIOS.png`;
 
+// Persistence keys for localStorage
+const STORAGE_KEY_RESULTS = "bordereau_validation_results";
+const STORAGE_KEY_SOURCE_SHEET = "bordereau_validation_source_sheet";
+const STORAGE_KEY_EXECUTED_TESTS = "bordereau_validation_executed_tests";
+const STORAGE_KEY_PACK = "bordereau_validation_pack";
+const STORAGE_KEY_FAILED_TESTS = "bordereau_validation_failed_tests";
+const STORAGE_KEY_PASSED_TESTS = "bordereau_validation_passed_tests";
+const STORAGE_KEY_PASSED_UMRS = "bordereau_validation_passed_umrs";
+const STORAGE_KEY_TIMESTAMP = "bordereau_validation_timestamp";
+
+/**
+ * Persist all validation results to localStorage
+ */
+function persistValidationResults() {
+  try {
+    const persistData = {
+      results: lastValidationResults,
+      sourceSheetName: lastValidationSourceSheetName,
+      executedTests: lastValidationExecutedTests,
+      pack: lastValidationPack,
+      failedTests: lastValidationFailedTests,
+      passedTests: lastValidationPassedTests,
+      passedUmrs: lastValidationPassedUmrs,
+      timestamp: new Date().toISOString(),
+    };
+    localStorage.setItem(STORAGE_KEY_RESULTS, JSON.stringify(persistData));
+  } catch (error) {
+    // Silently fail if localStorage is unavailable or full
+    console.warn("Failed to persist validation results:", error);
+  }
+}
+
+/**
+ * Restore validation results from localStorage
+ */
+function restoreValidationResults() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_RESULTS);
+    if (!stored) {
+      return false;
+    }
+    const persistData = JSON.parse(stored);
+    lastValidationResults = Array.isArray(persistData.results) ? persistData.results : [];
+    lastValidationSourceSheetName = persistData.sourceSheetName || null;
+    lastValidationExecutedTests = Array.isArray(persistData.executedTests) ? persistData.executedTests : [];
+    lastValidationPack = persistData.pack || null;
+    lastValidationFailedTests = Array.isArray(persistData.failedTests) ? persistData.failedTests : [];
+    lastValidationPassedTests = Array.isArray(persistData.passedTests) ? persistData.passedTests : [];
+    lastValidationPassedUmrs = Array.isArray(persistData.passedUmrs) ? persistData.passedUmrs : [];
+    return true;
+  } catch (error) {
+    // Silently fail if restore fails
+    console.warn("Failed to restore validation results:", error);
+    return false;
+  }
+}
+
+/**
+ * Clear persisted validation results from localStorage
+ */
+function clearPersistedValidationResults() {
+  try {
+    localStorage.removeItem(STORAGE_KEY_RESULTS);
+  } catch (error) {
+    // Silently fail if localStorage is unavailable
+    console.warn("Failed to clear validation results:", error);
+  }
+}
+const SANKEY_EXPORT_WIDTH = 1800;
+const SANKEY_EXPORT_HEIGHT = 330;
+const SANKEY_DISPLAY_WIDTH = 1250;
+const SANKEY_DISPLAY_HEIGHT = Math.round((SANKEY_EXPORT_HEIGHT / SANKEY_EXPORT_WIDTH) * SANKEY_DISPLAY_WIDTH);
+
 const DEFAULT_PACK_OPTIONS = [
   { value: "risk_and_premium", label: "Risk and Premium" },
   { value: "claims", label: "Claims" },
@@ -263,8 +336,8 @@ async function buildSankeyPngBase64(exportRows) {
   }
 
   // Create an offscreen SVG using D3 (stretched wider for Sankey)
-  const width = 1800;
-  const height = 330;
+  const width = SANKEY_EXPORT_WIDTH;
+  const height = SANKEY_EXPORT_HEIGHT;
   const svg = d3.create('svg')
     .attr('xmlns', 'http://www.w3.org/2000/svg')
     .attr('width', width)
@@ -456,9 +529,9 @@ async function insertSankeyImageIntoResults(exportRows) {
         const imgShape = resultsSheet.shapes.addImage(base64Png);
         try { imgShape.left = anchor.left; } catch {}
         try { imgShape.top = anchor.top; } catch {}
-        // Set a reasonable display size for the Sankey
-        try { imgShape.width = 1250; } catch {}
-        try { imgShape.height = 600; } catch {}
+        // Keep the same aspect ratio as the exported Sankey image
+        try { imgShape.width = SANKEY_DISPLAY_WIDTH; } catch {}
+        try { imgShape.height = SANKEY_DISPLAY_HEIGHT; } catch {}
       } catch (shErr) {
         // fallback: add image without explicit positioning
         try { resultsSheet.shapes.addImage(base64Png); } catch {}
@@ -954,6 +1027,8 @@ Office.onReady(async () => {
   document.getElementById("deleteResultsVersion")?.addEventListener("click", deleteSelectedResultsVersion);
   document.getElementById("savedVersions")?.addEventListener("change", updateActionButtons);
   document.getElementById("generateTemplate")?.addEventListener("click", generateTemplate);
+  // Restore previously saved validation results
+  restoreValidationResults();
   // Initialize button states (Extract / Visualise disabled until validation run)
   await checkSavedResultsVersion();
   updateActionButtons();
@@ -1255,6 +1330,17 @@ async function clearTableFormattingAndComments() {
       range.format.fill.clear();
       await context.sync();
     });
+
+    // Clear persisted results when clearing the table
+    lastValidationResults = [];
+    lastValidationSourceSheetName = null;
+    lastValidationExecutedTests = [];
+    lastValidationPack = null;
+    lastValidationFailedTests = [];
+    lastValidationPassedTests = [];
+    lastValidationPassedUmrs = [];
+    clearPersistedValidationResults();
+    updateActionButtons();
 
     setStatus("Cleared all comments and highlights in the table.");
   } catch (error) {
@@ -2867,6 +2953,7 @@ async function runValidation() {
     lastValidationFailedTests = [];
     lastValidationPassedTests = [];
     lastValidationPack = selectedPack;
+    clearPersistedValidationResults();
 
     if (clearButton) {
       clearButton.disabled = true;
@@ -3033,6 +3120,7 @@ async function runValidation() {
     lastValidationFailedTests = Array.from(failedEntryByKey.values());
     lastValidationPassedTests = Array.from(executedTestIds).filter((testId) => !failedTestIds.has(testId)).sort();
     lastValidationPassedUmrs = Array.from(umrsInData).filter((umr) => !failedUmrs.has(umr)).sort();
+    persistValidationResults();
     await checkSavedResultsVersion();
     const warningText = Array.from(coverageWarnings).join(" | ");
     const statusMessage = `Validation complete with ${packName}: ${failedCount} cells failed at least one test.`;
