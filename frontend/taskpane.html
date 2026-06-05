@@ -193,15 +193,22 @@
         border: 1px dashed var(--border);
         min-height: 34px;
       }
+
+      .section-title {
+        margin-top: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #334155;
+      }
     </style>
   </head>
   <body>
     <div class="app-shell">
       <div class="brand-header">
         <img src="./AXIOS.png" alt="Axios logo" />
-        <h2>Reporting Validator</h2>
+        <h2>Bordereaux Validator</h2>
       </div>
-      <div class="hint">Configure validation settings for your subscribed test packs</div>
+      <div class="hint">Identify data issues faster with intelligent bordereaux validation and reporting.</div>
 
       <div class="tabs" role="tablist" aria-label="Validator sections">
         <button id="tabConfiguration" class="tab-button" role="tab" aria-selected="true" aria-controls="panelConfiguration">Configure</button>
@@ -222,7 +229,7 @@
 
         <button id="generateTemplate" class="btn-secondary">Generate Template</button>
 
-        <label for="packConfigs">Test Configuration (JSON)</label>
+        <label for="packConfigs">Validation Configuration</label>
         <textarea id="packConfigs"></textarea>
       </section>
 
@@ -230,20 +237,21 @@
         <div class="actions-grid">
           <button id="runValidation">Validate</button>
           <button id="clearTable" class="btn-secondary">Clear</button>
-          <button id="extractResults" class="btn-secondary">Extract</button>
         </div>
         <div class="status" id="status"></div>
+        <div class="section-title">Exception Management</div>
       </section>
 
       <section id="panelAnalysis" class="tab-panel panel-card" role="tabpanel" aria-labelledby="tabAnalysis">
         <div class="actions-grid">
           <button id="visualiseResults" class="btn-secondary">Visualise</button>
           <button id="rulesEngine" class="btn-secondary">Rules Engine</button>
-          <button id="saveResultsVersion" class="btn-secondary">Save Report</button>
-          <label for="savedVersions">Saved Reports</label>
+          <button id="extractResults" class="btn-secondary">Extract</button>
+          <label for="savedVersions">Report Management</label>
           <select id="savedVersions">
             <option value="">No saved reports</option>
           </select>
+          <button id="saveResultsVersion" class="btn-secondary">Save Report</button>
           <button id="deleteResultsVersion" class="btn-secondary">Delete Saved Report</button>
         </div>
       </section>
