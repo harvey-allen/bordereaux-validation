@@ -269,21 +269,6 @@ class BordereauxBaseTestPack(BaseTestPack):
 class RiskAndPremiumBordereauxTestPack(BordereauxBaseTestPack):
     """Risk and premium bordereaux checks."""
 
-    @register_test(target_column="policy_id", severity=Severity.CRITICAL, test_type=TestType.COMPLETENESS, test_code="Bpolicy_id1")
-    def test_policy_id_required(self) -> pd.DataFrame | None:
-        """policy_id must be present."""
-        return self._missing_rule("policy_id")
-
-    @register_test(target_column="currency", severity=Severity.ERROR, test_type=TestType.DATA_TYPE, test_code="Bcurrency1")
-    def test_currency_valid(self) -> pd.DataFrame | None:
-        """currency must be a valid three-letter code."""
-        return self._string_rule("currency", lambda values: values.str.fullmatch(r"[A-Z]{3}").fillna(False))
-
-    @register_test(target_column="premium_amount", severity=Severity.CRITICAL, test_type=TestType.COMPLETENESS, test_code="Bpremium_amount1")
-    def test_premium_amount_required(self) -> pd.DataFrame | None:
-        """premium_amount must be present."""
-        return self._missing_rule("premium_amount")
-
     @register_test(target_column="Type of Insurance (Direct or Type or Reinsurance)", severity=Severity.CRITICAL, test_type=TestType.COMPLETENESS)
     def test_CR0019_1(self) -> pd.DataFrame | None:
         """CR0019: Type of Insurance must be present."""

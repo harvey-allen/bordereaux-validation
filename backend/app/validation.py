@@ -484,7 +484,7 @@ def validate_grid_with_packs_report(
                 ]
                 header_check_failed = len(missing_default_fields) > 0
                 tests_coverage["test_required_headers_present"] = {
-                    "testCode": "Bheaders1",
+                    "testCode": "HeaderSchemaCheck",
                     "targetColumns": headers,
                     "description": "Required headers are present or mapped for the selected pack",
                     "severity": "CRITICAL",
@@ -520,7 +520,7 @@ def validate_grid_with_packs_report(
 
                 missing_columns_text = ", ".join(missing_default_fields)
                 header_message = (
-                    f"[CRITICAL] Bheaders1: Missing required columns for {pack_name}: {missing_columns_text}. "
+                    f"[CRITICAL] Header: Missing required columns for {pack_name}: {missing_columns_text}. "
                     "Map sheet headers via fieldMappings to resolve."
                 )
 
