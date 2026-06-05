@@ -1,22 +1,21 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
 import zipfile
+from pathlib import Path
+
+import pandas as pd
+from openpyxl import Workbook, load_workbook
+from openpyxl.comments import Comment
+from openpyxl.styles import PatternFill
 
 CURRENT_DIR = Path(__file__).resolve().parent
 BACKEND_ROOT = CURRENT_DIR.parent
 if str(BACKEND_ROOT) not in sys.path:
-    sys.path.insert(0, str(BACKEND_ROOT))
+    sys.path.insert(0, str(BACKEND_ROOT))  # noqa: E402
 
-import pandas as pd
-from openpyxl import load_workbook
-from openpyxl import Workbook
-from openpyxl.comments import Comment
-from openpyxl.styles import PatternFill
-
-from app.validation import validate_grid_with_packs_report
+from app.validation import validate_grid_with_packs_report  # noqa: E402
 
 
 def heatmap_color(fail_count: int, max_failures: int) -> str:

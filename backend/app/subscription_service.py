@@ -16,14 +16,13 @@ import os
 import secrets
 import time
 from collections import defaultdict
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import RateLimitState, Subscription, SubscriptionTier, TIER_CONFIGS, coerce_subscription_tier
+from app.auth import RateLimitState, Subscription, SubscriptionTier, coerce_subscription_tier
 from app.database import Organisation, RequestLog, UserSubscription
 
 

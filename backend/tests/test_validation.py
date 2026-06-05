@@ -1,8 +1,7 @@
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.validation import get_pack_mandatory_fields, validate_cell, validate_grid_with_packs_report
+from app.validation import validate_cell, validate_grid_with_packs_report
 
 
 client = TestClient(app)

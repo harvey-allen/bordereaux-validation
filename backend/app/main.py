@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import traceback
 from contextlib import asynccontextmanager
 from typing import Any
@@ -10,12 +9,8 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-# Load environment variables
-load_dotenv()
-
 from app.auth import (
     Subscription,
-    SubscriptionTier,
     check_cell_limit,
     check_pack_access,
     get_subscription_allowed_packs,
@@ -23,6 +18,9 @@ from app.auth import (
 )
 from app.testpacks.core import TEST_PACKS, BaseTestPack, get_pack_name_variants, normalize_pack_name
 from app.validation import get_pack_territories, get_pack_mandatory_fields, validate_grid_with_packs_report
+
+# Load environment variables
+load_dotenv()
 
 # Database imports (optional - gracefully handle if DB not available)
 try:
