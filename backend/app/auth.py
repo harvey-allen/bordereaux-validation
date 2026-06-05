@@ -17,7 +17,7 @@ import secrets
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any
 
@@ -115,7 +115,7 @@ class Subscription:
     def is_expired(self) -> bool:
         if self.expires_at is None:
             return False
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
 
 
 @dataclass
@@ -177,7 +177,7 @@ class SubscriptionStore:
             api_key_hash=key_hash,
             tier=SubscriptionTier.DEVELOPER,
             owner_email="dev@example.com",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             expires_at=None,
             is_active=True,
             metadata={"is_dev_key": True},
@@ -198,14 +198,14 @@ class SubscriptionStore:
         key_hash = self._hash_key(api_key)
         expires_at = None
         if expires_in_days:
-            expires_at = datetime.utcnow() + timedelta(days=expires_in_days)
+            expires_at = datetime.now(timezone.utc) + timedelta(days=expires_in_days)
 
         self._subscriptions[key_hash] = Subscription(
             api_key=api_key[:12] + "...",
             api_key_hash=key_hash,
             tier=tier,
             owner_email=owner_email,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             expires_at=expires_at,
             is_active=True,
         )
@@ -226,8 +226,11 @@ class SubscriptionStore:
         return False
 
     def get_rate_limit_state(self, api_key: str) -> RateLimitState:
-        """Get the rate limit state for an API key."""
-        key_hash = self._hash_key(api_key)
+        """Get the rate limit state for an API key or API-key hash."""
+        if api_key in self._subscriptions:
+            key_hash = api_key
+        else:
+            key_hash = self._hash_key(api_key)
         return self._rate_limits[key_hash]
 
     def check_rate_limit(self, subscription: Subscription) -> tuple[bool, str | None]:
@@ -248,7 +251,7 @@ class SubscriptionStore:
         # Check daily limit
         if state.requests_today >= config.requests_per_day:
             # Calculate time until midnight UTC
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
             retry_after = (midnight - now).seconds
             return False, f"Daily limit exceeded. {config.requests_per_day} requests/day allowed. Resets in {retry_after // 3600}h {(retry_after % 3600) // 60}m"

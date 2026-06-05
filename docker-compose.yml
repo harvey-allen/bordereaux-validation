@@ -54,6 +54,8 @@ services:
       # Mount frontend files for live updates
       - ./frontend/taskpane.html:/app/taskpane.html:ro
       - ./frontend/taskpane.js:/app/taskpane.js:ro
+      - ./frontend/taskpane.packs.js:/app/taskpane.packs.js:ro
+      - ./frontend/taskpane.storage.js:/app/taskpane.storage.js:ro
       - ./frontend/config.js:/app/config.js:ro
       - ./frontend/commands.html:/app/commands.html:ro
       - ./frontend/commands.js:/app/commands.js:ro

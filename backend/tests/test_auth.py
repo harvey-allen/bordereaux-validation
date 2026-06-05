@@ -74,6 +74,21 @@ class TestSubscriptionStore:
         store.revoke_key(key)
         assert not store.get_subscription(key).is_active
 
+    def test_revoke_unknown_key_returns_false(self):
+        """Revoking an unknown key should return False."""
+        store = SubscriptionStore()
+        assert store.revoke_key("unknown_key") is False
+
+    def test_get_rate_limit_state_accepts_key_hash(self):
+        """Rate limit state lookup should support both API key and key-hash inputs."""
+        store = SubscriptionStore()
+        key = store.generate_api_key(SubscriptionTier.BORDEREAUX, "hash@example.com")
+        sub = store.get_subscription(key)
+
+        state_by_key = store.get_rate_limit_state(key)
+        state_by_hash = store.get_rate_limit_state(sub.api_key_hash)
+        assert state_by_key is state_by_hash
+
     def test_invalid_key_returns_none(self):
         """Invalid API keys should return None."""
         store = SubscriptionStore()

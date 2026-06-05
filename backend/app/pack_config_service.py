@@ -9,20 +9,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import SheetKey, PackConfiguration
+from app.utils.normalization import (
+    UNKNOWN_SHEET,
+    UNKNOWN_WORKBOOK,
+    normalize_pack_storage_value,
+    normalize_scope_value,
+)
 
 
 class PackConfigService:
     """CRUD for pack configurations."""
-
-    @staticmethod
-    def _normalize_scope_value(value: str | None, *, fallback: str) -> str:
-        normalized = str(value or "").strip().lower()
-        return normalized or fallback
-
-    @staticmethod
-    def _normalize_pack_value(test_pack: str | None) -> str:
-        normalized_pack = str(test_pack or "").strip().lower()
-        return normalized_pack or "__unknown_pack__"
 
     async def _get_or_create_sheet_key(
         self,
@@ -33,9 +29,9 @@ class PackConfigService:
         sheet_name: str | None,
         test_pack: str | None = None,
     ) -> SheetKey:
-        normalized_workbook = self._normalize_scope_value(workbook_name, fallback="__unknown_workbook__")
-        normalized_sheet = self._normalize_scope_value(sheet_name, fallback="__unknown_sheet__")
-        normalized_pack = self._normalize_pack_value(test_pack)
+        normalized_workbook = normalize_scope_value(workbook_name, fallback=UNKNOWN_WORKBOOK)
+        normalized_sheet = normalize_scope_value(sheet_name, fallback=UNKNOWN_SHEET)
+        normalized_pack = normalize_pack_storage_value(test_pack)
 
         result = await db.execute(
             select(SheetKey)

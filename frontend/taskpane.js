@@ -19,163 +19,67 @@ let savedResultsVersionCreatedAt = null;
 let savedVersionItems = [];
 const APP_LOGO_URL = `${window.location.origin}/AXIOS.png`;
 
-// Persistence keys for localStorage
-const STORAGE_KEY_RESULTS = "bordereau_validation_results";
-const STORAGE_KEY_SOURCE_SHEET = "bordereau_validation_source_sheet";
-const STORAGE_KEY_EXECUTED_TESTS = "bordereau_validation_executed_tests";
-const STORAGE_KEY_PACK = "bordereau_validation_pack";
-const STORAGE_KEY_FAILED_TESTS = "bordereau_validation_failed_tests";
-const STORAGE_KEY_PASSED_TESTS = "bordereau_validation_passed_tests";
-const STORAGE_KEY_PASSED_UMRS = "bordereau_validation_passed_umrs";
-const STORAGE_KEY_TIMESTAMP = "bordereau_validation_timestamp";
+const {
+  formatPackLabel,
+  formatTestTypeLabel,
+  populatePackSelect,
+  loadSubscribedPackValues,
+} = window.TaskpanePacks || {};
+
+const storageHelpers = window.TaskpaneStorage || {};
 
 /**
  * Persist all validation results to localStorage
  */
 function persistValidationResults() {
-  try {
-    const persistData = {
-      results: lastValidationResults,
-      sourceSheetName: lastValidationSourceSheetName,
-      executedTests: lastValidationExecutedTests,
-      pack: lastValidationPack,
-      failedTests: lastValidationFailedTests,
-      passedTests: lastValidationPassedTests,
-      passedUmrs: lastValidationPassedUmrs,
-      timestamp: new Date().toISOString(),
-    };
-    localStorage.setItem(STORAGE_KEY_RESULTS, JSON.stringify(persistData));
-  } catch (error) {
-    // Silently fail if localStorage is unavailable or full
-    console.warn("Failed to persist validation results:", error);
+  if (typeof storageHelpers.persist !== "function") {
+    return;
   }
+  storageHelpers.persist({
+    results: lastValidationResults,
+    sourceSheetName: lastValidationSourceSheetName,
+    executedTests: lastValidationExecutedTests,
+    pack: lastValidationPack,
+    failedTests: lastValidationFailedTests,
+    passedTests: lastValidationPassedTests,
+    passedUmrs: lastValidationPassedUmrs,
+  });
 }
 
 /**
  * Restore validation results from localStorage
  */
 function restoreValidationResults() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_RESULTS);
-    if (!stored) {
-      return false;
-    }
-    const persistData = JSON.parse(stored);
-    lastValidationResults = Array.isArray(persistData.results) ? persistData.results : [];
-    lastValidationSourceSheetName = persistData.sourceSheetName || null;
-    lastValidationExecutedTests = Array.isArray(persistData.executedTests) ? persistData.executedTests : [];
-    lastValidationPack = persistData.pack || null;
-    lastValidationFailedTests = Array.isArray(persistData.failedTests) ? persistData.failedTests : [];
-    lastValidationPassedTests = Array.isArray(persistData.passedTests) ? persistData.passedTests : [];
-    lastValidationPassedUmrs = Array.isArray(persistData.passedUmrs) ? persistData.passedUmrs : [];
-    return true;
-  } catch (error) {
-    // Silently fail if restore fails
-    console.warn("Failed to restore validation results:", error);
+  if (typeof storageHelpers.restore !== "function") {
     return false;
   }
+  const persistData = storageHelpers.restore();
+  if (!persistData) {
+    return false;
+  }
+  lastValidationResults = Array.isArray(persistData.results) ? persistData.results : [];
+  lastValidationSourceSheetName = persistData.sourceSheetName || null;
+  lastValidationExecutedTests = Array.isArray(persistData.executedTests) ? persistData.executedTests : [];
+  lastValidationPack = persistData.pack || null;
+  lastValidationFailedTests = Array.isArray(persistData.failedTests) ? persistData.failedTests : [];
+  lastValidationPassedTests = Array.isArray(persistData.passedTests) ? persistData.passedTests : [];
+  lastValidationPassedUmrs = Array.isArray(persistData.passedUmrs) ? persistData.passedUmrs : [];
+  return true;
 }
 
 /**
  * Clear persisted validation results from localStorage
  */
 function clearPersistedValidationResults() {
-  try {
-    localStorage.removeItem(STORAGE_KEY_RESULTS);
-  } catch (error) {
-    // Silently fail if localStorage is unavailable
-    console.warn("Failed to clear validation results:", error);
+  if (typeof storageHelpers.clear !== "function") {
+    return;
   }
+  storageHelpers.clear();
 }
 const SANKEY_EXPORT_WIDTH = 1800;
 const SANKEY_EXPORT_HEIGHT = 330;
 const SANKEY_DISPLAY_WIDTH = 1250;
 const SANKEY_DISPLAY_HEIGHT = Math.round((SANKEY_EXPORT_HEIGHT / SANKEY_EXPORT_WIDTH) * SANKEY_DISPLAY_WIDTH);
-
-const DEFAULT_PACK_OPTIONS = [
-  { value: "risk_and_premium", label: "Risk and Premium" },
-  { value: "claims", label: "Claims" },
-];
-
-function formatPackLabel(packName) {
-  const normalized = String(packName || "").trim();
-  if (!normalized) {
-    return "";
-  }
-  return normalized
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function getDefaultPackValues() {
-  return DEFAULT_PACK_OPTIONS.map((pack) => pack.value);
-}
-
-function getPackLabel(packName) {
-  const normalized = String(packName || "").trim().toLowerCase();
-  const known = DEFAULT_PACK_OPTIONS.find((pack) => pack.value === normalized);
-  return known?.label || formatPackLabel(normalized);
-}
-
-function formatTestTypeLabel(testType) {
-  return String(testType || "").trim().replace(/[_-]+/g, " ");
-}
-
-function populatePackSelect(packValues) {
-  const select = document.getElementById("testPacks");
-  if (!select) {
-    return [];
-  }
-
-  const normalizedValues = Array.from(new Set(
-    (Array.isArray(packValues) ? packValues : [])
-      .map((value) => String(value || "").trim().toLowerCase())
-      .filter(Boolean)
-  ));
-
-  const valuesToRender = normalizedValues.length > 0 ? normalizedValues : getDefaultPackValues();
-
-  select.innerHTML = "";
-  for (const packName of valuesToRender) {
-    const option = document.createElement("option");
-    option.value = packName;
-    option.textContent = getPackLabel(packName);
-    select.appendChild(option);
-  }
-
-  return valuesToRender;
-}
-
-async function loadSubscribedPackValues(excelUserEmail) {
-  try {
-    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/test-packs`, {
-      method: "GET",
-      headers: {
-        "X-Excel-User-Email": excelUserEmail,
-      },
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      return getDefaultPackValues();
-    }
-
-    const payload = await response.json().catch(() => ({}));
-    const allowedPacks = Array.isArray(payload?.allowed_packs)
-      ? payload.allowed_packs
-      : (Array.isArray(payload?.all_packs) ? payload.all_packs : []);
-
-    const normalized = Array.from(new Set(
-      allowedPacks
-        .map((value) => String(value || "").trim().toLowerCase())
-        .filter(Boolean)
-    ));
-
-    return normalized.length > 0 ? normalized : getDefaultPackValues();
-  } catch {
-    return getDefaultPackValues();
-  }
-}
 
 function updateActionButtons() {
   const extractButton = document.getElementById("extractResults");

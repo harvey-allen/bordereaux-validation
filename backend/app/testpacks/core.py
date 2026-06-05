@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum
 from enum import Enum
 import re
@@ -62,7 +62,7 @@ class PackFailure:
     failed_refs: set[str]
     description: str
     severity: Severity = Severity.ERROR
-    test_type: TestType | str | None = None
+    test_type: TestType | None = None
 
 
 @dataclass
@@ -75,7 +75,19 @@ class PackTestCoverage:
     evaluated_rows: int
     failed_rows: int
     passed_rows: int
-    test_type: TestType | str | None = None
+    test_type: TestType | None = None
+
+
+@dataclass
+class RegisteredTestMetadata:
+    """Serializable metadata for registered test methods."""
+
+    method_name: str
+    rule_id: str
+    target_columns: list[str]
+    description: str
+    severity: Severity
+    test_type: TestType | None
 
 
 def register_pack(name: str) -> Callable[[type["BaseTestPack"]], type["BaseTestPack"]]:
@@ -119,7 +131,14 @@ def register_test(
             setattr(test_func, "_target_columns", None)
         setattr(test_func, "_description", description)
         setattr(test_func, "_severity", severity)
-        setattr(test_func, "_test_type", test_type)
+        normalized_test_type: TestType | None = None
+        if isinstance(test_type, TestType):
+            normalized_test_type = test_type
+        elif isinstance(test_type, str):
+            candidate = test_type.strip().upper()
+            normalized_test_type = TestType[candidate] if candidate in TestType.__members__ else None
+
+        setattr(test_func, "_test_type", normalized_test_type)
         return test_func
 
     if func is not None:
@@ -140,6 +159,56 @@ class BaseTestPack:
         """Extract the CR code from a test method name, e.g. test_CR0002_1 -> CR0002."""
         m = re.search(r"(CR\d+)", method_name, re.IGNORECASE)
         return m.group(1).upper() if m else None
+
+    @staticmethod
+    def _normalize_severity(value: Any) -> Severity:
+        if isinstance(value, Severity):
+            return value
+        if isinstance(value, str):
+            candidate = value.strip().upper()
+            if candidate in Severity.__members__:
+                return Severity[candidate]
+        try:
+            return Severity(int(value))
+        except (TypeError, ValueError):
+            return Severity.ERROR
+
+    @staticmethod
+    def _normalize_test_type(value: Any) -> TestType | None:
+        if isinstance(value, TestType):
+            return value
+        if isinstance(value, str):
+            candidate = value.strip().upper()
+            return TestType[candidate] if candidate in TestType.__members__ else None
+        return None
+
+    @classmethod
+    def collect_registered_tests(cls) -> list[RegisteredTestMetadata]:
+        """Collect registered test metadata from a test pack class."""
+        tests: list[RegisteredTestMetadata] = []
+        for attribute_name in dir(cls):
+            if not attribute_name.startswith("test_"):
+                continue
+            method = getattr(cls, attribute_name)
+            if not callable(method) or not getattr(method, "_is_registered_test", False):
+                continue
+
+            target_columns = list(getattr(method, "_target_columns", None) or ["(unmapped)"])
+            raw_description = getattr(method, "_description", None) or (method.__doc__ or "")
+            description = " ".join(str(raw_description).split()) if raw_description else attribute_name.replace("test_", "")
+
+            tests.append(
+                RegisteredTestMetadata(
+                    method_name=attribute_name,
+                    rule_id=attribute_name.replace("test_", ""),
+                    target_columns=[str(column) for column in target_columns],
+                    description=description,
+                    severity=cls._normalize_severity(getattr(method, "_severity", Severity.ERROR)),
+                    test_type=cls._normalize_test_type(getattr(method, "_test_type", None)),
+                )
+            )
+
+        return tests
 
     def iter_registered_tests(self) -> list[Callable[[], pd.DataFrame | None]]:
         all_tests: list[Callable[[], pd.DataFrame | None]] = []
@@ -193,8 +262,8 @@ class BaseTestPack:
 
             raw_description = getattr(method, "_description", None) or (method.__doc__ or "").strip()
             short_description = " ".join(raw_description.split()) if raw_description else test_name
-            severity = getattr(method, "_severity", Severity.ERROR)
-            test_type = getattr(method, "_test_type", None)
+            severity = self._normalize_severity(getattr(method, "_severity", Severity.ERROR))
+            test_type = self._normalize_test_type(getattr(method, "_test_type", None))
 
             if result is None or result.empty or self.trans_ref not in result.columns or "test_results" not in result.columns:
                 coverage.append(
@@ -244,7 +313,7 @@ class BaseTestPack:
                         failed_refs=failed_refs,
                         description=short_description,
                         severity=severity,
-                            test_type=test_type,
+                        test_type=test_type,
                     )
                 )
 
