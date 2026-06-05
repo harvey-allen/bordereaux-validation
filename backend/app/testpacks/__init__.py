@@ -22,4 +22,5 @@ __all__ = [
     "normalize_pack_name",
     "register_pack",
     "register_test",
+    "_bordereaux",
 ]

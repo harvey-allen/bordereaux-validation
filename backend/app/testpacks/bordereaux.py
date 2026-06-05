@@ -180,6 +180,58 @@ class BordereauxBaseTestPack(BaseTestPack):
         data["test_results"] = ~present_mask | ((result - total).abs() <= tolerance)
         return data[[self.trans_ref, "test_results"]]
 
+    def _binary_formula_rule(
+        self,
+        result_col: str,
+        first_operand_col: str,
+        second_operand_col: str,
+        formula,
+        *,
+        tolerance: float = _ARITHMETIC_TOLERANCE,
+    ) -> pd.DataFrame | None:
+        """Pass if values are blank/non-numeric, or result matches formula within tolerance."""
+        required_cols = (result_col, first_operand_col, second_operand_col)
+        if not all(col in self._df.columns for col in required_cols):
+            return None
+
+        data = self._select_columns(*required_cols)
+        result = pd.to_numeric(self._df[result_col], errors="coerce")
+        first = pd.to_numeric(self._df[first_operand_col], errors="coerce")
+        second = pd.to_numeric(self._df[second_operand_col], errors="coerce")
+        expected = formula(first, second)
+        present_mask = result.notna() & first.notna() & second.notna()
+        data["test_results"] = ~present_mask | ((result - expected).abs() <= tolerance)
+        return data[[self.trans_ref, "test_results"]]
+
+    def _date_not_older_than_months_rule(
+        self,
+        earlier_col: str,
+        reference_col: str,
+        *,
+        months: int,
+    ) -> pd.DataFrame | None:
+        """Pass if values are blank/unparseable, or earlier date is within N months of reference."""
+        if earlier_col not in self._df.columns and reference_col not in self._df.columns:
+            return None
+
+        present_cols = [c for c in (earlier_col, reference_col) if c in self._df.columns]
+        data = self._select_columns(*present_cols)
+
+        earlier = pd.to_datetime(
+            self._df[earlier_col] if earlier_col in self._df.columns else pd.Series(pd.NaT, index=self._df.index),
+            errors="coerce",
+            dayfirst=True,
+        )
+        reference = pd.to_datetime(
+            self._df[reference_col] if reference_col in self._df.columns else pd.Series(pd.NaT, index=self._df.index),
+            errors="coerce",
+            dayfirst=True,
+        )
+        both_present = earlier.notna() & reference.notna()
+        cutoff = reference - pd.DateOffset(months=months)
+        data["test_results"] = ~both_present | (earlier >= cutoff)
+        return data[[self.trans_ref, "test_results"]]
+
     # ------------------------------------------------------------------
     # Mandatory fields common to both risk-and-premium and claims packs
     # ------------------------------------------------------------------
@@ -443,35 +495,22 @@ class RiskAndPremiumBordereauxTestPack(BordereauxBaseTestPack):
     @register_test(target_column="Commission Amount", severity=Severity.ERROR, test_type=TestType.LOGIC)
     def test_CR0062_3(self) -> pd.DataFrame | None:
         """CR0062: Commission Amount must equal Commission % / 100 × Gross premium paid this time."""
-        col_pct = "Commission %"
-        col_gross = "Gross premium paid this time"
-        col_amt = "Commission Amount"
-        if not all(c in self._df.columns for c in (col_pct, col_gross, col_amt)):
-            return None
-        data = self._select_columns(col_pct, col_gross, col_amt)
-        pct = pd.to_numeric(self._df[col_pct], errors="coerce")
-        gross = pd.to_numeric(self._df[col_gross], errors="coerce")
-        amt = pd.to_numeric(self._df[col_amt], errors="coerce")
-        expected = (pct / 100) * gross
-        present_mask = pct.notna() & gross.notna() & amt.notna()
-        data["test_results"] = ~present_mask | ((amt - expected).abs() <= _ARITHMETIC_TOLERANCE)
-        return data[[self.trans_ref, "test_results"]]
+        return self._binary_formula_rule(
+            "Commission Amount",
+            "Commission %",
+            "Gross premium paid this time",
+            lambda pct, gross: (pct / 100) * gross,
+        )
 
     @register_test(target_column="Net Premium to London in original currency", severity=Severity.ERROR, test_type=TestType.LOGIC)
     def test_CR0065_3(self) -> pd.DataFrame | None:
         """CR0065: Net Premium to London in original currency must equal Gross premium paid this time minus Commission Amount."""
-        col_net = "Net Premium to London in original currency"
-        col_gross = "Gross premium paid this time"
-        col_comm = "Commission Amount"
-        if not all(c in self._df.columns for c in (col_net, col_gross, col_comm)):
-            return None
-        data = self._select_columns(col_net, col_gross, col_comm)
-        net = pd.to_numeric(self._df[col_net], errors="coerce")
-        gross = pd.to_numeric(self._df[col_gross], errors="coerce")
-        comm = pd.to_numeric(self._df[col_comm], errors="coerce")
-        present_mask = net.notna() & gross.notna() & comm.notna()
-        data["test_results"] = ~present_mask | ((net - (gross - comm)).abs() <= _ARITHMETIC_TOLERANCE)
-        return data[[self.trans_ref, "test_results"]]
+        return self._binary_formula_rule(
+            "Net Premium to London in original currency",
+            "Gross premium paid this time",
+            "Commission Amount",
+            lambda gross, commission: gross - commission,
+        )
 
     @register_test(target_column="% for Lloyd's", severity=Severity.ERROR, test_type=TestType.LOGIC)
     def test_CR0076_3(self) -> pd.DataFrame | None:
@@ -713,27 +752,11 @@ class ClaimsBordereauxTestPack(BordereauxBaseTestPack):
     @register_test(target_column="Binding authority or coverholder appointment agreement expiry date", severity=Severity.WARNING, test_type=TestType.LOGIC)
     def test_CR0009_4(self) -> pd.DataFrame | None:
         """CR0009: Binding authority expiry date should not have expired more than 12 months before the Reporting Period End Date."""
-        col_expiry = "Binding authority or coverholder appointment agreement expiry date"
-        col_report_end = "Reporting Period (End Date)"
-        if col_expiry not in self._df.columns and col_report_end not in self._df.columns:
-            return None
-        data = self._select_columns(
-            *[c for c in (col_expiry, col_report_end) if c in self._df.columns]
+        return self._date_not_older_than_months_rule(
+            "Binding authority or coverholder appointment agreement expiry date",
+            "Reporting Period (End Date)",
+            months=12,
         )
-        expiry = pd.to_datetime(
-            self._df[col_expiry] if col_expiry in self._df.columns else pd.Series(pd.NaT, index=self._df.index),
-            errors="coerce",
-            dayfirst=True,
-        )
-        report_end = pd.to_datetime(
-            self._df[col_report_end] if col_report_end in self._df.columns else pd.Series(pd.NaT, index=self._df.index),
-            errors="coerce",
-            dayfirst=True,
-        )
-        both_present = expiry.notna() & report_end.notna()
-        cutoff = report_end - pd.DateOffset(months=12)
-        data["test_results"] = ~both_present | (expiry >= cutoff)
-        return data[[self.trans_ref, "test_results"]]
 
     @register_test(target_column="Date Claim First Advised/Date Claim Made", severity=Severity.WARNING, test_type=TestType.LOGIC)
     def test_CR0136_3(self) -> pd.DataFrame | None:

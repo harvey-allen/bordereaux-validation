@@ -1,28 +1,26 @@
 from __future__ import annotations
 
-import os
 import traceback
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, Optional, Union
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-# Load environment variables
-load_dotenv()
-
 from app.auth import (
     Subscription,
-    SubscriptionTier,
     check_cell_limit,
     check_pack_access,
     get_subscription_allowed_packs,
     subscription_store,
 )
-from app.testpacks.core import TEST_PACKS, get_pack_name_variants, normalize_pack_name
+from app.testpacks.core import TEST_PACKS, BaseTestPack, get_pack_name_variants, normalize_pack_name
 from app.validation import get_pack_territories, get_pack_mandatory_fields, validate_grid_with_packs_report
+
+# Load environment variables
+load_dotenv()
 
 # Database imports (optional - gracefully handle if DB not available)
 try:
@@ -32,6 +30,7 @@ try:
     from app.results_service import (
         delete_results_version_by_id,
         delete_results_version,
+        get_or_create_sheet_key,
         get_results_version,
         get_test_statistics,
         get_validation_history,
@@ -60,29 +59,29 @@ class ValidateRequest(BaseModel):
     )
     includeCoverage: bool = Field(default=True, description="Include per-pack coverage report in response")
     storeResults: bool = Field(default=True, description="Store per-run test summaries in test_results")
-    workbookName: str | None = Field(default=None, description="Name of the workbook being validated")
-    sheetName: str | None = Field(default=None, description="Name of the sheet being validated")
-    rangeAddress: str | None = Field(default=None, description="Address of the range being validated")
+    workbookName: Optional[str] = Field(default=None, description="Name of the workbook being validated")
+    sheetName: Optional[str] = Field(default=None, description="Name of the sheet being validated")
+    rangeAddress: Optional[str] = Field(default=None, description="Address of the range being validated")
 
 
 class ValidateResponse(BaseModel):
     results: list[dict[str, Any]]
-    coverage: dict[str, Any] | None = None
-    usage: dict[str, Any] | None = None
-    validation_run_id: int | None = None
+    coverage: Optional[dict[str, Any]] = None
+    usage: Optional[dict[str, Any]] = None
+    validation_run_id: Optional[int] = None
 
 
 class PackConfigRequest(BaseModel):
     test_pack: str
     sheet_name: str
     pack_config: dict[str, Any] = Field(default_factory=dict)
-    workbook_name: str | None = None
+    workbook_name: Optional[str] = None
 
 
 class PackConfigResponse(BaseModel):
     test_pack: str
     sheet_name: str
-    workbook_name: str | None = None
+    workbook_name: Optional[str] = None
     pack_config: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -107,7 +106,7 @@ class RulesEngineRule(BaseModel):
     target_column: str
     description: str
     severity: str
-    test_type: str | None = None
+    test_type: Optional[str] = None
 
 
 class RulesEngineResponse(BaseModel):
@@ -119,8 +118,8 @@ class SubscriptionInfoResponse(BaseModel):
     tier: str
     owner_email: str
     is_active: bool
-    expires_at: str | None
-    allowed_packs: list[str] | None
+    expires_at: Optional[str]
+    allowed_packs: Optional[list[str]]
     max_cells_per_request: int
 
 
@@ -128,13 +127,13 @@ class RegisterRequest(BaseModel):
     """Request to register/login an Excel user."""
     excel_user_id: str = Field(description="Unique Excel user ID from Office.js")
     email: str = Field(description="User's email address")
-    display_name: str | None = Field(default=None, description="User's display name")
-    organisation_name: str | None = Field(default=None, description="Optional organisation name")
+    display_name: Optional[str] = Field(default=None, description="User's display name")
+    organisation_name: Optional[str] = Field(default=None, description="Optional organisation name")
 
 
 class RegisterResponse(BaseModel):
     """Response with API key for new registrations."""
-    api_key: str | None = Field(description="API key (only returned for new registrations)")
+    api_key: Optional[str] = Field(description="API key (only returned for new registrations)")
     tier: str
     is_new_user: bool
     message: str
@@ -176,8 +175,8 @@ app = FastAPI(
 
 class TestPackCatalogResponse(BaseModel):
     all_packs: list[str]
-    allowed_packs: list[str] | None
-    default_pack: str | None
+    allowed_packs: Optional[list[str]]
+    default_pack: Optional[str]
 
 app.add_middleware(
     CORSMiddleware,
@@ -188,8 +187,21 @@ app.add_middleware(
 )
 
 
-def _normalize_email(value: str | None) -> str:
+def _normalize_email(value: Optional[str]) -> str:
     return (value or "").strip().lower()
+
+
+def _require_db_backed_user(subscription: Subscription) -> tuple[int, int]:
+    """Return (user_id, organisation_id) for DB-backed users, else raise 400."""
+    if subscription.metadata.get("is_dev_key"):
+        raise HTTPException(status_code=400, detail="This endpoint requires a database-backed user")
+
+    user_id = subscription.metadata.get("user_id")
+    organisation_id = subscription.metadata.get("organisation_id")
+    if user_id is None or organisation_id is None:
+        raise HTTPException(status_code=400, detail="Missing user context")
+
+    return int(user_id), int(organisation_id)
 
 
 async def get_authenticated_subscription(
@@ -304,7 +316,7 @@ def get_field_config_territories(test_pack: str) -> TerritoryOptionsResponse:
 
 
 @app.get("/api/v1/generate-template", response_model=TemplateResponse)
-def generate_template(test_pack: str, territory: str | None = None) -> TemplateResponse:
+def generate_template(test_pack: str, territory: Optional[str] = None) -> TemplateResponse:
     """Generate a template with field headers for the given test pack and territory."""
     normalized_pack = normalize_pack_name(test_pack)
     if not normalized_pack:
@@ -336,7 +348,7 @@ def generate_template(test_pack: str, territory: str | None = None) -> TemplateR
 
 
 @app.get("/api/v1/rules-engine", response_model=RulesEngineResponse)
-def get_rules_engine_rules(test_pack: str | None = None) -> RulesEngineResponse:
+def get_rules_engine_rules(test_pack: Optional[str] = None) -> RulesEngineResponse:
     """Return test-pack rules for the Rules Engine UI."""
     requested_pack = normalize_pack_name(test_pack)
     available_packs = sorted(TEST_PACKS.keys())
@@ -349,36 +361,25 @@ def get_rules_engine_rules(test_pack: str | None = None) -> RulesEngineResponse:
         packs_to_scan = available_packs
 
     rules: list[RulesEngineRule] = []
-    signature_to_rule_index: dict[tuple[str, str, str, str, str | None], int] = {}
+    signature_to_rule_index: dict[tuple[str, str, str, str, Optional[str]], int] = {}
 
     for pack_name in packs_to_scan:
         pack_cls = TEST_PACKS.get(pack_name)
         if pack_cls is None:
             continue
 
-        for attribute_name in dir(pack_cls):
-            if not attribute_name.startswith("test_"):
-                continue
+        if not issubclass(pack_cls, BaseTestPack):
+            continue
 
-            method = getattr(pack_cls, attribute_name)
-            if not callable(method) or not getattr(method, "_is_registered_test", False):
-                continue
+        for metadata in pack_cls.collect_registered_tests():
+            severity_name = metadata.severity.name
+            test_type_name = metadata.test_type.name if metadata.test_type else None
 
-            rule_id = attribute_name.replace("test_", "")
-            target_columns = getattr(method, "_target_columns", None) or ["(unmapped)"]
-            raw_description = getattr(method, "_description", None) or (method.__doc__ or "")
-            description = " ".join(str(raw_description).split()) if raw_description else rule_id
-            severity = getattr(method, "_severity", None)
-            test_type = getattr(method, "_test_type", None)
-
-            severity_name = severity.name if hasattr(severity, "name") else str(severity or "ERROR")
-            test_type_name = test_type.name if hasattr(test_type, "name") else (str(test_type) if test_type else None)
-
-            for target_column in target_columns:
+            for target_column in metadata.target_columns:
                 signature = (
-                    rule_id,
+                    metadata.rule_id,
                     str(target_column),
-                    description,
+                    metadata.description,
                     severity_name,
                     test_type_name,
                 )
@@ -397,9 +398,9 @@ def get_rules_engine_rules(test_pack: str | None = None) -> RulesEngineResponse:
                 rules.append(
                     RulesEngineRule(
                         pack=pack_name,
-                        rule_id=rule_id,
+                        rule_id=metadata.rule_id,
                         target_column=str(target_column),
-                        description=description,
+                        description=metadata.description,
                         severity=severity_name,
                         test_type=test_type_name,
                     )
@@ -663,29 +664,23 @@ async def validate_range(
 async def get_pack_config(
     test_pack: str,
     sheet_name: str,
-    workbook_name: str | None = None,
+    workbook_name: Optional[str] = None,
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> PackConfigResponse:
     """Get persisted test-pack config for the authenticated user and sheet."""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
-    if subscription.metadata.get("is_dev_key"):
-        raise HTTPException(status_code=400, detail="Pack config persistence requires a database-backed user")
+    user_id, organisation_id = _require_db_backed_user(subscription)
 
     normalized_pack = normalize_pack_name(test_pack)
-
-    subscription_user_id = subscription.metadata.get("user_id")
-    organisation_id = subscription.metadata.get("organisation_id")
-    if subscription_user_id is None or organisation_id is None:
-        raise HTTPException(status_code=400, detail="Missing user context")
 
     async with async_session_maker() as session:
         config = None
         for variant in get_pack_name_variants(normalized_pack):
             config = await pack_config_service.get_config(
                 session,
-                organisation_id=int(organisation_id),
-                user_id=int(subscription_user_id),
+                organisation_id=organisation_id,
+                user_id=user_id,
                 workbook_name=workbook_name,
                 sheet_name=sheet_name,
                 test_pack=variant,
@@ -709,21 +704,15 @@ async def upsert_pack_config(
     """Persist test-pack config for the authenticated user/sheet/pack."""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
-    if subscription.metadata.get("is_dev_key"):
-        raise HTTPException(status_code=400, detail="Pack config persistence requires a database-backed user")
+    user_id, organisation_id = _require_db_backed_user(subscription)
 
     normalized_pack = normalize_pack_name(payload.test_pack)
-
-    subscription_user_id = subscription.metadata.get("user_id")
-    organisation_id = subscription.metadata.get("organisation_id")
-    if subscription_user_id is None or organisation_id is None:
-        raise HTTPException(status_code=400, detail="Missing user context")
 
     async with async_session_maker() as session:
         saved_config = await pack_config_service.upsert_config(
             session,
-            organisation_id=int(organisation_id),
-            user_id=int(subscription_user_id),
+            organisation_id=organisation_id,
+            user_id=user_id,
             workbook_name=payload.workbook_name,
             sheet_name=payload.sheet_name,
             test_pack=normalized_pack,
@@ -743,9 +732,9 @@ class ValidationHistoryItem(BaseModel):
     id: int
     timestamp: str
     test_packs: str
-    workbook_name: str | None
-    sheet_name: str | None
-    range_address: str | None
+    workbook_name: Optional[str]
+    sheet_name: Optional[str]
+    range_address: Optional[str]
     total_rows: int
     total_cells: int
     failed_cells: int
@@ -773,8 +762,8 @@ class TestStatisticsResponse(BaseModel):
 
 
 class FailedTestItem(BaseModel):
-    umr: str | None = None  # Legacy
-    id: str | None = None   # New name
+    umr: Optional[str] = None  # Legacy
+    id: Optional[str] = None   # New name
     test_id: str
 
     @property
@@ -784,10 +773,10 @@ class FailedTestItem(BaseModel):
 
 
 class SaveResultsVersionRequest(BaseModel):
-    workbook_name: str | None = None
+    workbook_name: Optional[str] = None
     sheet_name: str
-    test_pack: str | None = None
-    test_packs: str | list[str] | None = None  # legacy fallback
+    test_pack: Optional[str] = None
+    test_packs: Union[str, Optional[list[str]]] = None  # legacy fallback
     failed_tests: list[FailedTestItem] = Field(default_factory=list)
     passed_tests: list[str] = Field(default_factory=list)
     passed_umrs: list[str] = Field(default_factory=list)
@@ -935,7 +924,7 @@ async def get_history_detail(
 @app.get("/api/v1/statistics", response_model=TestStatisticsResponse)
 async def get_statistics(
     days: int = 30,
-    test_pack: str | None = None,
+    test_pack: Optional[str] = None,
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> TestStatisticsResponse:
     """
@@ -965,13 +954,7 @@ async def save_results(
 ) -> SavedResultsVersionItem:
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
-    if subscription.metadata.get("is_dev_key"):
-        raise HTTPException(status_code=400, detail="Results version persistence requires a database-backed user")
-
-    user_id = subscription.metadata.get("user_id")
-    organisation_id = subscription.metadata.get("organisation_id")
-    if user_id is None or organisation_id is None:
-        raise HTTPException(status_code=400, detail="Missing user context")
+    user_id, organisation_id = _require_db_backed_user(subscription)
 
     resolved_pack_name = payload.test_pack
     if not resolved_pack_name:
@@ -987,8 +970,8 @@ async def save_results(
     async with async_session_maker() as session:
         saved = await save_results_version(
             session,
-            organisation_id=int(organisation_id),
-            user_id=int(user_id),
+            organisation_id=organisation_id,
+            user_id=user_id,
             workbook_name=payload.workbook_name,
             sheet_name=payload.sheet_name,
             test_pack=normalized_pack,
@@ -1009,17 +992,12 @@ async def save_results(
 async def get_result_versions(
     sheet_name: str,
     test_pack: str,
-    workbook_name: str | None = None,
+    workbook_name: Optional[str] = None,
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> SavedResultsVersionListResponse:
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
-    if subscription.metadata.get("is_dev_key"):
-        raise HTTPException(status_code=400, detail="Results version persistence requires a database-backed user")
-
-    organisation_id = subscription.metadata.get("organisation_id")
-    if organisation_id is None:
-        raise HTTPException(status_code=400, detail="Missing user context")
+    _, organisation_id = _require_db_backed_user(subscription)
 
     async with async_session_maker() as session:
         normalized_pack = normalize_pack_name(test_pack)
@@ -1028,7 +1006,7 @@ async def get_result_versions(
 
         version = await get_results_version(
             session,
-            organisation_id=int(organisation_id),
+            organisation_id=organisation_id,
             workbook_name=workbook_name,
             sheet_name=sheet_name,
             test_pack=normalized_pack,
@@ -1051,17 +1029,12 @@ async def get_result_versions(
 async def get_latest_results(
     sheet_name: str,
     test_pack: str,
-    workbook_name: str | None = None,
+    workbook_name: Optional[str] = None,
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> LatestResultsVersionResponse:
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
-    if subscription.metadata.get("is_dev_key"):
-        raise HTTPException(status_code=400, detail="Results version persistence requires a database-backed user")
-
-    organisation_id = subscription.metadata.get("organisation_id")
-    if organisation_id is None:
-        raise HTTPException(status_code=400, detail="Missing user context")
+    _, organisation_id = _require_db_backed_user(subscription)
 
     async with async_session_maker() as session:
         normalized_pack = normalize_pack_name(test_pack)
@@ -1070,7 +1043,7 @@ async def get_latest_results(
 
         latest = await get_results_version(
             session,
-            organisation_id=int(organisation_id),
+            organisation_id=organisation_id,
             workbook_name=workbook_name,
             sheet_name=sheet_name,
             test_pack=normalized_pack,
@@ -1092,34 +1065,28 @@ async def get_latest_results(
 async def remove_result_version(
     sheet_name: str,
     test_pack: str,
-    workbook_name: str | None = None,
+    workbook_name: Optional[str] = None,
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> dict[str, Any]:
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
-    if subscription.metadata.get("is_dev_key"):
-        raise HTTPException(status_code=400, detail="Results version persistence requires a database-backed user")
-
-    organisation_id = subscription.metadata.get("organisation_id")
-    if organisation_id is None:
-        raise HTTPException(status_code=400, detail="Missing user context")
+    _, organisation_id = _require_db_backed_user(subscription)
 
     normalized_pack = normalize_pack_name(test_pack)
     if not normalized_pack:
         raise HTTPException(status_code=400, detail="test_pack is required")
 
     async with async_session_maker() as session:
-        from app.results_service import _get_or_create_sheet_key
-        sheet_key = await _get_or_create_sheet_key(
+        sheet_key = await get_or_create_sheet_key(
             session,
-            organisation_id=int(organisation_id),
+            organisation_id=organisation_id,
             workbook_name=workbook_name,
             sheet_name=sheet_name,
             test_pack=normalized_pack,
         )
         deleted = await delete_results_version(
             session,
-            organisation_id=int(organisation_id),
+            organisation_id=organisation_id,
             sheet_key_id=int(sheet_key.id),
         )
         if not deleted:
@@ -1134,17 +1101,12 @@ async def remove_result_version_by_id(
 ) -> dict[str, Any]:
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
-    if subscription.metadata.get("is_dev_key"):
-        raise HTTPException(status_code=400, detail="Results version persistence requires a database-backed user")
-
-    organisation_id = subscription.metadata.get("organisation_id")
-    if organisation_id is None:
-        raise HTTPException(status_code=400, detail="Missing user context")
+    _, organisation_id = _require_db_backed_user(subscription)
 
     async with async_session_maker() as session:
         deleted = await delete_results_version_by_id(
             session,
-            organisation_id=int(organisation_id),
+            organisation_id=organisation_id,
             version_id=version_id,
         )
         if not deleted:

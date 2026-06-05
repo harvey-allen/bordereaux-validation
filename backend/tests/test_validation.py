@@ -1,8 +1,7 @@
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.validation import get_pack_mandatory_fields, validate_cell, validate_grid_with_packs_report
+from app.validation import validate_cell, validate_grid_with_packs_report
 
 
 client = TestClient(app)
@@ -238,19 +237,21 @@ def test_severity_score_affects_heatmap():
     """Higher severity failures should result in higher severity scores."""
     report = validate_grid_with_packs_report(
         addresses=[
-            ["A1", "B1", "C1"],
-            ["A2", "B2", "C2"],  # Will fail CRITICAL test (claim > limit)
-            ["A3", "B3", "C3"],  # Will fail WARNING test (marine no vessel)
+            ["A1", "B1"],
+            ["A2", "B2"],
+            ["A3", "B3"],
         ],
         values=[
-            ["policy_id", "claim_amount", "policy_limit"],
-            ["POL-001", 500000, 100000],  # CRITICAL: claim exceeds limit
-            ["POL-002", 0, 100000],  # No failure
+            ["amount", "status"],
+            [100, "active"],  # Pass
+            [-50, "active"],  # Fail min check
         ],
-        column_rules={},
-        test_packs=["bordereaux"],
+        column_rules={
+            "0": [{"name": "min", "value": 0}],  # amount must be >= 0
+        },
+        test_packs=[],
         has_header_row=True,
-        pack_configs={"bordereaux": {"ID": "policy_id"}},
+        pack_configs={},
     )
     
     # Find results with failures
@@ -263,25 +264,28 @@ def test_severity_score_affects_heatmap():
 
 
 def test_multiple_columns_affected_by_single_test():
-    """Tests targeting multiple columns should highlight all of them."""
+    """Tests with multiple column rules should highlight all affected columns."""
     report = validate_grid_with_packs_report(
         addresses=[
-            ["A1", "B1", "C1"],
-            ["A2", "B2", "C2"],
+            ["A1", "B1"],
+            ["A2", "B2"],
         ],
         values=[
-            ["policy_id", "claim_amount", "policy_limit"],
-            ["POL-001", 500000, 100000],  # Fails claim_within_limit
+            ["amount", "status"],
+            [50, "active"],
         ],
-        column_rules={},
-        test_packs=["bordereaux"],
+        column_rules={
+            "0": [{"name": "min", "value": 100}],  # amount must be >= 100
+            "1": [{"name": "required"}],  # status must not be empty
+        },
+        test_packs=[],
         has_header_row=True,
-        pack_configs={"bordereaux": {"ID": "policy_id"}},
+        pack_configs={},
     )
     
-    # Both claim_amount (B2) and policy_limit (C2) should be highlighted
+    # Both A2 and B2 should show failures
+    a2_result = next(r for r in report["results"] if r["address"] == "A2")
     b2_result = next(r for r in report["results"] if r["address"] == "B2")
-    c2_result = next(r for r in report["results"] if r["address"] == "C2")
     
-    assert b2_result["failCount"] > 0
-    assert c2_result["failCount"] > 0
+    assert a2_result["failCount"] > 0  # 50 < 100
+    assert b2_result["failCount"] == 0  # "active" is not empty

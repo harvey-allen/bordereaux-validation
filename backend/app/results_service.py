@@ -24,20 +24,12 @@ from app.database import (
     ValidationResultVersion,
     ValidationRun,
 )
-
-
-# ---------------------------------------------------------------------------
-# Normalisation helpers
-# ---------------------------------------------------------------------------
-
-def _normalize_scope_value(value: str | None, *, fallback: str) -> str:
-    normalized = str(value or "").strip().lower()
-    return normalized or fallback
-
-
-def _normalize_pack_value(value: str | None) -> str:
-    normalized = str(value or "").strip().lower()
-    return normalized or "__unknown_pack__"
+from app.utils.normalization import (
+    UNKNOWN_SHEET,
+    UNKNOWN_WORKBOOK,
+    normalize_pack_storage_value,
+    normalize_scope_value,
+)
 
 
 async def _get_or_create_sheet_key(
@@ -48,9 +40,9 @@ async def _get_or_create_sheet_key(
     sheet_name: str | None,
     test_pack: str | None = None,
 ) -> SheetKey:
-    normalized_workbook = _normalize_scope_value(workbook_name, fallback="__unknown_workbook__")
-    normalized_sheet = _normalize_scope_value(sheet_name, fallback="__unknown_sheet__")
-    normalized_pack = _normalize_pack_value(test_pack)
+    normalized_workbook = normalize_scope_value(workbook_name, fallback=UNKNOWN_WORKBOOK)
+    normalized_sheet = normalize_scope_value(sheet_name, fallback=UNKNOWN_SHEET)
+    normalized_pack = normalize_pack_storage_value(test_pack)
 
     result = await session.execute(
         select(SheetKey)
@@ -105,6 +97,24 @@ class RunSummary:
     api_key_hash: str | None = None
 
 
+async def get_or_create_sheet_key(
+    session: AsyncSession,
+    *,
+    organisation_id: int,
+    workbook_name: str | None,
+    sheet_name: str | None,
+    test_pack: str | None = None,
+) -> SheetKey:
+    """Public wrapper for callers that need a consistent sheet key lookup."""
+    return await _get_or_create_sheet_key(
+        session,
+        organisation_id=organisation_id,
+        workbook_name=workbook_name,
+        sheet_name=sheet_name,
+        test_pack=test_pack,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Saved result versions
 # ---------------------------------------------------------------------------
@@ -130,7 +140,7 @@ async def save_results_version(
     mapped_headers and saved_data are written to a companion
     ValidationResultPayload row (one-to-one with the version row).
     """
-    normalized_test_pack = _normalize_pack_value(test_pack)
+    normalized_test_pack = normalize_pack_storage_value(test_pack)
 
     sheet_key = await _get_or_create_sheet_key(
         session,
@@ -226,7 +236,7 @@ async def get_results_version(
     test_pack: str,
 ) -> ValidationResultVersion | None:
     """Return the saved result version for a sheet+pack, or None."""
-    normalized_test_pack = _normalize_pack_value(test_pack)
+    normalized_test_pack = normalize_pack_storage_value(test_pack)
     sheet_key = await _get_or_create_sheet_key(
         session,
         organisation_id=organisation_id,
