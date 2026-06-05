@@ -19,6 +19,11 @@ class PackConfigService:
         normalized = str(value or "").strip().lower()
         return normalized or fallback
 
+    @staticmethod
+    def _normalize_pack_value(test_pack: str | None) -> str:
+        normalized_pack = str(test_pack or "").strip().lower()
+        return normalized_pack or "__unknown_pack__"
+
     async def _get_or_create_sheet_key(
         self,
         db: AsyncSession,
@@ -30,30 +35,27 @@ class PackConfigService:
     ) -> SheetKey:
         normalized_workbook = self._normalize_scope_value(workbook_name, fallback="__unknown_workbook__")
         normalized_sheet = self._normalize_scope_value(sheet_name, fallback="__unknown_sheet__")
+        normalized_pack = self._normalize_pack_value(test_pack)
 
         result = await db.execute(
             select(SheetKey)
             .where(SheetKey.organisation_id == organisation_id)
             .where(SheetKey.workbook_name == normalized_workbook)
             .where(SheetKey.sheet_name == normalized_sheet)
+            .where(SheetKey.test_pack == normalized_pack)
         )
         sheet_key = result.scalar_one_or_none()
         
         now = datetime.now(timezone.utc)
         
         if sheet_key is not None:
-            # Update test_pack if provided and different
-            if test_pack and sheet_key.test_pack != test_pack:
-                sheet_key.test_pack = test_pack
-                sheet_key.updated_at = now
-                await db.flush()
             return sheet_key
 
         sheet_key = SheetKey(
             organisation_id=organisation_id,
             workbook_name=normalized_workbook,
             sheet_name=normalized_sheet,
-            test_pack=test_pack,
+            test_pack=normalized_pack,
             created_at=now,
             updated_at=now,
         )

@@ -59,7 +59,7 @@ class ValidateRequest(BaseModel):
         description="Optional per-pack config, e.g. UMR",
     )
     includeCoverage: bool = Field(default=True, description="Include per-pack coverage report in response")
-    storeResults: bool = Field(default=False, description="Store results in legacy run-history tables")
+    storeResults: bool = Field(default=True, description="Store per-run test summaries in test_results")
     workbookName: str | None = Field(default=None, description="Name of the workbook being validated")
     sheetName: str | None = Field(default=None, description="Name of the sheet being validated")
     rangeAddress: str | None = Field(default=None, description="Address of the range being validated")
@@ -786,10 +786,13 @@ class FailedTestItem(BaseModel):
 class SaveResultsVersionRequest(BaseModel):
     workbook_name: str | None = None
     sheet_name: str
-    test_packs: str | list[str] | None = None
+    test_pack: str | None = None
+    test_packs: str | list[str] | None = None  # legacy fallback
     failed_tests: list[FailedTestItem] = Field(default_factory=list)
     passed_tests: list[str] = Field(default_factory=list)
     passed_umrs: list[str] = Field(default_factory=list)
+    mapped_headers: dict[str, str] = Field(default_factory=dict)
+    saved_data: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SavedResultsVersionItem(BaseModel):
@@ -837,16 +840,17 @@ async def get_history(
         items = []
         for run in runs:
             tests = []
-            for test in run.test_results:
-                tests.append({
-                    "test_pack": test.test_pack,
-                    "test_name": test.test_name,
-                    "description": test.test_description,
-                    "severity": test.severity,
-                    "evaluated_rows": test.evaluated_rows,
-                    "passed_rows": test.passed_rows,
-                    "failed_rows": test.failed_rows,
-                })
+            for pack_name, pack_data in (run.coverage_json or {}).items():
+                for test_name, test_data in (pack_data.get("tests") or {}).items():
+                    tests.append({
+                        "test_pack": pack_name,
+                        "test_name": test_name,
+                        "description": test_data.get("description"),
+                        "severity": test_data.get("severity"),
+                        "evaluated_rows": int(test_data.get("evaluatedRows", 0)),
+                        "passed_rows": int(test_data.get("passedRows", 0)),
+                        "failed_rows": int(test_data.get("failedRows", 0)),
+                    })
             
             pass_rate = (run.passed_cells / run.total_cells * 100) if run.total_cells > 0 else 100.0
             
@@ -896,19 +900,20 @@ async def get_history_detail(
                 raise HTTPException(status_code=403, detail="Access denied")
         
         tests = []
-        for test in run.test_results:
-            tests.append({
-                "test_pack": test.test_pack,
-                "test_name": test.test_name,
-                "description": test.test_description,
-                "target_columns": test.target_columns.split(",") if test.target_columns else [],
-                "severity": test.severity,
-                "severity_weight": test.severity_weight,
-                "evaluated_rows": test.evaluated_rows,
-                "passed_rows": test.passed_rows,
-                "failed_rows": test.failed_rows,
-                "failed_refs": test.failed_refs,
-            })
+        for pack_name, pack_data in (run.coverage_json or {}).items():
+            for test_name, test_data in (pack_data.get("tests") or {}).items():
+                tests.append({
+                    "test_pack": pack_name,
+                    "test_name": test_name,
+                    "description": test_data.get("description"),
+                    "target_columns": test_data.get("targetColumns", []),
+                    "severity": test_data.get("severity"),
+                    "severity_weight": test_data.get("severityWeight"),
+                    "evaluated_rows": int(test_data.get("evaluatedRows", 0)),
+                    "passed_rows": int(test_data.get("passedRows", 0)),
+                    "failed_rows": int(test_data.get("failedRows", 0)),
+                    "failed_refs": test_data.get("failedRefs"),
+                })
         
         return {
             "id": run.id,
@@ -968,6 +973,17 @@ async def save_results(
     if user_id is None or organisation_id is None:
         raise HTTPException(status_code=400, detail="Missing user context")
 
+    resolved_pack_name = payload.test_pack
+    if not resolved_pack_name:
+        if isinstance(payload.test_packs, list):
+            resolved_pack_name = payload.test_packs[0] if payload.test_packs else None
+        else:
+            resolved_pack_name = payload.test_packs
+
+    normalized_pack = normalize_pack_name(resolved_pack_name)
+    if not normalized_pack:
+        raise HTTPException(status_code=400, detail="test_pack is required")
+
     async with async_session_maker() as session:
         saved = await save_results_version(
             session,
@@ -975,10 +991,12 @@ async def save_results(
             user_id=int(user_id),
             workbook_name=payload.workbook_name,
             sheet_name=payload.sheet_name,
-            test_packs=payload.test_packs,
+            test_pack=normalized_pack,
             failed_tests=[{"umr": item.umr_or_id, "id": item.umr_or_id, "test_id": item.test_id} for item in payload.failed_tests],
             passed_tests=payload.passed_tests,
             passed_umrs=payload.passed_umrs,
+            mapped_headers=payload.mapped_headers,
+            saved_data=payload.saved_data,
         )
         return SavedResultsVersionItem(
             id=saved.id,
@@ -990,6 +1008,7 @@ async def save_results(
 @app.get("/api/v1/results/versions", response_model=SavedResultsVersionListResponse)
 async def get_result_versions(
     sheet_name: str,
+    test_pack: str,
     workbook_name: str | None = None,
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> SavedResultsVersionListResponse:
@@ -1003,11 +1022,16 @@ async def get_result_versions(
         raise HTTPException(status_code=400, detail="Missing user context")
 
     async with async_session_maker() as session:
+        normalized_pack = normalize_pack_name(test_pack)
+        if not normalized_pack:
+            raise HTTPException(status_code=400, detail="test_pack is required")
+
         version = await get_results_version(
             session,
             organisation_id=int(organisation_id),
             workbook_name=workbook_name,
             sheet_name=sheet_name,
+            test_pack=normalized_pack,
         )
         if version is None:
             return SavedResultsVersionListResponse(versions=[])
@@ -1026,6 +1050,7 @@ async def get_result_versions(
 @app.get("/api/v1/results/latest", response_model=LatestResultsVersionResponse)
 async def get_latest_results(
     sheet_name: str,
+    test_pack: str,
     workbook_name: str | None = None,
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> LatestResultsVersionResponse:
@@ -1039,11 +1064,16 @@ async def get_latest_results(
         raise HTTPException(status_code=400, detail="Missing user context")
 
     async with async_session_maker() as session:
+        normalized_pack = normalize_pack_name(test_pack)
+        if not normalized_pack:
+            raise HTTPException(status_code=400, detail="test_pack is required")
+
         latest = await get_results_version(
             session,
             organisation_id=int(organisation_id),
             workbook_name=workbook_name,
             sheet_name=sheet_name,
+            test_pack=normalized_pack,
         )
         if latest is None:
             raise HTTPException(status_code=404, detail="No saved result versions found")
@@ -1061,6 +1091,7 @@ async def get_latest_results(
 @app.delete("/api/v1/results/versions")
 async def remove_result_version(
     sheet_name: str,
+    test_pack: str,
     workbook_name: str | None = None,
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> dict[str, Any]:
@@ -1073,6 +1104,10 @@ async def remove_result_version(
     if organisation_id is None:
         raise HTTPException(status_code=400, detail="Missing user context")
 
+    normalized_pack = normalize_pack_name(test_pack)
+    if not normalized_pack:
+        raise HTTPException(status_code=400, detail="test_pack is required")
+
     async with async_session_maker() as session:
         from app.results_service import _get_or_create_sheet_key
         sheet_key = await _get_or_create_sheet_key(
@@ -1080,6 +1115,7 @@ async def remove_result_version(
             organisation_id=int(organisation_id),
             workbook_name=workbook_name,
             sheet_name=sheet_name,
+            test_pack=normalized_pack,
         )
         deleted = await delete_results_version(
             session,

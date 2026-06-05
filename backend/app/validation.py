@@ -484,7 +484,7 @@ def validate_grid_with_packs_report(
                 ]
                 header_check_failed = len(missing_default_fields) > 0
                 tests_coverage["test_required_headers_present"] = {
-                    "testCode": "Bheaders1",
+                    "testCode": "HeaderSchemaCheck",
                     "targetColumns": headers,
                     "description": "Required headers are present or mapped for the selected pack",
                     "severity": "CRITICAL",

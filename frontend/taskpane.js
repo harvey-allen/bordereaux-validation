@@ -1040,9 +1040,20 @@ async function checkSavedResultsVersion() {
   }
 
   const { workbookName, sheetName } = await getCurrentResultsScope();
+  const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
+  if (!selectedPack) {
+    savedResultsVersionExists = false;
+    savedResultsVersionCreatedAt = null;
+    renderSavedVersionsDropdown([]);
+    updateSavedResultsInfo();
+    updateActionButtons();
+    return;
+  }
+
   const query = new URLSearchParams({
     workbook_name: workbookName,
     sheet_name: sheetName,
+    test_pack: selectedPack,
   });
 
   try {
@@ -1265,6 +1276,35 @@ async function readRangeValues(startRow, startCol, rowCount, columnCount) {
     range.load("values");
     await context.sync();
     return range.values;
+  });
+}
+
+async function buildCurrentSheetDataPayload() {
+  const tableMeta = await resolveValidationRangeMeta();
+  const dataRowCount = Math.max(0, Number(tableMeta.rowCount || 0) - 1);
+  if (dataRowCount === 0) {
+    return [];
+  }
+
+  const rows = await readRangeValues(
+    tableMeta.startRow + 1,
+    tableMeta.startCol,
+    dataRowCount,
+    tableMeta.columnCount
+  );
+
+  const headers = Array.from({ length: tableMeta.columnCount }, (_, index) => {
+    const rawHeader = tableMeta.headerValues?.[index];
+    const normalized = String(rawHeader ?? "").trim();
+    return normalized || `column_${index + 1}`;
+  });
+
+  return rows.map((rowValues) => {
+    const rowObj = {};
+    for (let index = 0; index < headers.length; index += 1) {
+      rowObj[headers[index]] = Array.isArray(rowValues) ? rowValues[index] : null;
+    }
+    return rowObj;
   });
 }
 
@@ -1532,6 +1572,11 @@ async function saveResultsVersion() {
   try {
     const isUpdate = savedResultsVersionExists;
     const { workbookName, sheetName } = await getCurrentResultsScope();
+    const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
+    if (!selectedPack) {
+      throw new Error("Select a test pack before saving.");
+    }
+
     const failedTests = Array.isArray(lastValidationFailedTests)
       ? lastValidationFailedTests.map((item) => ({
           id: String(item?.id || item?.umr || ""),
@@ -1546,6 +1591,14 @@ async function saveResultsVersion() {
       ? lastValidationPassedUmrs.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
 
+    const currentPackConfig = packConfigsByPack[selectedPack] || {};
+    const mappedHeaders = currentPackConfig.fieldMappings
+      || currentPackConfig.FieldMappings
+      || currentPackConfig.columnMappings
+      || {};
+
+    const savedData = await buildCurrentSheetDataPayload();
+
     const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/results/versions`, {
       method: "POST",
       headers: {
@@ -1555,9 +1608,12 @@ async function saveResultsVersion() {
       body: JSON.stringify({
         workbook_name: workbookName,
         sheet_name: sheetName,
+        test_pack: selectedPack,
         failed_tests: failedTests,
         passed_tests: passedTests,
         passed_umrs: passedUmrs,
+        mapped_headers: mappedHeaders,
+        saved_data: savedData,
       }),
     });
 
