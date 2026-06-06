@@ -2352,6 +2352,39 @@ async function applyResultsToSheet(results, maxSeverityScore) {
 }
 
 async function buildFailureExportRows() {
+  const currentWorkbookName = String(getWorkbookName() || "").trim();
+  const currentSheetName = String(lastValidationSourceSheetName || "").trim();
+  const exceptionIdByAddress = new Map();
+
+  for (const rawItem of lastTaggedCells || []) {
+    const taggedCell = normalizeTaggedCellRecord(rawItem);
+    if (!taggedCell) {
+      continue;
+    }
+
+    const taggedWorkbook = String(taggedCell.workbook_name || "").trim();
+    const taggedSheet = String(taggedCell.sheet_name || "").trim();
+    const matchesWorkbook = !currentWorkbookName
+      || !taggedWorkbook
+      || taggedWorkbook === currentWorkbookName
+      || taggedWorkbook === "__unknown_workbook__";
+    const matchesSheet = !currentSheetName
+      || !taggedSheet
+      || taggedSheet === currentSheetName
+      || taggedSheet === "__unknown_sheet__";
+
+    if (!matchesWorkbook || !matchesSheet) {
+      continue;
+    }
+
+    const normalizedAddress = String(taggedCell.address || "").replace(/\$/g, "").trim().toUpperCase();
+    if (!normalizedAddress) {
+      continue;
+    }
+
+    exceptionIdByAddress.set(normalizedAddress, String(taggedCell.exception_id || "").trim());
+  }
+
   return Excel.run(async (context) => {
     const workbook = context.workbook;
     const worksheet = lastValidationSourceSheetName
@@ -2397,6 +2430,14 @@ async function buildFailureExportRows() {
       const fieldName = fieldNameMap[result.columnIndex] || "";
       const value = result.value === null || result.value === undefined ? "" : String(result.value);
       const failedTests = Array.isArray(result.failedTests) ? result.failedTests : [];
+      const normalizedResultAddress = String(result.address || "")
+        .split("!")
+        .pop()
+        .replace(/\$/g, "")
+        .trim()
+        .toUpperCase();
+      const taggedExceptionId = String(exceptionIdByAddress.get(normalizedResultAddress) || "").trim();
+      const resultLevelExceptionId = String(result.exception_id || result.exceptionId || taggedExceptionId || "").trim();
 
       if (failedTests.length > 0) {
         for (const testMessage of failedTests) {
@@ -2404,22 +2445,44 @@ async function buildFailureExportRows() {
           let testId = "Unknown";
           let description = "";
           let testType = "";
+          let exceptionId = resultLevelExceptionId;
           if (typeof testMessage === "string") {
             const rawMessage = String(testMessage || "").trim();
             const match = rawMessage.match(/^\[(.*?)\]\s+([A-Za-z0-9_]+):\s*(.*)$/);
             severity = match ? match[1] : "";
             testId = match ? match[2] : "Unknown";
             description = match ? match[3] : rawMessage;
+
+            const exceptionMatch = rawMessage.match(/(?:Exception\s*ID|ExceptionID|EXC)[\s:=#-]*([A-Za-z0-9._-]+)/i);
+            if (exceptionMatch && exceptionMatch[1]) {
+              exceptionId = String(exceptionMatch[1]).trim();
+            }
           } else if (typeof testMessage === "object" && testMessage !== null) {
             severity = String(testMessage.severity || "");
             testId = String(testMessage.testId || "Unknown");
             description = String(testMessage.description || "");
             testType = String(testMessage.testType || "");
+            exceptionId = String(
+              testMessage.exception_id
+                || testMessage.exceptionId
+                || testMessage.exceptionID
+                || resultLevelExceptionId
+                || ""
+            ).trim();
           }
-          dataRows.push({ umr: umrValue, testId, fieldName, value, severity, description, testType });
+          dataRows.push({ umr: umrValue, testId, fieldName, value, severity, exceptionId, description, testType });
         }
       } else {
-        dataRows.push({ umr: umrValue, testId: "Unknown", fieldName, value, severity: "", description: "", testType: "" });
+        dataRows.push({
+          umr: umrValue,
+          testId: "Unknown",
+          fieldName,
+          value,
+          severity: "",
+          exceptionId: resultLevelExceptionId,
+          description: "",
+          testType: "",
+        });
       }
     }
 
@@ -2443,13 +2506,14 @@ async function extractValidationResults() {
     setStatus("Preparing CSV export...");
     const exportRows = await buildFailureExportRows();
 
-    const headers = ["UMR", "Test ID", "Field Name", "Value", "Severity", "Test Type", "Description"];
+    const headers = ["UMR", "Test ID", "Field Name", "Value", "Severity", "Exception ID", "Test Type", "Description"];
     const rowsForCsv = [headers, ...exportRows.map((row) => [
       row.umr,
       row.testId,
       row.fieldName,
       row.value,
       row.severity,
+      row.exceptionId || "",
       row.testType || "",
       row.description,
     ])];
@@ -2734,6 +2798,7 @@ async function visualiseValidationResults() {
       testId: r.testId || '',
       fieldName: r.fieldName || '',
       severity: r.severity || '',
+      exceptionId: r.exceptionId || '',
       description: r.description || ''
     })));
 
@@ -2967,6 +3032,7 @@ async function visualiseValidationResults() {
           <th>Test ID</th>
           <th>Field</th>
           <th>Severity</th>
+          <th>Exception ID</th>
           <th>Description</th>
         </tr></thead>
         <tbody id="failure-tbody"></tbody>
@@ -3065,6 +3131,7 @@ async function visualiseValidationResults() {
         '<td class="mono">' + escHtml(r.testId || '\u2014') + '</td>' +
         '<td>' + escHtml(r.fieldName || '\u2014') + '</td>' +
         '<td>' + (sev ? '<span class="badge ' + bc + '">' + escHtml(sev) + '</span>' : '\u2014') + '</td>' +
+        '<td class="mono">' + escHtml(r.exceptionId || '\u2014') + '</td>' +
         '<td style="max-width:400px;white-space:pre-wrap;word-break:break-word">' + escHtml(r.description || '\u2014') + '</td>' +
         '</tr>';
     }).join('');
@@ -3453,12 +3520,25 @@ async function openRulesEngine() {
             return haystack.includes(q);
           })
           .sort((a, b) => {
-            const byCol = clean(a.target_column).localeCompare(clean(b.target_column), undefined, { sensitivity: "base" });
+            const byCol = compareFieldNames(a.target_column, b.target_column);
             if (byCol !== 0) return byCol;
             const byRule = clean(a.rule_id).localeCompare(clean(b.rule_id), undefined, { sensitivity: "base" });
             if (byRule !== 0) return byRule;
             return clean(a.pack).localeCompare(clean(b.pack), undefined, { sensitivity: "base" });
           });
+      }
+
+      function compareFieldNames(leftValue, rightValue) {
+        const left = clean(leftValue);
+        const right = clean(rightValue);
+        const leftHasSpecialChars = /[^a-z0-9\s]/i.test(left);
+        const rightHasSpecialChars = /[^a-z0-9\s]/i.test(right);
+
+        if (leftHasSpecialChars !== rightHasSpecialChars) {
+          return leftHasSpecialChars ? 1 : -1;
+        }
+
+        return left.localeCompare(right, undefined, { sensitivity: "base" });
       }
 
       function groupByColumn(filteredRules) {
@@ -3470,7 +3550,7 @@ async function openRulesEngine() {
         });
 
         return Array.from(grouped.entries())
-          .sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: "base" }))
+          .sort((a, b) => compareFieldNames(a[0], b[0]))
           .map(([column, rows]) => ({ column, rows }));
       }
 
