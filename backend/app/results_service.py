@@ -93,8 +93,138 @@ class RunSummary:
     error_message: str | None
     test_packs: str            # comma-separated
     coverage_json: dict = field(default_factory=dict)
+    tagged_cells_json: list[dict[str, Any]] = field(default_factory=list)
     user_id: int | None = None
     api_key_hash: str | None = None
+
+
+def _normalize_tagged_cells(tagged_cells: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """Normalize tagged cell payloads for stable JSON persistence."""
+    normalized: list[dict[str, Any]] = []
+    for item in tagged_cells or []:
+        if not isinstance(item, dict):
+            continue
+        address = str(item.get("address") or "").strip().upper()
+        exception_id = str(item.get("exception_id") or item.get("exceptionId") or "").strip()
+        if not address or not exception_id:
+            continue
+        normalized.append(
+            {
+                "address": address,
+                "exception_id": exception_id,
+                "comment": str(item.get("comment") or f"Exception tagged: {exception_id}").strip(),
+                "fill_color": str(item.get("fill_color") or item.get("fillColor") or "#dbeafe").strip() or "#dbeafe",
+                "previous_fill_color": str(item.get("previous_fill_color") or item.get("previousFillColor") or "").strip(),
+                "sheet_name": normalize_scope_value(item.get("sheet_name") or item.get("sheetName"), fallback=UNKNOWN_SHEET),
+                "workbook_name": normalize_scope_value(item.get("workbook_name") or item.get("workbookName"), fallback=UNKNOWN_WORKBOOK),
+                "tagged_at": str(item.get("tagged_at") or item.get("taggedAt") or datetime.now(timezone.utc).isoformat()).strip(),
+            }
+        )
+    return normalized
+
+
+def _merge_tagged_cells(
+    existing: list[dict[str, Any]] | None,
+    incoming: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Merge tagged cells by workbook+sheet+address, preferring incoming values."""
+    merged: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for item in _normalize_tagged_cells(existing):
+        key = (item["workbook_name"], item["sheet_name"], item["address"])
+        merged[key] = item
+    for item in _normalize_tagged_cells(incoming):
+        key = (item["workbook_name"], item["sheet_name"], item["address"])
+        merged[key] = item
+    return list(merged.values())
+
+
+def _is_matching_exception_tag(item: Any, exception_id: str) -> bool:
+    """Return True when the tagged-cell record references the provided exception id."""
+    if not isinstance(item, dict):
+        return False
+    tag_exception_id = str(item.get("exception_id") or item.get("exceptionId") or "").strip()
+    return bool(tag_exception_id) and tag_exception_id == exception_id
+
+
+async def remove_exception_tags_from_results(
+    session: AsyncSession,
+    *,
+    organisation_id: int,
+    exception_id: str,
+) -> dict[str, Any]:
+    """Remove all tagged-cell references to an exception from persisted runs and saved result versions."""
+    normalized_exception_id = str(exception_id or "").strip()
+    if not normalized_exception_id:
+        return {
+            "runs_updated": 0,
+            "versions_updated": 0,
+            "tags_removed": 0,
+            "removed_tagged_cells": [],
+        }
+
+    runs_updated = 0
+    versions_updated = 0
+    tags_removed = 0
+    removed_tagged_cells: list[dict[str, Any]] = []
+
+    run_result = await session.execute(
+        select(ValidationRun)
+        .join(SheetKey, ValidationRun.sheet_key_id == SheetKey.id)
+        .where(SheetKey.organisation_id == organisation_id)
+    )
+    for run in run_result.scalars().all():
+        current_tags = list(run.tagged_cells_json or [])
+        kept_tags: list[dict[str, Any]] = []
+        run_changed = False
+        for tag in current_tags:
+            if _is_matching_exception_tag(tag, normalized_exception_id):
+                run_changed = True
+                tags_removed += 1
+                normalized_tag = _normalize_tagged_cells([tag])
+                if normalized_tag:
+                    removed_tagged_cells.append(normalized_tag[0])
+                continue
+            kept_tags.append(tag)
+
+        if run_changed:
+            run.tagged_cells_json = kept_tags
+            runs_updated += 1
+
+    version_result = await session.execute(
+        select(ValidationResultVersion)
+        .join(SheetKey, ValidationResultVersion.sheet_key_id == SheetKey.id)
+        .where(SheetKey.organisation_id == organisation_id)
+    )
+    for version in version_result.scalars().all():
+        current_tags = list(version.tagged_cells_json or [])
+        kept_tags: list[dict[str, Any]] = []
+        version_changed = False
+        for tag in current_tags:
+            if _is_matching_exception_tag(tag, normalized_exception_id):
+                version_changed = True
+                continue
+            kept_tags.append(tag)
+
+        if version_changed:
+            version.tagged_cells_json = kept_tags
+            versions_updated += 1
+
+    deduped_removed_tags: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    for tag in removed_tagged_cells:
+        workbook_name = str(tag.get("workbook_name") or "").strip()
+        sheet_name = str(tag.get("sheet_name") or "").strip()
+        address = str(tag.get("address") or "").strip().upper()
+        tag_exception_id = str(tag.get("exception_id") or "").strip()
+        if not workbook_name or not sheet_name or not address or not tag_exception_id:
+            continue
+        deduped_removed_tags[(workbook_name, sheet_name, address, tag_exception_id)] = tag
+
+    return {
+        "runs_updated": runs_updated,
+        "versions_updated": versions_updated,
+        "tags_removed": tags_removed,
+        "removed_tagged_cells": list(deduped_removed_tags.values()),
+    }
 
 
 async def get_or_create_sheet_key(
@@ -132,6 +262,7 @@ async def save_results_version(
     passed_umrs: list[str] | None = None,
     mapped_headers: dict[str, str] | None = None,
     saved_data: list[dict[str, Any]] | None = None,
+    tagged_cells: list[dict[str, Any]] | None = None,
 ) -> ValidationResultVersion:
     """
     Upsert one saved result per (sheet_key, test_pack).
@@ -184,6 +315,7 @@ async def save_results_version(
             user_id=user_id,
             test_pack=normalized_test_pack,
             results_json=results_json,
+            tagged_cells_json=_normalize_tagged_cells(tagged_cells),
             created_at=now,
             updated_at=now,
         )
@@ -191,6 +323,7 @@ async def save_results_version(
         await session.flush()
     else:
         version.results_json = results_json
+        version.tagged_cells_json = _normalize_tagged_cells(tagged_cells)
         version.user_id = user_id
         version.test_pack = normalized_test_pack
         version.updated_at = now
@@ -310,6 +443,7 @@ def _run_to_summary(row: ValidationRun) -> RunSummary:
         error_message=row.error_message,
         test_packs=row.test_packs,
         coverage_json=dict(row.coverage_json or {}),
+        tagged_cells_json=list(row.tagged_cells_json or []),
         user_id=row.user_id,
         api_key_hash=row.api_key_hash,
     )
@@ -335,6 +469,7 @@ async def store_validation_results(
     passed_cells: int = 0,
     status: str = "completed",
     error_message: str | None = None,
+    tagged_cells: list[dict[str, Any]] | None = None,
 ) -> RunSummary:
     """
     Persist one ValidationRun row per validation call.
@@ -348,6 +483,7 @@ async def store_validation_results(
     api_key_hash: str | None = None
     user_id: int | None = None
     organisation_id: int = 1  # default fallback
+    existing_tagged_cells: list[dict[str, Any]] = []
 
     if owner_email:
         normalized_email = owner_email.strip().lower()
@@ -379,6 +515,29 @@ async def store_validation_results(
     # 2. Delete prior ValidationRun rows in the same scope (latest-only)
     # ------------------------------------------------------------------
     if sheet_name:
+        prior_lookup_query = (
+            select(ValidationRun)
+            .where(ValidationRun.sheet_name == sheet_name)
+            .order_by(desc(ValidationRun.run_timestamp))
+            .limit(1)
+        )
+
+        if user_id is not None:
+            prior_lookup_query = prior_lookup_query.where(ValidationRun.user_id == user_id)
+        elif api_key_hash:
+            prior_lookup_query = prior_lookup_query.where(ValidationRun.api_key_hash == api_key_hash)
+        else:
+            prior_lookup_query = prior_lookup_query.where(ValidationRun.user_id.is_(None))
+            prior_lookup_query = prior_lookup_query.where(ValidationRun.api_key_hash.is_(None))
+
+        if workbook_name:
+            prior_lookup_query = prior_lookup_query.where(ValidationRun.workbook_name == workbook_name)
+
+        prior_lookup = await session.execute(prior_lookup_query)
+        prior_row = prior_lookup.scalar_one_or_none()
+        if prior_row is not None:
+            existing_tagged_cells = list(prior_row.tagged_cells_json or [])
+
         prior = delete(ValidationRun).where(ValidationRun.sheet_name == sheet_name)
 
         if user_id is not None:
@@ -430,10 +589,77 @@ async def store_validation_results(
         status=status,
         error_message=error_message,
         coverage_json=dict(coverage_data.get("packs", {})),
+        tagged_cells_json=_merge_tagged_cells(existing_tagged_cells, tagged_cells),
     )
     session.add(run)
     await session.commit()
 
+    return _run_to_summary(run)
+
+
+async def upsert_validation_run_tagged_cells(
+    session: AsyncSession,
+    *,
+    organisation_id: int,
+    user_id: int,
+    workbook_name: str | None,
+    sheet_name: str,
+    test_pack: str | None,
+    tagged_cells: list[dict[str, Any]],
+) -> RunSummary:
+    """Update the latest validation run for a sheet with tagged-cell JSON, creating one if missing."""
+    normalized_workbook = normalize_scope_value(workbook_name, fallback=UNKNOWN_WORKBOOK)
+    normalized_sheet = normalize_scope_value(sheet_name, fallback=UNKNOWN_SHEET)
+    normalized_pack = normalize_pack_storage_value(test_pack)
+
+    result = await session.execute(
+        select(ValidationRun)
+        .where(ValidationRun.user_id == user_id)
+        .where(ValidationRun.workbook_name == normalized_workbook)
+        .where(ValidationRun.sheet_name == normalized_sheet)
+        .order_by(desc(ValidationRun.run_timestamp))
+        .limit(1)
+    )
+    run = result.scalar_one_or_none()
+    now = datetime.now(timezone.utc)
+    normalized_tags = _normalize_tagged_cells(tagged_cells)
+
+    if run is None:
+        sheet_key = await _get_or_create_sheet_key(
+            session,
+            organisation_id=organisation_id,
+            workbook_name=normalized_workbook,
+            sheet_name=normalized_sheet,
+            test_pack=normalized_pack,
+        )
+        run_token = int(now.timestamp() * 1_000_000)
+        run = ValidationRun(
+            run_token=run_token,
+            run_timestamp=now,
+            sheet_key_id=int(sheet_key.id),
+            user_id=user_id,
+            api_key_hash=None,
+            workbook_name=normalized_workbook,
+            sheet_name=normalized_sheet,
+            range_address=None,
+            test_packs=normalized_pack,
+            total_rows=0,
+            total_cells=0,
+            failed_cells=0,
+            passed_cells=0,
+            status="tagged",
+            error_message=None,
+            coverage_json={},
+            tagged_cells_json=normalized_tags,
+        )
+        session.add(run)
+    else:
+        run.tagged_cells_json = _merge_tagged_cells(run.tagged_cells_json, normalized_tags)
+        if not run.test_packs.strip() and normalized_pack:
+            run.test_packs = normalized_pack
+
+    await session.commit()
+    await session.refresh(run)
     return _run_to_summary(run)
 
 

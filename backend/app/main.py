@@ -32,13 +32,16 @@ try:
         delete_results_version,
         get_or_create_sheet_key,
         get_results_version,
+        remove_exception_tags_from_results,
         get_test_statistics,
         get_validation_history,
         get_validation_run,
         save_results_version,
         store_validation_results,
+        upsert_validation_run_tagged_cells,
     )
     from app.pack_config_service import pack_config_service
+    from app.exceptions_service import exception_service
     DB_AVAILABLE = True
 except ImportError:
     DB_AVAILABLE = False
@@ -145,6 +148,49 @@ class TemplateResponse(BaseModel):
     territory: str
     headers: list[str]
     total_fields: int
+
+
+class ExceptionItem(BaseModel):
+    """Single exception response item."""
+    id: int
+    exception_id: str
+    test_id: Optional[str] = None
+    description: str
+    status: str
+    author_id: Optional[int] = None
+    created_at: str
+    updated_at: str
+
+
+class ExceptionCreateRequest(BaseModel):
+    """Request to create a new exception."""
+    exception_id: str = Field(description="Unique exception ID within organisation")
+    test_id: Optional[str] = Field(default=None, description="Optional linked test ID")
+    description: str = Field(description="Exception description")
+    status: str = Field(default="to do", description="Exception status")
+
+
+class ExceptionUpdateRequest(BaseModel):
+    """Request to update an exception."""
+    exception_id: Optional[str] = Field(default=None, description="Exception ID")
+    test_id: Optional[str] = Field(default=None, description="Linked test ID")
+    description: Optional[str] = Field(default=None, description="Exception description")
+    status: Optional[str] = Field(default=None, description="Exception status")
+
+
+class ExceptionListResponse(BaseModel):
+    """List of exceptions."""
+    exceptions: list[ExceptionItem]
+
+
+class ExceptionApplyRequest(BaseModel):
+    """Request to apply exception to cells."""
+    exception_id: str = Field(description="Exception ID to apply")
+    addresses: list[str] = Field(description="List of cell addresses to apply exception to")
+    tagged_cells: list[dict[str, Any]] = Field(default_factory=list, description="Optional full tagged-cell records")
+    sheet_name: str = Field(description="Sheet name containing the tagged cells")
+    workbook_name: Optional[str] = Field(default=None, description="Workbook name for the tagged cells")
+    test_pack: Optional[str] = Field(default=None, description="Optional test pack scope")
 
 
 @asynccontextmanager
@@ -741,6 +787,7 @@ class ValidationHistoryItem(BaseModel):
     passed_cells: int
     status: str
     pass_rate: float
+    tagged_cells: list[dict[str, Any]] = Field(default_factory=list)
     tests: list[dict[str, Any]]
 
 
@@ -782,6 +829,7 @@ class SaveResultsVersionRequest(BaseModel):
     passed_umrs: list[str] = Field(default_factory=list)
     mapped_headers: dict[str, str] = Field(default_factory=dict)
     saved_data: list[dict[str, Any]] = Field(default_factory=list)
+    tagged_cells: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SavedResultsVersionItem(BaseModel):
@@ -856,6 +904,7 @@ async def get_history(
                 passed_cells=run.passed_cells,
                 status=run.status,
                 pass_rate=pass_rate,
+                tagged_cells=list(run.tagged_cells_json or []),
                 tests=tests,
             ))
         
@@ -917,6 +966,7 @@ async def get_history_detail(
             "passed_cells": run.passed_cells,
             "status": run.status,
             "error_message": run.error_message,
+            "tagged_cells": list(run.tagged_cells_json or []),
             "tests": tests,
         }
 
@@ -980,12 +1030,82 @@ async def save_results(
             passed_umrs=payload.passed_umrs,
             mapped_headers=payload.mapped_headers,
             saved_data=payload.saved_data,
+            tagged_cells=payload.tagged_cells,
         )
         return SavedResultsVersionItem(
             id=saved.id,
             created_at=saved.created_at.isoformat(),
             updated_at=saved.updated_at.isoformat(),
         )
+
+
+@app.post("/api/v1/exceptions/apply")
+async def apply_exception_tag(
+    payload: ExceptionApplyRequest,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> dict[str, Any]:
+    """Persist exception tags for the latest validation run in the current workbook/sheet scope."""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    user_id, organisation_id = _require_db_backed_user(subscription)
+
+    if not payload.sheet_name.strip():
+        raise HTTPException(status_code=400, detail="sheet_name is required")
+
+    normalized_pack = normalize_pack_name(payload.test_pack) if payload.test_pack else None
+    tagged_cells_from_payload = []
+    for item in payload.tagged_cells or []:
+        if not isinstance(item, dict):
+            continue
+        address = str(item.get("address") or "").strip().upper()
+        if not address:
+            continue
+        tagged_cells_from_payload.append(
+            {
+                "address": address,
+                "exception_id": payload.exception_id,
+                "comment": str(item.get("comment") or f"Exception tagged: {payload.exception_id}").strip(),
+                "fill_color": str(item.get("fill_color") or item.get("fillColor") or "#dbeafe").strip() or "#dbeafe",
+                "previous_fill_color": str(item.get("previous_fill_color") or item.get("previousFillColor") or "").strip(),
+                "sheet_name": str(item.get("sheet_name") or item.get("sheetName") or payload.sheet_name).strip(),
+                "workbook_name": str(item.get("workbook_name") or item.get("workbookName") or payload.workbook_name or "").strip(),
+                "tagged_at": str(item.get("tagged_at") or item.get("taggedAt") or "").strip(),
+            }
+        )
+
+    fallback_tagged_cells = [
+        {
+            "address": str(address or "").strip().upper(),
+            "exception_id": payload.exception_id,
+            "comment": f"Exception tagged: {payload.exception_id}",
+            "fill_color": "#dbeafe",
+            "previous_fill_color": "",
+            "sheet_name": payload.sheet_name,
+            "workbook_name": payload.workbook_name,
+        }
+        for address in payload.addresses
+        if str(address or "").strip()
+    ]
+
+    tagged_cells = tagged_cells_from_payload or fallback_tagged_cells
+    if not tagged_cells:
+        raise HTTPException(status_code=400, detail="At least one address is required")
+
+    async with async_session_maker() as session:
+        run = await upsert_validation_run_tagged_cells(
+            session,
+            organisation_id=organisation_id,
+            user_id=user_id,
+            workbook_name=payload.workbook_name,
+            sheet_name=payload.sheet_name,
+            test_pack=normalized_pack,
+            tagged_cells=tagged_cells,
+        )
+        return {
+            "updated": True,
+            "run_id": run.id,
+            "tagged_cells": list(run.tagged_cells_json or []),
+        }
 
 
 @app.get("/api/v1/results/versions", response_model=SavedResultsVersionListResponse)
@@ -1112,3 +1232,169 @@ async def remove_result_version_by_id(
         if not deleted:
             raise HTTPException(status_code=404, detail="Saved result version not found")
         return {"deleted": True, "version_id": version_id}
+
+
+# ============================================================================
+# EXCEPTION MANAGEMENT ENDPOINTS
+# ============================================================================
+
+
+@app.get("/api/v1/exceptions", response_model=ExceptionListResponse)
+async def list_exceptions(
+    test_id: Optional[str] = None,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> ExceptionListResponse:
+    """List all exceptions for the authenticated user's organisation."""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    _, organisation_id = _require_db_backed_user(subscription)
+
+    async with async_session_maker() as session:
+        exceptions = await exception_service.get_exceptions(
+            session,
+            organisation_id=organisation_id,
+            test_id=test_id,
+        )
+        
+        items = [
+            ExceptionItem(
+                id=exc.id,
+                exception_id=exc.exception_id,
+                test_id=exc.test_id,
+                description=exc.description,
+                status=exc.status,
+                author_id=exc.author_id,
+                created_at=exc.created_at.isoformat(),
+                updated_at=exc.updated_at.isoformat(),
+            )
+            for exc in exceptions
+        ]
+        return ExceptionListResponse(exceptions=items)
+
+
+@app.post("/api/v1/exceptions", response_model=ExceptionItem)
+async def create_exception(
+    request: ExceptionCreateRequest,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> ExceptionItem:
+    """Create a new exception."""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    user_id, organisation_id = _require_db_backed_user(subscription)
+
+    async with async_session_maker() as session:
+        # Check for duplicate exception_id within organisation
+        existing = await exception_service.get_exception_by_id(
+            session,
+            organisation_id=organisation_id,
+            exception_id=request.exception_id,
+        )
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Exception '{request.exception_id}' already exists in this organisation",
+            )
+        
+        exc = await exception_service.create_exception(
+            session,
+            organisation_id=organisation_id,
+            exception_id=request.exception_id,
+            description=request.description,
+            test_id=request.test_id,
+            status=request.status,
+            author_id=user_id,
+        )
+        await session.commit()
+        
+        return ExceptionItem(
+            id=exc.id,
+            exception_id=exc.exception_id,
+            test_id=exc.test_id,
+            description=exc.description,
+            status=exc.status,
+            author_id=exc.author_id,
+            created_at=exc.created_at.isoformat(),
+            updated_at=exc.updated_at.isoformat(),
+        )
+
+
+@app.put("/api/v1/exceptions/{exception_id}", response_model=ExceptionItem)
+async def update_exception(
+    exception_id: str,
+    request: ExceptionUpdateRequest,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> ExceptionItem:
+    """Update an existing exception."""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    _, organisation_id = _require_db_backed_user(subscription)
+
+    async with async_session_maker() as session:
+        exc = await exception_service.update_exception(
+            session,
+            organisation_id=organisation_id,
+            exception_id=exception_id,
+            description=request.description,
+            test_id=request.test_id,
+            status=request.status,
+        )
+        if not exc:
+            raise HTTPException(status_code=404, detail="Exception not found")
+        
+        await session.commit()
+        
+        return ExceptionItem(
+            id=exc.id,
+            exception_id=exc.exception_id,
+            test_id=exc.test_id,
+            description=exc.description,
+            status=exc.status,
+            author_id=exc.author_id,
+            created_at=exc.created_at.isoformat(),
+            updated_at=exc.updated_at.isoformat(),
+        )
+
+
+@app.delete("/api/v1/exceptions/{exception_id}")
+async def delete_exception(
+    exception_id: str,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> dict[str, Any]:
+    """Delete an exception."""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    _, organisation_id = _require_db_backed_user(subscription)
+
+    async with async_session_maker() as session:
+        existing_exception = await exception_service.get_exception_by_id(
+            session,
+            organisation_id=organisation_id,
+            exception_id=exception_id,
+        )
+        if not existing_exception:
+            raise HTTPException(status_code=404, detail="Exception not found")
+
+        tag_cleanup_result = await remove_exception_tags_from_results(
+            session,
+            organisation_id=organisation_id,
+            exception_id=exception_id,
+        )
+
+        deleted = await exception_service.delete_exception(
+            session,
+            organisation_id=organisation_id,
+            exception_id=exception_id,
+        )
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Exception not found")
+        
+        await session.commit()
+        return {
+            "deleted": True,
+            "exception_id": exception_id,
+            "tags_removed": int(tag_cleanup_result.get("tags_removed", 0) or 0),
+            "runs_updated": int(tag_cleanup_result.get("runs_updated", 0) or 0),
+            "versions_updated": int(tag_cleanup_result.get("versions_updated", 0) or 0),
+            "removed_tagged_cells": list(tag_cleanup_result.get("removed_tagged_cells") or []),
+        }
+

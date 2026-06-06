@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
+from enum import Enum
 from typing import AsyncGenerator, Optional
 
 from sqlalchemy import BigInteger, Boolean, DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text, JSON, UniqueConstraint, text
@@ -209,6 +210,7 @@ class ValidationRun(Base):
 
     # Per-pack/test breakdown stored as the coverage report packs dict
     coverage_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    tagged_cells_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -283,6 +285,7 @@ class ValidationResultVersion(Base):
     )
     test_pack: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     results_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    tagged_cells_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -326,6 +329,82 @@ class ValidationResultPayload(Base):
     )
 
 
+class ExceptionStatus(str, Enum):
+    """Status options for exceptions."""
+    TODO = "to do"
+    IN_PROGRESS = "in progress"
+    IN_REVIEW = "in review"
+    BLOCKED = "blocked"
+    COMPLETE = "complete"
+
+
+class Exception(Base):
+    """
+    Exception management at organisation level.
+    
+    Allows users to define and apply exceptions to validation issues,
+    linked to specific test IDs (optional).
+    """
+    __tablename__ = "exceptions"
+    __table_args__ = (
+        UniqueConstraint("organisation_id", "exception_id", name="uq_exception_per_org"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    
+    organisation_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("organisations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    
+    # User-defined exception ID (must be unique within organisation)
+    exception_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    
+    # Optional linked test ID (from rules engine)
+    test_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    
+    # Exception details
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    
+    status: Mapped[str] = mapped_column(
+        SQLEnum(
+            ExceptionStatus,
+            name="exception_status",
+            create_constraint=True,
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+            validate_strings=True,
+        ),
+        nullable=False,
+        default=ExceptionStatus.TODO,
+    )
+    
+    # User who created the exception
+    author_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("user_subscriptions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    def __repr__(self) -> str:
+        return f"<Exception(org={self.organisation_id}, id={self.exception_id}, status={self.status})>"
+
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency for getting database sessions."""
     async with async_session_maker() as session:
@@ -345,6 +424,23 @@ async def init_db() -> None:
         # Create baseline ORM schema before applying migration tweaks.
         await conn.run_sync(Base.metadata.create_all)
 
+        await conn.execute(
+            text(
+                """
+                ALTER TABLE validation_runs
+                ADD COLUMN IF NOT EXISTS tagged_cells_json JSON NOT NULL DEFAULT '[]'::json
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                ALTER TABLE validation_result_versions
+                ADD COLUMN IF NOT EXISTS tagged_cells_json JSON NOT NULL DEFAULT '[]'::json
+                """
+            )
+        )
+
         # Keep saved result versions, and move payload to dedicated table if legacy columns exist.
         await conn.execute(
             text(
@@ -360,6 +456,36 @@ async def init_db() -> None:
                 """
             )
         )
+        tagged_cells_payload_col = await conn.execute(
+            text(
+                """
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name='validation_result_payloads' AND column_name='tagged_cells_json'
+                LIMIT 1
+                """
+            )
+        )
+        if tagged_cells_payload_col.scalar() is not None:
+            await conn.execute(
+                text(
+                    """
+                    UPDATE validation_result_versions v
+                    SET tagged_cells_json = COALESCE(p.tagged_cells_json, '[]'::json)
+                    FROM validation_result_payloads p
+                    WHERE p.validation_result_version_id = v.id
+                      AND COALESCE(v.tagged_cells_json, '[]'::json) = '[]'::json
+                    """
+                )
+            )
+            await conn.execute(
+                text(
+                    """
+                    ALTER TABLE validation_result_payloads
+                    DROP COLUMN IF EXISTS tagged_cells_json
+                    """
+                )
+            )
         legacy_payload_col = await conn.execute(
             text(
                 """
