@@ -154,6 +154,9 @@ class ExceptionItem(BaseModel):
     """Single exception response item."""
     id: int
     exception_id: str
+    linked_field: Optional[str] = None
+    linked_umr: Optional[str] = None
+    # Legacy alias for linked_field in older clients.
     test_id: Optional[str] = None
     description: str
     status: str
@@ -165,7 +168,9 @@ class ExceptionItem(BaseModel):
 class ExceptionCreateRequest(BaseModel):
     """Request to create a new exception."""
     exception_id: str = Field(description="Unique exception ID within organisation")
-    test_id: Optional[str] = Field(default=None, description="Optional linked test ID")
+    linked_field: Optional[str] = Field(default=None, description="Optional linked field from selected test pack")
+    linked_umr: Optional[str] = Field(default=None, description="Optional linked UMR value")
+    test_id: Optional[str] = Field(default=None, description="Deprecated alias for linked_field")
     description: str = Field(description="Exception description")
     status: str = Field(default="to do", description="Exception status")
 
@@ -173,7 +178,9 @@ class ExceptionCreateRequest(BaseModel):
 class ExceptionUpdateRequest(BaseModel):
     """Request to update an exception."""
     exception_id: Optional[str] = Field(default=None, description="Exception ID")
-    test_id: Optional[str] = Field(default=None, description="Linked test ID")
+    linked_field: Optional[str] = Field(default=None, description="Linked field")
+    linked_umr: Optional[str] = Field(default=None, description="Linked UMR")
+    test_id: Optional[str] = Field(default=None, description="Deprecated alias for linked_field")
     description: Optional[str] = Field(default=None, description="Exception description")
     status: Optional[str] = Field(default=None, description="Exception status")
 
@@ -1241,6 +1248,8 @@ async def remove_result_version_by_id(
 
 @app.get("/api/v1/exceptions", response_model=ExceptionListResponse)
 async def list_exceptions(
+    linked_field: Optional[str] = None,
+    linked_umr: Optional[str] = None,
     test_id: Optional[str] = None,
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> ExceptionListResponse:
@@ -1253,6 +1262,8 @@ async def list_exceptions(
         exceptions = await exception_service.get_exceptions(
             session,
             organisation_id=organisation_id,
+            linked_field=linked_field,
+            linked_umr=linked_umr,
             test_id=test_id,
         )
         
@@ -1260,7 +1271,9 @@ async def list_exceptions(
             ExceptionItem(
                 id=exc.id,
                 exception_id=exc.exception_id,
-                test_id=exc.test_id,
+                linked_field=exc.linked_field,
+                linked_umr=exc.linked_umr,
+                test_id=exc.linked_field,
                 description=exc.description,
                 status=exc.status,
                 author_id=exc.author_id,
@@ -1300,6 +1313,8 @@ async def create_exception(
             organisation_id=organisation_id,
             exception_id=request.exception_id,
             description=request.description,
+            linked_field=(request.linked_field or request.test_id),
+            linked_umr=request.linked_umr,
             test_id=request.test_id,
             status=request.status,
             author_id=user_id,
@@ -1309,7 +1324,9 @@ async def create_exception(
         return ExceptionItem(
             id=exc.id,
             exception_id=exc.exception_id,
-            test_id=exc.test_id,
+            linked_field=exc.linked_field,
+            linked_umr=exc.linked_umr,
+            test_id=exc.linked_field,
             description=exc.description,
             status=exc.status,
             author_id=exc.author_id,
@@ -1335,7 +1352,11 @@ async def update_exception(
             organisation_id=organisation_id,
             exception_id=exception_id,
             description=request.description,
+            linked_field=(request.linked_field if "linked_field" in request.model_fields_set else request.test_id),
+            linked_umr=request.linked_umr,
             test_id=request.test_id,
+            update_linked_field=("linked_field" in request.model_fields_set or "test_id" in request.model_fields_set),
+            update_linked_umr=("linked_umr" in request.model_fields_set),
             status=request.status,
         )
         if not exc:
@@ -1346,7 +1367,9 @@ async def update_exception(
         return ExceptionItem(
             id=exc.id,
             exception_id=exc.exception_id,
-            test_id=exc.test_id,
+            linked_field=exc.linked_field,
+            linked_umr=exc.linked_umr,
+            test_id=exc.linked_field,
             description=exc.description,
             status=exc.status,
             author_id=exc.author_id,

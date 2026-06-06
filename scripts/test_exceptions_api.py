@@ -31,7 +31,8 @@ async def test_create_exception():
         payload = {
             "exception_id": "EXC-001",
             "description": "Test exception for validation",
-            "test_id": "test_mandatory_field",
+            "linked_field": "Unique Market Reference (UMR)",
+            "linked_umr": "B1234A23",
             "status": "to do",
         }
         
@@ -103,19 +104,19 @@ async def test_update_exception():
             return None
 
 
-async def test_filter_by_test_id():
-    """Test filtering exceptions by test_id."""
-    print("\n=== Testing FILTER by test_id ===")
+async def test_filter_by_linked_field():
+    """Test filtering exceptions by linked_field."""
+    print("\n=== Testing FILTER by linked_field ===")
     async with httpx.AsyncClient(timeout=10) as client:
         response = await client.get(
-            f"{BASE_URL}/api/v1/exceptions?test_id=test_mandatory_field",
+            f"{BASE_URL}/api/v1/exceptions?linked_field=Unique%20Market%20Reference%20(UMR)",
             headers=headers,
         )
         
         print(f"Status: {response.status_code}")
         data = response.json()
         exceptions = data.get("exceptions", [])
-        print(f"Found {len(exceptions)} exception(s) with test_id='test_mandatory_field'")
+        print(f"Found {len(exceptions)} exception(s) with linked_field='Unique Market Reference (UMR)'")
         
         if response.status_code == 200:
             print("✅ FILTER successful")
@@ -202,7 +203,7 @@ async def run_all_tests():
             await test_update_exception()
         
         # Filter
-        await test_filter_by_test_id()
+        await test_filter_by_linked_field()
         
         # Duplicate
         await test_duplicate_exception()
