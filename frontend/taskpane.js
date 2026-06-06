@@ -994,9 +994,12 @@ async function loadExceptions() {
   }
 }
 
-async function loadTestIdsForExceptionModal() {
+async function loadLinkedFieldsForExceptionModal() {
   try {
-    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/rules-engine`, {
+    const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
+    const query = selectedPack ? `?test_pack=${encodeURIComponent(selectedPack)}` : "";
+
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/rules-engine${query}`, {
       method: "GET",
       cache: "no-store",
     });
@@ -1007,26 +1010,26 @@ async function loadTestIdsForExceptionModal() {
 
     const payload = await response.json().catch(() => ({ rules: [] }));
     const rules = Array.isArray(payload?.rules) ? payload.rules : [];
-    const testIds = Array.from(new Set(rules.map(r => r.rule_id).filter(Boolean)));
+    const fields = Array.from(new Set(rules.map((r) => String(r?.target_column || "").trim()).filter(Boolean)));
     
-    const testIdSelect = document.getElementById("exceptionTestIdInput");
-    if (testIdSelect) {
-      const currentValue = testIdSelect.value;
-      testIdSelect.innerHTML = "";
+    const fieldSelect = document.getElementById("exceptionFieldInput");
+    if (fieldSelect) {
+      const currentValue = fieldSelect.value;
+      fieldSelect.innerHTML = "";
       
       const defaultOption = document.createElement("option");
       defaultOption.value = "";
-      defaultOption.textContent = "Select a test...";
-      testIdSelect.appendChild(defaultOption);
+      defaultOption.textContent = "Select a field...";
+      fieldSelect.appendChild(defaultOption);
       
-      for (const testId of testIds.sort()) {
+      for (const fieldName of fields.sort((a, b) => a.localeCompare(b))) {
         const option = document.createElement("option");
-        option.value = testId;
-        option.textContent = testId;
-        testIdSelect.appendChild(option);
+        option.value = fieldName;
+        option.textContent = fieldName;
+        fieldSelect.appendChild(option);
       }
       
-      testIdSelect.value = currentValue;
+      fieldSelect.value = currentValue;
     }
   } catch {
     // Silently fail
@@ -1037,7 +1040,7 @@ function openExceptionModal() {
   const modal = document.getElementById("exceptionModal");
   if (modal) {
     modal.classList.add("active");
-    loadTestIdsForExceptionModal();
+    loadLinkedFieldsForExceptionModal();
     renderExceptionList();
   }
 }
@@ -1049,7 +1052,8 @@ function closeExceptionModal() {
   }
   // Clear form
   document.getElementById("exceptionIdInput").value = "";
-  document.getElementById("exceptionTestIdInput").value = "";
+  document.getElementById("exceptionFieldInput").value = "";
+  document.getElementById("exceptionUmrInput").value = "";
   document.getElementById("exceptionDescriptionInput").value = "";
   document.getElementById("exceptionStatusInput").value = "to do";
   
@@ -1128,12 +1132,22 @@ async function renderExceptionList() {
       info.appendChild(status);
       info.appendChild(descNode);
 
-      if (exc.test_id) {
-        const testNode = document.createElement("div");
-        testNode.style.fontSize = "11px";
-        testNode.style.color = "#666";
-        testNode.textContent = `Test: ${exc.test_id}`;
-        info.appendChild(testNode);
+      const linkedField = String(exc.linked_field || exc.test_id || "").trim();
+      if (linkedField) {
+        const fieldNode = document.createElement("div");
+        fieldNode.style.fontSize = "11px";
+        fieldNode.style.color = "#666";
+        fieldNode.textContent = `Field: ${linkedField}`;
+        info.appendChild(fieldNode);
+      }
+
+      const linkedUmr = String(exc.linked_umr || "").trim();
+      if (linkedUmr) {
+        const umrNode = document.createElement("div");
+        umrNode.style.fontSize = "11px";
+        umrNode.style.color = "#666";
+        umrNode.textContent = `UMR: ${linkedUmr}`;
+        info.appendChild(umrNode);
       }
 
       const actions = document.createElement("div");
@@ -1377,7 +1391,8 @@ async function getCurrentFillColorsForAddresses(addresses) {
 
 async function createException() {
   const exceptionId = document.getElementById("exceptionIdInput").value.trim();
-  const testId = document.getElementById("exceptionTestIdInput").value.trim() || null;
+  const linkedField = document.getElementById("exceptionFieldInput").value.trim() || null;
+  const linkedUmr = document.getElementById("exceptionUmrInput").value.trim() || null;
   const description = document.getElementById("exceptionDescriptionInput").value.trim();
   const status = document.getElementById("exceptionStatusInput").value;
   
@@ -1407,7 +1422,8 @@ async function createException() {
         },
         body: JSON.stringify({
           exception_id: exceptionId,
-          test_id: testId,
+          linked_field: linkedField,
+          linked_umr: linkedUmr,
           description: description,
           status: status,
         }),
@@ -1431,7 +1447,8 @@ async function createException() {
         },
         body: JSON.stringify({
           exception_id: exceptionId,
-          test_id: testId,
+          linked_field: linkedField,
+          linked_umr: linkedUmr,
           description: description,
           status: status,
         }),
@@ -1449,7 +1466,8 @@ async function createException() {
     
     // Clear form and refresh list
     document.getElementById("exceptionIdInput").value = "";
-    document.getElementById("exceptionTestIdInput").value = "";
+    document.getElementById("exceptionFieldInput").value = "";
+    document.getElementById("exceptionUmrInput").value = "";
     document.getElementById("exceptionDescriptionInput").value = "";
     document.getElementById("exceptionStatusInput").value = "to do";
     
@@ -1551,7 +1569,9 @@ async function editException(exceptionId) {
 
     // Populate the form with existing data
     document.getElementById("exceptionIdInput").value = exception.exception_id;
-    document.getElementById("exceptionTestIdInput").value = exception.test_id || "";
+    await loadLinkedFieldsForExceptionModal();
+    document.getElementById("exceptionFieldInput").value = exception.linked_field || exception.test_id || "";
+    document.getElementById("exceptionUmrInput").value = exception.linked_umr || "";
     document.getElementById("exceptionDescriptionInput").value = exception.description;
     document.getElementById("exceptionStatusInput").value = exception.status;
 
@@ -1827,6 +1847,9 @@ Office.onReady(async () => {
     syncPackConfigEditorWithSelectedPack();
     await hydrateSelectedPackConfigFromServer();
     await syncTerritorySelectorForSelectedPack();
+    if (document.getElementById("exceptionModal")?.classList.contains("active")) {
+      await loadLinkedFieldsForExceptionModal();
+    }
   });
   await hydrateSelectedPackConfigFromServer();
   await syncTerritorySelectorForSelectedPack();

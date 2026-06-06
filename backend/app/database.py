@@ -343,7 +343,7 @@ class Exception(Base):
     Exception management at organisation level.
     
     Allows users to define and apply exceptions to validation issues,
-    linked to specific test IDs (optional).
+    linked to specific fields and optionally scoped to a UMR.
     """
     __tablename__ = "exceptions"
     __table_args__ = (
@@ -362,8 +362,11 @@ class Exception(Base):
     # User-defined exception ID (must be unique within organisation)
     exception_id: Mapped[str] = mapped_column(String(100), nullable=False)
     
-    # Optional linked test ID (from rules engine)
-    test_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    # Optional linked field name (from selected test pack)
+    linked_field: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+
+    # Optional linked UMR value
+    linked_umr: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     
     # Exception details
     description: Mapped[str] = mapped_column(Text, nullable=False)
@@ -536,6 +539,40 @@ async def init_db() -> None:
         await conn.execute(text("ALTER TABLE validation_result_versions DROP CONSTRAINT IF EXISTS validation_result_versions_sheet_key_id_key"))
         await conn.execute(text("ALTER TABLE validation_result_versions DROP CONSTRAINT IF EXISTS uq_result_version_per_sheet_pack"))
         await conn.execute(text("ALTER TABLE validation_result_versions ADD CONSTRAINT uq_result_version_per_sheet_pack UNIQUE (sheet_key_id, test_pack)"))
+
+        # Exception management schema enhancements.
+        await conn.execute(text("ALTER TABLE exceptions ADD COLUMN IF NOT EXISTS linked_field VARCHAR(255)"))
+        await conn.execute(text("ALTER TABLE exceptions ADD COLUMN IF NOT EXISTS linked_umr VARCHAR(255)"))
+        legacy_exception_test_id_col = await conn.execute(
+            text(
+                """
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name='exceptions' AND column_name='test_id'
+                LIMIT 1
+                """
+            )
+        )
+        if legacy_exception_test_id_col.scalar() is not None:
+            await conn.execute(
+                text(
+                    """
+                    UPDATE exceptions
+                    SET linked_field = test_id
+                    WHERE linked_field IS NULL
+                      AND test_id IS NOT NULL
+                      AND btrim(test_id) <> ''
+                    """
+                )
+            )
+        await conn.execute(
+            text(
+                """
+                                ALTER TABLE exceptions
+                                DROP COLUMN IF EXISTS test_id
+                """
+            )
+        )
 
         # Seed default organisation if absent.
         await conn.execute(

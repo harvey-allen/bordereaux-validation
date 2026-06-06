@@ -24,6 +24,8 @@ class ExceptionService:
         organisation_id: int,
         exception_id: str,
         description: str,
+        linked_field: Optional[str] = None,
+        linked_umr: Optional[str] = None,
         test_id: Optional[str] = None,
         status: str = ExceptionStatus.TODO,
         author_id: Optional[int] = None,
@@ -36,7 +38,9 @@ class ExceptionService:
             organisation_id: Organisation ID
             exception_id: Unique exception identifier within the organisation
             description: Exception description
-            test_id: Optional linked test ID from rules engine
+            linked_field: Optional linked field from selected test pack
+            linked_umr: Optional linked UMR value
+            test_id: Legacy linked test ID (fallback)
             status: Exception status (defaults to TODO)
             author_id: Optional user ID of the creator
 
@@ -47,7 +51,8 @@ class ExceptionService:
             organisation_id=organisation_id,
             exception_id=exception_id,
             description=description,
-            test_id=test_id,
+            linked_field=linked_field or test_id,
+            linked_umr=linked_umr,
             status=status,
             author_id=author_id,
             created_at=datetime.now(timezone.utc),
@@ -61,15 +66,19 @@ class ExceptionService:
     async def get_exceptions(
         session: AsyncSession,
         organisation_id: int,
+        linked_field: Optional[str] = None,
+        linked_umr: Optional[str] = None,
         test_id: Optional[str] = None,
     ) -> list[ExceptionModel]:
         """
-        Get all exceptions for an organisation, optionally filtered by test_id.
+        Get all exceptions for an organisation, optionally filtered by linked field/UMR.
 
         Args:
             session: Database session
             organisation_id: Organisation ID
-            test_id: Optional test ID to filter by
+            linked_field: Optional linked field to filter by
+            linked_umr: Optional linked UMR to filter by
+            test_id: Legacy test ID filter (mapped to linked_field fallback)
 
         Returns:
             List of Exception models
@@ -77,8 +86,12 @@ class ExceptionService:
         query = select(ExceptionModel).where(
             ExceptionModel.organisation_id == organisation_id
         )
-        if test_id:
-            query = query.where(ExceptionModel.test_id == test_id)
+        if linked_field:
+            query = query.where(ExceptionModel.linked_field == linked_field)
+        elif test_id:
+            query = query.where(ExceptionModel.linked_field == test_id)
+        if linked_umr:
+            query = query.where(ExceptionModel.linked_umr == linked_umr)
         
         result = await session.execute(query.order_by(ExceptionModel.created_at.desc()))
         return result.scalars().all()
@@ -141,7 +154,11 @@ class ExceptionService:
         organisation_id: int,
         exception_id: str,
         description: Optional[str] = None,
+        linked_field: Optional[str] = None,
+        linked_umr: Optional[str] = None,
         test_id: Optional[str] = None,
+        update_linked_field: bool = False,
+        update_linked_umr: bool = False,
         status: Optional[str] = None,
     ) -> Optional[ExceptionModel]:
         """
@@ -152,7 +169,11 @@ class ExceptionService:
             organisation_id: Organisation ID
             exception_id: Exception ID
             description: Updated description
-            test_id: Updated test ID
+            linked_field: Updated linked field
+            linked_umr: Updated linked UMR
+            test_id: Legacy updated test ID (fallback)
+            update_linked_field: Whether to apply linked-field update (supports clearing)
+            update_linked_umr: Whether to apply linked-UMR update (supports clearing)
             status: Updated status
 
         Returns:
@@ -166,8 +187,10 @@ class ExceptionService:
 
         if description is not None:
             exception.description = description
-        if test_id is not None:
-            exception.test_id = test_id
+        if update_linked_field:
+            exception.linked_field = linked_field if linked_field is not None else test_id
+        if update_linked_umr:
+            exception.linked_umr = linked_umr
         if status is not None:
             exception.status = status
         
