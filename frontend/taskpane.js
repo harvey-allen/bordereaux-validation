@@ -14,10 +14,12 @@ let lastValidationPack = null;
 let lastValidationFailedTests = [];
 let lastValidationPassedTests = [];
 let lastValidationPassedUmrs = [];
+let lastTaggedCells = [];
 let savedResultsVersionExists = false;
 let savedResultsVersionCreatedAt = null;
 let savedVersionItems = [];
 const APP_LOGO_URL = `${window.location.origin}/AXIOS.png`;
+const EXCEPTION_TAG_FILL = "#dbeafe";
 
 const {
   formatPackLabel,
@@ -43,6 +45,7 @@ function persistValidationResults() {
     failedTests: lastValidationFailedTests,
     passedTests: lastValidationPassedTests,
     passedUmrs: lastValidationPassedUmrs,
+    taggedCells: lastTaggedCells,
   });
 }
 
@@ -64,6 +67,7 @@ function restoreValidationResults() {
   lastValidationFailedTests = Array.isArray(persistData.failedTests) ? persistData.failedTests : [];
   lastValidationPassedTests = Array.isArray(persistData.passedTests) ? persistData.passedTests : [];
   lastValidationPassedUmrs = Array.isArray(persistData.passedUmrs) ? persistData.passedUmrs : [];
+  lastTaggedCells = Array.isArray(persistData.taggedCells) ? persistData.taggedCells : [];
   return true;
 }
 
@@ -75,6 +79,59 @@ function clearPersistedValidationResults() {
     return;
   }
   storageHelpers.clear();
+}
+
+function normalizeTaggedCellRecord(item) {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const address = String(item.address || "").trim().toUpperCase();
+  const exceptionId = String(item.exception_id || item.exceptionId || "").trim();
+  if (!address || !exceptionId) {
+    return null;
+  }
+
+  return {
+    address,
+    exception_id: exceptionId,
+    comment: String(item.comment || `Exception tagged: ${exceptionId}`).trim(),
+    fill_color: String(item.fill_color || item.fillColor || EXCEPTION_TAG_FILL).trim() || EXCEPTION_TAG_FILL,
+    previous_fill_color: String(item.previous_fill_color || item.previousFillColor || "").trim(),
+    sheet_name: String(item.sheet_name || item.sheetName || "").trim(),
+    workbook_name: String(item.workbook_name || item.workbookName || "").trim(),
+    tagged_at: String(item.tagged_at || item.taggedAt || new Date().toISOString()).trim(),
+  };
+}
+
+function mergeTaggedCells(existingItems, incomingItems) {
+  const merged = new Map();
+  for (const rawItem of existingItems || []) {
+    const item = normalizeTaggedCellRecord(rawItem);
+    if (!item) {
+      continue;
+    }
+    merged.set(`${item.workbook_name}::${item.sheet_name}::${item.address}`, item);
+  }
+  for (const rawItem of incomingItems || []) {
+    const item = normalizeTaggedCellRecord(rawItem);
+    if (!item) {
+      continue;
+    }
+    merged.set(`${item.workbook_name}::${item.sheet_name}::${item.address}`, item);
+  }
+  return Array.from(merged.values());
+}
+
+function getTaggedCellsForScope(workbookName, sheetName) {
+  const normalizedWorkbook = String(workbookName || "").trim();
+  const normalizedSheet = String(sheetName || "").trim();
+  return (lastTaggedCells || []).filter((item) => {
+    const taggedCell = normalizeTaggedCellRecord(item);
+    return taggedCell
+      && taggedCell.workbook_name === normalizedWorkbook
+      && taggedCell.sheet_name === normalizedSheet;
+  });
 }
 const SANKEY_EXPORT_WIDTH = 1800;
 const SANKEY_EXPORT_HEIGHT = 330;
@@ -882,6 +939,865 @@ function initializeValidatorTabs() {
 }
 
 
+// ============================================================================
+// EXCEPTION MANAGEMENT FUNCTIONS
+// ============================================================================
+
+async function loadExceptions() {
+  try {
+    const excelUserEmail = getExcelUserEmail();
+    if (!excelUserEmail) {
+      return;
+    }
+
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/exceptions`, {
+      method: "GET",
+      headers: {
+        "X-Excel-User-Email": excelUserEmail,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
+    const payload = await response.json().catch(() => ({ exceptions: [] }));
+    const exceptions = Array.isArray(payload?.exceptions) ? payload.exceptions : [];
+    
+    // Populate exception dropdown in control panel
+    const exceptionSelect = document.getElementById("exceptionSelect");
+    if (exceptionSelect) {
+      exceptionSelect.innerHTML = "";
+      if (exceptions.length === 0) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No exceptions available";
+        exceptionSelect.appendChild(option);
+      } else {
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.textContent = "Select an exception...";
+        exceptionSelect.appendChild(defaultOption);
+        
+        for (const exc of exceptions) {
+          const option = document.createElement("option");
+          option.value = exc.exception_id;
+          option.textContent = exc.exception_id;
+          option.dataset.exceptionData = JSON.stringify(exc);
+          exceptionSelect.appendChild(option);
+        }
+      }
+    }
+  } catch {
+    // Silently fail
+  }
+}
+
+async function loadTestIdsForExceptionModal() {
+  try {
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/rules-engine`, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
+    const payload = await response.json().catch(() => ({ rules: [] }));
+    const rules = Array.isArray(payload?.rules) ? payload.rules : [];
+    const testIds = Array.from(new Set(rules.map(r => r.rule_id).filter(Boolean)));
+    
+    const testIdSelect = document.getElementById("exceptionTestIdInput");
+    if (testIdSelect) {
+      const currentValue = testIdSelect.value;
+      testIdSelect.innerHTML = "";
+      
+      const defaultOption = document.createElement("option");
+      defaultOption.value = "";
+      defaultOption.textContent = "Select a test...";
+      testIdSelect.appendChild(defaultOption);
+      
+      for (const testId of testIds.sort()) {
+        const option = document.createElement("option");
+        option.value = testId;
+        option.textContent = testId;
+        testIdSelect.appendChild(option);
+      }
+      
+      testIdSelect.value = currentValue;
+    }
+  } catch {
+    // Silently fail
+  }
+}
+
+function openExceptionModal() {
+  const modal = document.getElementById("exceptionModal");
+  if (modal) {
+    modal.classList.add("active");
+    loadTestIdsForExceptionModal();
+    renderExceptionList();
+  }
+}
+
+function closeExceptionModal() {
+  const modal = document.getElementById("exceptionModal");
+  if (modal) {
+    modal.classList.remove("active");
+  }
+  // Clear form
+  document.getElementById("exceptionIdInput").value = "";
+  document.getElementById("exceptionTestIdInput").value = "";
+  document.getElementById("exceptionDescriptionInput").value = "";
+  document.getElementById("exceptionStatusInput").value = "to do";
+  
+  // Reset form title and button
+  const formTitle = document.getElementById("exceptionFormTitle");
+  if (formTitle) {
+    formTitle.textContent = "Create New Exception";
+  }
+  const createBtn = document.getElementById("createExceptionBtn");
+  if (createBtn) {
+    createBtn.textContent = "Create";
+    createBtn.dataset.editMode = "false";
+    delete createBtn.dataset.originalExceptionId;
+  }
+}
+
+async function renderExceptionList() {
+  try {
+    const excelUserEmail = getExcelUserEmail();
+    if (!excelUserEmail) {
+      return;
+    }
+
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/exceptions`, {
+      method: "GET",
+      headers: {
+        "X-Excel-User-Email": excelUserEmail,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
+    const payload = await response.json().catch(() => ({ exceptions: [] }));
+    const exceptions = Array.isArray(payload?.exceptions) ? payload.exceptions : [];
+    
+    const container = document.getElementById("exceptionListContainer");
+    const list = document.getElementById("exceptionList");
+    const noMessage = document.getElementById("noExceptionsMessage");
+    
+    if (exceptions.length === 0) {
+      if (container) container.style.display = "none";
+      if (noMessage) noMessage.style.display = "block";
+      return;
+    }
+    
+    if (container) container.style.display = "block";
+    if (noMessage) noMessage.style.display = "none";
+    
+    list.innerHTML = "";
+    for (const exc of exceptions) {
+      const item = document.createElement("div");
+      item.className = "exception-item";
+
+      const info = document.createElement("div");
+      info.className = "exception-info";
+
+      const idNode = document.createElement("div");
+      idNode.className = "exception-id";
+      idNode.textContent = exc.exception_id || "";
+
+      const status = document.createElement("span");
+      status.className = "exception-status";
+      status.textContent = (exc.status || "").replace(/\b\w/g, c => c.toUpperCase());
+
+      const descNode = document.createElement("div");
+      descNode.className = "exception-desc";
+      const fullDescription = String(exc.description || "");
+      descNode.title = fullDescription;
+      const firstDescriptionLine = fullDescription.split(/\r?\n/, 1)[0].trim();
+      descNode.textContent = truncateText(firstDescriptionLine, 16);
+
+      info.appendChild(idNode);
+      info.appendChild(status);
+      info.appendChild(descNode);
+
+      if (exc.test_id) {
+        const testNode = document.createElement("div");
+        testNode.style.fontSize = "11px";
+        testNode.style.color = "#666";
+        testNode.textContent = `Test: ${exc.test_id}`;
+        info.appendChild(testNode);
+      }
+
+      const actions = document.createElement("div");
+      actions.className = "exception-actions";
+
+      const editBtn = document.createElement("button");
+      editBtn.className = "icon-btn";
+      editBtn.type = "button";
+      editBtn.textContent = "Edit";
+      editBtn.addEventListener("click", () => {
+        editException(exc.exception_id);
+      });
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "icon-btn";
+      deleteBtn.type = "button";
+      deleteBtn.style.color = "#dc2626";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.addEventListener("click", () => {
+        deleteException(exc.exception_id);
+      });
+
+      actions.appendChild(editBtn);
+      actions.appendChild(deleteBtn);
+
+      item.appendChild(info);
+      item.appendChild(actions);
+      list.appendChild(item);
+    }
+  } catch {
+    // Silently fail
+  }
+}
+
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function truncateText(text, maxLength = 16) {
+  if (!text) return "";
+  return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
+}
+
+function splitTaggedCellsByException(exceptionId) {
+  const normalizedExceptionId = String(exceptionId || "").trim();
+  const removed = [];
+  const kept = [];
+
+  for (const rawItem of lastTaggedCells || []) {
+    const taggedCell = normalizeTaggedCellRecord(rawItem);
+    if (!taggedCell) {
+      continue;
+    }
+    if (taggedCell.exception_id === normalizedExceptionId) {
+      removed.push(taggedCell);
+    } else {
+      kept.push(taggedCell);
+    }
+  }
+
+  return { removed, kept };
+}
+
+async function unapplyDeletedExceptionFromWorkbook(exceptionId, removedTaggedCells, remainingTaggedCells) {
+  const normalizedExceptionId = String(exceptionId || "").trim();
+  const activeWorkbookName = String(getWorkbookName() || "").trim();
+
+  const removedInActiveWorkbook = (removedTaggedCells || [])
+    .map((item) => normalizeTaggedCellRecord(item))
+    .filter((item) => {
+      if (!item) {
+        return false;
+      }
+      if (!activeWorkbookName) {
+        return true;
+      }
+      const taggedWorkbook = String(item.workbook_name || "").trim();
+      return (
+        !taggedWorkbook
+        || taggedWorkbook === activeWorkbookName
+        || taggedWorkbook === "__unknown_workbook__"
+      );
+    });
+
+  if (!removedInActiveWorkbook.length) {
+    return;
+  }
+
+  const remainingByCell = new Set();
+  for (const rawItem of remainingTaggedCells || []) {
+    const taggedCell = normalizeTaggedCellRecord(rawItem);
+    if (!taggedCell) {
+      continue;
+    }
+    remainingByCell.add(`${taggedCell.sheet_name}::${taggedCell.address}`);
+  }
+
+  await Excel.run(async (context) => {
+    const workbook = context.workbook;
+    const worksheets = workbook.worksheets;
+    worksheets.load("items/name");
+    await context.sync();
+
+    const worksheetByName = new Map();
+    for (const sheet of worksheets.items) {
+      worksheetByName.set(String(sheet.name || "").trim(), sheet);
+    }
+
+    const removedBySheet = new Map();
+    for (const taggedCell of removedInActiveWorkbook) {
+      const sheetName = String(taggedCell.sheet_name || "").trim();
+      if (!sheetName) {
+        continue;
+      }
+      if (!removedBySheet.has(sheetName)) {
+        removedBySheet.set(sheetName, []);
+      }
+      removedBySheet.get(sheetName).push(taggedCell);
+    }
+
+    const sheetCommentsMap = new Map();
+    const commentProxies = [];
+    for (const [sheetName] of removedBySheet) {
+      const worksheet = worksheetByName.get(sheetName);
+      if (!worksheet) {
+        continue;
+      }
+      const comments = worksheet.comments;
+      comments.load("items");
+      sheetCommentsMap.set(sheetName, comments);
+    }
+    await context.sync();
+
+    const sheetCommentLookup = new Map();
+    for (const [sheetName, comments] of sheetCommentsMap.entries()) {
+      const entries = [];
+      for (const comment of comments.items) {
+        comment.load("content");
+        const location = comment.getLocation();
+        location.load("address");
+        entries.push({ comment, location });
+      }
+      commentProxies.push({ sheetName, entries });
+    }
+    await context.sync();
+
+    for (const { sheetName, entries } of commentProxies) {
+      const lookup = new Map();
+      for (const { comment, location } of entries) {
+        const address = String(location.address || "");
+        const cellPart = address.includes("!") ? address.split("!")[1] : address;
+        lookup.set(String(cellPart || "").trim().toUpperCase(), comment);
+      }
+      sheetCommentLookup.set(sheetName, lookup);
+    }
+
+    for (const [sheetName, taggedCells] of removedBySheet.entries()) {
+      const worksheet = worksheetByName.get(sheetName);
+      if (!worksheet) {
+        continue;
+      }
+      const commentLookup = sheetCommentLookup.get(sheetName) || new Map();
+
+      for (const taggedCell of taggedCells) {
+        const cellKey = `${sheetName}::${taggedCell.address}`;
+        const hasRemainingTag = remainingByCell.has(cellKey);
+        const range = worksheet.getRange(taggedCell.address);
+
+        if (!hasRemainingTag) {
+          const previousFill = String(taggedCell.previous_fill_color || "").trim();
+          if (previousFill) {
+            range.format.fill.color = previousFill;
+          } else {
+            range.format.fill.clear();
+          }
+        }
+
+        const comment = commentLookup.get(taggedCell.address);
+        if (!comment) {
+          continue;
+        }
+
+        const originalLines = String(comment.content || "")
+          .split(/\r?\n/)
+          .map((line) => String(line || "").trim())
+          .filter((line) => line.length > 0);
+
+        const filteredLines = originalLines.filter(
+          (line) => line !== `Exception tagged: ${normalizedExceptionId}`
+        );
+
+        if (filteredLines.length === originalLines.length) {
+          continue;
+        }
+
+        if (filteredLines.length === 0) {
+          comment.delete();
+        } else {
+          comment.content = filteredLines.join("\n");
+        }
+      }
+    }
+
+    await context.sync();
+  });
+}
+
+async function getCurrentFillColorsForAddresses(addresses) {
+  const addressList = Array.isArray(addresses)
+    ? addresses
+      .map((address) => String(address || "").replace(/\$/g, "").trim().toUpperCase())
+      .filter(Boolean)
+    : [];
+
+  if (!addressList.length) {
+    return new Map();
+  }
+
+  return Excel.run(async (context) => {
+    const worksheet = context.workbook.worksheets.getActiveWorksheet();
+    const entries = [];
+
+    for (const address of addressList) {
+      const range = worksheet.getRange(address);
+      range.format.fill.load("color");
+      entries.push({ address, range });
+    }
+
+    await context.sync();
+
+    const fillByAddress = new Map();
+    for (const { address, range } of entries) {
+      fillByAddress.set(address, String(range.format.fill.color || "").trim());
+    }
+    return fillByAddress;
+  });
+}
+
+
+async function createException() {
+  const exceptionId = document.getElementById("exceptionIdInput").value.trim();
+  const testId = document.getElementById("exceptionTestIdInput").value.trim() || null;
+  const description = document.getElementById("exceptionDescriptionInput").value.trim();
+  const status = document.getElementById("exceptionStatusInput").value;
+  
+  if (!exceptionId || !description) {
+    setStatus("Exception ID and Description are required.", true);
+    return;
+  }
+
+  const excelUserEmail = getExcelUserEmail();
+  if (!excelUserEmail) {
+    setStatus("Could not determine Excel user email.", true);
+    return;
+  }
+
+  const createBtn = document.getElementById("createExceptionBtn");
+  const isEditMode = createBtn.dataset.editMode === "true";
+  const originalExceptionId = createBtn.dataset.originalExceptionId;
+
+  try {
+    if (isEditMode) {
+      // Update existing exception
+      const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/exceptions/${encodeURIComponent(originalExceptionId)}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Excel-User-Email": excelUserEmail,
+        },
+        body: JSON.stringify({
+          exception_id: exceptionId,
+          test_id: testId,
+          description: description,
+          status: status,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}));
+        const errorMsg = errorPayload?.detail || "Failed to update exception";
+        setStatus(`Error: ${errorMsg}`, true);
+        return;
+      }
+
+      setStatus("Exception updated successfully.");
+    } else {
+      // Create new exception
+      const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/exceptions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Excel-User-Email": excelUserEmail,
+        },
+        body: JSON.stringify({
+          exception_id: exceptionId,
+          test_id: testId,
+          description: description,
+          status: status,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}));
+        const errorMsg = errorPayload?.detail || "Failed to create exception";
+        setStatus(`Error: ${errorMsg}`, true);
+        return;
+      }
+
+      setStatus("Exception created successfully.");
+    }
+    
+    // Clear form and refresh list
+    document.getElementById("exceptionIdInput").value = "";
+    document.getElementById("exceptionTestIdInput").value = "";
+    document.getElementById("exceptionDescriptionInput").value = "";
+    document.getElementById("exceptionStatusInput").value = "to do";
+    
+    // Reset button state
+    createBtn.textContent = "Create";
+    createBtn.dataset.editMode = "false";
+    createBtn.dataset.originalExceptionId = "";
+    
+    await renderExceptionList();
+    await loadExceptions();
+  } catch (error) {
+    setStatus(`Error: ${error?.message || "Unknown error"}`, true);
+  }
+}
+
+async function deleteException(exceptionId) {
+  if (!String(exceptionId || "").trim()) {
+    setStatus("Missing exception ID.", true);
+    return;
+  }
+
+  const excelUserEmail = getExcelUserEmail();
+  if (!excelUserEmail) {
+    setStatus("Could not determine Excel user email.", true);
+    return;
+  }
+
+  const { removed: locallyRemovedTags, kept: locallyKeptTags } = splitTaggedCellsByException(exceptionId);
+  setStatus(`Deleting exception '${exceptionId}'...`);
+
+  try {
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/exceptions/${encodeURIComponent(exceptionId)}`, {
+      method: "DELETE",
+      headers: {
+        "X-Excel-User-Email": excelUserEmail,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const detail = formatBackendErrorDetail(errorData?.detail) || `HTTP ${response.status}`;
+      setStatus(`Failed to delete exception: ${detail}`, true);
+      return;
+    }
+
+    const payload = await response.json().catch(() => ({}));
+    const removedFromBackend = Array.isArray(payload?.removed_tagged_cells)
+      ? payload.removed_tagged_cells
+      : [];
+    const tagsToRemoveFromSheet = removedFromBackend.length ? removedFromBackend : locallyRemovedTags;
+
+    lastTaggedCells = locallyKeptTags;
+    persistValidationResults();
+
+    try {
+      await unapplyDeletedExceptionFromWorkbook(exceptionId, tagsToRemoveFromSheet, lastTaggedCells);
+    } catch {
+      // Best effort only: metadata is still cleaned and exception has been deleted.
+    }
+
+    setStatus("Exception deleted successfully.");
+    await renderExceptionList();
+    await loadExceptions();
+  } catch (error) {
+    setStatus(`Error: ${error?.message || "Unknown error"}`, true);
+  }
+}
+
+async function editException(exceptionId) {
+  const excelUserEmail = getExcelUserEmail();
+  if (!excelUserEmail) {
+    setStatus("Could not determine Excel user email.", true);
+    return;
+  }
+
+  try {
+    // Fetch the current exception data
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/exceptions`, {
+      method: "GET",
+      headers: {
+        "X-Excel-User-Email": excelUserEmail,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      setStatus("Failed to load exception details.", true);
+      return;
+    }
+
+    const payload = await response.json().catch(() => ({ exceptions: [] }));
+    const exceptions = Array.isArray(payload?.exceptions) ? payload.exceptions : [];
+    const exception = exceptions.find(e => e.exception_id === exceptionId);
+
+    if (!exception) {
+      setStatus("Exception not found.", true);
+      return;
+    }
+
+    // Populate the form with existing data
+    document.getElementById("exceptionIdInput").value = exception.exception_id;
+    document.getElementById("exceptionTestIdInput").value = exception.test_id || "";
+    document.getElementById("exceptionDescriptionInput").value = exception.description;
+    document.getElementById("exceptionStatusInput").value = exception.status;
+
+    // Change button text to indicate update mode
+    const createBtn = document.getElementById("createExceptionBtn");
+    const originalText = createBtn.textContent;
+    createBtn.textContent = "Update";
+    createBtn.dataset.editMode = "true";
+    createBtn.dataset.originalExceptionId = exceptionId;
+
+    // Change heading to indicate edit mode
+    const formTitle = document.getElementById("exceptionFormTitle");
+    if (formTitle) {
+      formTitle.textContent = "Edit Exception";
+    }
+
+    // Scroll to form
+    document.querySelector('input[id="exceptionIdInput"]').focus();
+  } catch (error) {
+    setStatus(`Error: ${error?.message || "Unknown error"}`, true);
+  }
+}
+
+async function applyExceptionToCell() {
+  const exceptionSelect = document.getElementById("exceptionSelect");
+  const selectedExceptionId = exceptionSelect?.value?.trim();
+  
+  if (!selectedExceptionId) {
+    setStatus("Please select an exception to apply.", true);
+    return;
+  }
+
+  try {
+    const selection = await Excel.run(async (context) => {
+      const range = context.workbook.getSelectedRange();
+      const worksheet = context.workbook.worksheets.getActiveWorksheet();
+      range.load("address");
+      worksheet.load("name");
+      await context.sync();
+      return {
+        address: range.address,
+        sheetName: worksheet.name,
+      };
+    });
+
+    if (!selection?.address) {
+      setStatus("Please select at least one cell to apply exception.", true);
+      return;
+    }
+
+    const workbookName = getWorkbookName() || "__unknown_workbook__";
+    const sheetName = String(selection.sheetName || "").trim() || await getActiveSheetName() || "__unknown_sheet__";
+
+    // Parse the address (e.g., "Sheet1!A1:B2") to get individual addresses
+    const addresses = parseExcelAddress(selection.address);
+    if (addresses.length === 0) {
+      setStatus("Could not parse selected cell address.", true);
+      return;
+    }
+
+    const previousFillByAddress = await getCurrentFillColorsForAddresses(addresses);
+
+    const taggedCells = addresses.map((address) => ({
+      address,
+      exception_id: selectedExceptionId,
+      comment: `Exception tagged: ${selectedExceptionId}`,
+      fill_color: EXCEPTION_TAG_FILL,
+      previous_fill_color: String(previousFillByAddress.get(address) || "").trim(),
+      sheet_name: sheetName,
+      workbook_name: workbookName,
+      tagged_at: new Date().toISOString(),
+    }));
+
+    setStatus("Applying exception to selected cells...");
+    await applyExceptionTagsToSheet(taggedCells);
+    lastTaggedCells = mergeTaggedCells(lastTaggedCells, taggedCells);
+    persistValidationResults();
+    await syncTaggedCellsToBackend(selectedExceptionId, addresses, sheetName, workbookName, taggedCells);
+    setStatus(`Exception '${selectedExceptionId}' applied to ${addresses.length} cell(s).`);
+  } catch (error) {
+    setStatus(`Error: ${error?.message || "Unknown error"}`, true);
+  }
+}
+
+function parseExcelAddress(address) {
+  // Parse Excel address format like "Sheet1!A1:B2" or "Sheet1!A1"
+  if (!address) return [];
+  
+  const parts = address.split("!");
+  if (parts.length < 2) return [];
+  
+  const rangePart = parts[1];
+  const colonIndex = rangePart.indexOf(":");
+  
+  let addresses = [];
+  
+  if (colonIndex === -1) {
+    // Single cell
+    addresses.push(rangePart);
+  } else {
+    // Range - expand to all cells
+    const [startCell, endCell] = rangePart.split(":");
+    const start = parseCell(startCell);
+    const end = parseCell(endCell);
+    
+    if (start && end) {
+      for (let row = start.row; row <= end.row; row++) {
+        for (let col = start.col; col <= end.col; col++) {
+          addresses.push(`${numberToExcelCol(col)}${row}`);
+        }
+      }
+    }
+  }
+  
+  return addresses;
+}
+
+function parseCell(cellStr) {
+  const normalized = String(cellStr || "").replace(/\$/g, "").trim().toUpperCase();
+  const match = normalized.match(/^([A-Z]+)(\d+)$/);
+  if (!match) return null;
+  
+  const col = excelColToNumber(match[1]);
+  const row = parseInt(match[2], 10);
+  
+  return { col, row };
+}
+
+function excelColToNumber(col) {
+  let num = 0;
+  for (let i = 0; i < col.length; i++) {
+    num = num * 26 + (col.charCodeAt(i) - 64);
+  }
+  return num;
+}
+
+function numberToExcelCol(num) {
+  let col = "";
+  while (num > 0) {
+    num--;
+    col = String.fromCharCode((num % 26) + 65) + col;
+    num = Math.floor(num / 26);
+  }
+  return col;
+}
+
+async function addExceptionComment(addresses, exceptionId) {
+  const taggedCells = addresses.map((address) => ({
+    address,
+    exception_id: exceptionId,
+    comment: `Exception tagged: ${exceptionId}`,
+    fill_color: EXCEPTION_TAG_FILL,
+    sheet_name: lastValidationSourceSheetName || "",
+    workbook_name: getWorkbookName() || "",
+    tagged_at: new Date().toISOString(),
+  }));
+  await applyExceptionTagsToSheet(taggedCells);
+}
+
+async function applyExceptionTagsToSheet(taggedCells) {
+  await Excel.run(async (context) => {
+    const worksheet = context.workbook.worksheets.getActiveWorksheet();
+
+    const comments = worksheet.comments;
+    comments.load("items");
+    await context.sync();
+
+    const commentLocations = [];
+    for (const comment of comments.items) {
+      comment.load("content");
+      const location = comment.getLocation();
+      location.load("address");
+      commentLocations.push({ comment, location });
+    }
+    await context.sync();
+
+    const existingCommentMap = new Map();
+    for (const { comment, location } of commentLocations) {
+      const addr = location.address;
+      const cellPart = addr.includes("!") ? addr.split("!")[1] : addr;
+      existingCommentMap.set(String(cellPart || "").trim().toUpperCase(), comment);
+    }
+
+    for (const rawItem of taggedCells || []) {
+      const taggedCell = normalizeTaggedCellRecord(rawItem);
+      if (!taggedCell) {
+        continue;
+      }
+      const range = worksheet.getRange(taggedCell.address);
+      range.format.fill.color = taggedCell.fill_color || EXCEPTION_TAG_FILL;
+
+      const existingComment = existingCommentMap.get(taggedCell.address);
+      const tagLine = taggedCell.comment;
+      if (existingComment) {
+        const existingContent = String(existingComment.content || "").trim();
+        existingComment.content = existingContent.includes(tagLine)
+          ? existingContent
+          : (existingContent ? `${existingContent}\n${tagLine}` : tagLine);
+      } else {
+        worksheet.comments.add(taggedCell.address, tagLine, Excel.ContentType.plain);
+      }
+    }
+
+    await context.sync();
+  });
+}
+
+async function syncTaggedCellsToBackend(exceptionId, addresses, sheetName, workbookName, taggedCells = []) {
+  const excelUserEmail = getExcelUserEmail();
+  if (!excelUserEmail) {
+    return;
+  }
+
+  const selectedPack = String(document.getElementById("testPacks")?.value || lastValidationPack || "").trim().toLowerCase();
+  const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/exceptions/apply`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Excel-User-Email": excelUserEmail,
+    },
+    body: JSON.stringify({
+      exception_id: exceptionId,
+      addresses,
+      tagged_cells: Array.isArray(taggedCells) ? taggedCells : [],
+      sheet_name: sheetName,
+      workbook_name: workbookName,
+      test_pack: selectedPack || null,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const detail = formatBackendErrorDetail(errorData?.detail) || `HTTP ${response.status}`;
+    throw new Error(detail);
+  }
+}
+
+async function reapplyTaggedCellsForScope(workbookName, sheetName) {
+  const scopedTags = getTaggedCellsForScope(workbookName, sheetName);
+  if (!scopedTags.length) {
+    return;
+  }
+  await applyExceptionTagsToSheet(scopedTags);
+}
+
+
 Office.onReady(async () => {
   initializeValidatorTabs();
 
@@ -931,11 +1847,29 @@ Office.onReady(async () => {
   document.getElementById("deleteResultsVersion")?.addEventListener("click", deleteSelectedResultsVersion);
   document.getElementById("savedVersions")?.addEventListener("change", updateActionButtons);
   document.getElementById("generateTemplate")?.addEventListener("click", generateTemplate);
+  
+  // Exception management event listeners
+  document.getElementById("applyException")?.addEventListener("click", applyExceptionToCell);
+  document.getElementById("manageExceptions")?.addEventListener("click", openExceptionModal);
+  document.getElementById("createExceptionBtn")?.addEventListener("click", createException);
+  document.getElementById("closeExceptionModalBtn")?.addEventListener("click", closeExceptionModal);
+  
+  // Close modal when clicking outside the content
+  document.getElementById("exceptionModal")?.addEventListener("click", (event) => {
+    const modal = document.getElementById("exceptionModal");
+    if (event.target === modal) {
+      closeExceptionModal();
+    }
+  });
+  
   // Restore previously saved validation results
   restoreValidationResults();
   // Initialize button states (Extract / Visualise disabled until validation run)
   await checkSavedResultsVersion();
   updateActionButtons();
+  
+  // Load exceptions on startup
+  await loadExceptions();
 });
 
 function setStatus(message, isError = false) {
@@ -1243,6 +2177,7 @@ async function clearTableFormattingAndComments() {
     lastValidationFailedTests = [];
     lastValidationPassedTests = [];
     lastValidationPassedUmrs = [];
+    lastTaggedCells = [];
     clearPersistedValidationResults();
     updateActionButtons();
 
@@ -1588,6 +2523,7 @@ async function saveResultsVersion() {
       || {};
 
     const savedData = await buildCurrentSheetDataPayload();
+    const taggedCells = getTaggedCellsForScope(workbookName, sheetName);
 
     const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/results/versions`, {
       method: "POST",
@@ -1604,6 +2540,7 @@ async function saveResultsVersion() {
         passed_umrs: passedUmrs,
         mapped_headers: mappedHeaders,
         saved_data: savedData,
+        tagged_cells: taggedCells,
       }),
     });
 
@@ -3024,6 +3961,7 @@ async function runValidation() {
     lastValidationFailedTests = Array.from(failedEntryByKey.values());
     lastValidationPassedTests = Array.from(executedTestIds).filter((testId) => !failedTestIds.has(testId)).sort();
     lastValidationPassedUmrs = Array.from(umrsInData).filter((umr) => !failedUmrs.has(umr)).sort();
+    await reapplyTaggedCellsForScope(getWorkbookName() || "__unknown_workbook__", lastValidationSourceSheetName || selectionMeta.sheetName || "__unknown_sheet__");
     persistValidationResults();
     await checkSavedResultsVersion();
     const warningText = Array.from(coverageWarnings).join(" | ");
