@@ -188,7 +188,8 @@ function renderSavedVersionsDropdown(items) {
       || item.createdAt
       || Date.now()
     );
-    option.textContent = `Version ${versionTimestamp.toLocaleString()}`;
+    const customName = String(item.version_name || item.versionName || "").trim();
+    option.textContent = customName || `Version ${versionTimestamp.toLocaleString()}`;
     select.appendChild(option);
   }
 
@@ -1191,6 +1192,117 @@ function escapeHtml(text) {
 function truncateText(text, maxLength = 16) {
   if (!text) return "";
   return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
+}
+
+function promptForReportName(defaultValue = "") {
+  return new Promise((resolve) => {
+    const existing = document.getElementById("reportNamePromptOverlay");
+    if (existing) {
+      existing.remove();
+    }
+
+    const overlay = document.createElement("div");
+    overlay.id = "reportNamePromptOverlay";
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.background = "rgba(0, 0, 0, 0.35)";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.zIndex = "99999";
+
+    const panel = document.createElement("div");
+    panel.style.background = "#ffffff";
+    panel.style.borderRadius = "10px";
+    panel.style.boxShadow = "0 10px 28px rgba(0, 0, 0, 0.22)";
+    panel.style.width = "min(380px, calc(100vw - 60px))";
+    panel.style.maxWidth = "380px";
+    panel.style.padding = "16px";
+    panel.style.fontFamily = "Segoe UI, sans-serif";
+
+    const title = document.createElement("div");
+    title.textContent = "Save report";
+    title.style.fontWeight = "600";
+    title.style.fontSize = "14px";
+    title.style.marginBottom = "10px";
+
+    const label = document.createElement("label");
+    label.textContent = "Report name";
+    label.style.display = "block";
+    label.style.fontSize = "12px";
+    label.style.marginBottom = "6px";
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = String(defaultValue || "").trim();
+    input.placeholder = "Enter report name";
+    input.style.width = "100%";
+    input.style.boxSizing = "border-box";
+    input.style.padding = "8px 10px";
+    input.style.border = "1px solid #cbd5e1";
+    input.style.borderRadius = "6px";
+    input.style.marginBottom = "12px";
+
+    const actions = document.createElement("div");
+    actions.style.display = "flex";
+    actions.style.justifyContent = "flex-end";
+    actions.style.gap = "8px";
+
+    const cancelButton = document.createElement("button");
+    cancelButton.type = "button";
+    cancelButton.textContent = "Cancel";
+    cancelButton.className = "btn-secondary";
+
+    const saveButton = document.createElement("button");
+    saveButton.type = "button";
+    saveButton.textContent = "Save";
+
+    const finish = (value) => {
+      overlay.remove();
+      resolve(value);
+    };
+
+    cancelButton.addEventListener("click", () => finish(null));
+    saveButton.addEventListener("click", () => {
+      const value = String(input.value || "").trim();
+      if (!value) {
+        input.focus();
+        return;
+      }
+      finish(value);
+    });
+
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) {
+        finish(null);
+      }
+    });
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        saveButton.click();
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        finish(null);
+      }
+    });
+
+    actions.appendChild(cancelButton);
+    actions.appendChild(saveButton);
+    panel.appendChild(title);
+    panel.appendChild(label);
+    panel.appendChild(input);
+    panel.appendChild(actions);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => {
+      input.focus();
+      input.select();
+    });
+  });
 }
 
 function splitTaggedCellsByException(exceptionId) {
@@ -2549,6 +2661,34 @@ async function saveResultsVersion() {
       throw new Error("Select a test pack before saving.");
     }
 
+    const selectedVersion = (savedVersionItems || []).find(
+      (item) => Number(item?.id || 0) === Number(document.getElementById("savedVersions")?.value || 0)
+    ) || (savedVersionItems[0] || null);
+    const fallbackTimestamp = new Date(
+      selectedVersion?.updated_at
+      || selectedVersion?.updatedAt
+      || selectedVersion?.created_at
+      || selectedVersion?.createdAt
+      || Date.now()
+    ).toLocaleString();
+    const suggestedName = String(
+      selectedVersion?.version_name
+      || selectedVersion?.versionName
+      || ""
+    ).trim() || `Report ${fallbackTimestamp}`;
+
+    const requestedName = await promptForReportName(suggestedName);
+    if (requestedName === null) {
+      setStatus("Save cancelled.");
+      return;
+    }
+
+    const versionName = String(requestedName || "").trim();
+    if (!versionName) {
+      setStatus("Save failed: report name cannot be blank.", true);
+      return;
+    }
+
     const failedTests = Array.isArray(lastValidationFailedTests)
       ? lastValidationFailedTests.map((item) => ({
           id: String(item?.id || item?.umr || ""),
@@ -2588,6 +2728,7 @@ async function saveResultsVersion() {
         mapped_headers: mappedHeaders,
         saved_data: savedData,
         tagged_cells: taggedCells,
+        version_name: versionName,
       }),
     });
 

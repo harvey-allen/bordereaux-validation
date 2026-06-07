@@ -837,12 +837,14 @@ class SaveResultsVersionRequest(BaseModel):
     mapped_headers: dict[str, str] = Field(default_factory=dict)
     saved_data: list[dict[str, Any]] = Field(default_factory=list)
     tagged_cells: list[dict[str, Any]] = Field(default_factory=list)
+    version_name: Optional[str] = None
 
 
 class SavedResultsVersionItem(BaseModel):
     id: int
     created_at: str
     updated_at: str
+    version_name: Optional[str] = None
 
 
 class SavedResultsVersionListResponse(BaseModel):
@@ -855,6 +857,7 @@ class LatestResultsVersionResponse(BaseModel):
     updated_at: str
     workbook_name: str
     sheet_name: str
+    version_name: Optional[str] = None
     results: dict[str, Any]
 
 
@@ -1038,11 +1041,16 @@ async def save_results(
             mapped_headers=payload.mapped_headers,
             saved_data=payload.saved_data,
             tagged_cells=payload.tagged_cells,
+            version_name=payload.version_name,
         )
+        saved_version_name = str(getattr(saved, "version_name", "") or "").strip() or None
+        if saved_version_name is None and isinstance(saved.results_json, dict):
+            saved_version_name = str(saved.results_json.get("version_name") or "").strip() or None
         return SavedResultsVersionItem(
             id=saved.id,
             created_at=saved.created_at.isoformat(),
             updated_at=saved.updated_at.isoformat(),
+            version_name=saved_version_name,
         )
 
 
@@ -1147,6 +1155,8 @@ async def get_result_versions(
                     id=version.id,
                     created_at=version.created_at.isoformat(),
                     updated_at=version.updated_at.isoformat(),
+                    version_name=(str(getattr(version, "version_name", "") or "").strip() or None)
+                    or ((str(version.results_json.get("version_name") or "").strip() if isinstance(version.results_json, dict) else None) or None),
                 )
             ]
         )
@@ -1184,6 +1194,8 @@ async def get_latest_results(
             updated_at=latest.updated_at.isoformat(),
             workbook_name=(workbook_name or "").strip() or "__unknown_workbook__",
             sheet_name=(sheet_name or "").strip() or "__unknown_sheet__",
+            version_name=(str(getattr(latest, "version_name", "") or "").strip() or None)
+            or ((str(latest.results_json.get("version_name") or "").strip() if isinstance(latest.results_json, dict) else None) or None),
             results=dict(latest.results_json or {}),
         )
 

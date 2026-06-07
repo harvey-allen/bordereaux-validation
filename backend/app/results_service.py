@@ -263,6 +263,7 @@ async def save_results_version(
     mapped_headers: dict[str, str] | None = None,
     saved_data: list[dict[str, Any]] | None = None,
     tagged_cells: list[dict[str, Any]] | None = None,
+    version_name: str | None = None,
 ) -> ValidationResultVersion:
     """
     Upsert one saved result per (sheet_key, test_pack).
@@ -309,11 +310,20 @@ async def save_results_version(
     version = ver_result.scalar_one_or_none()
     now = datetime.now(timezone.utc)
 
+    incoming_version_name = str(version_name or "").strip() or None
+    existing_version_name = str(getattr(version, "version_name", "") or "").strip() or None if version is not None else None
+    if existing_version_name is None and version is not None and isinstance(version.results_json, dict):
+        existing_version_name = str(version.results_json.get("version_name") or "").strip() or None
+    effective_version_name = incoming_version_name or existing_version_name
+
     if version is None:
+        if effective_version_name:
+            results_json["version_name"] = effective_version_name
         version = ValidationResultVersion(
             sheet_key_id=int(sheet_key.id),
             user_id=user_id,
             test_pack=normalized_test_pack,
+            version_name=effective_version_name,
             results_json=results_json,
             tagged_cells_json=_normalize_tagged_cells(tagged_cells),
             created_at=now,
@@ -322,10 +332,13 @@ async def save_results_version(
         session.add(version)
         await session.flush()
     else:
+        if effective_version_name:
+            results_json["version_name"] = effective_version_name
         version.results_json = results_json
         version.tagged_cells_json = _normalize_tagged_cells(tagged_cells)
         version.user_id = user_id
         version.test_pack = normalized_test_pack
+        version.version_name = effective_version_name
         version.updated_at = now
         await session.flush()
 
@@ -340,6 +353,7 @@ async def save_results_version(
         session.add(
             ValidationResultPayload(
                 validation_result_version_id=int(version.id),
+                version_name=effective_version_name,
                 mapped_headers_json=dict(mapped_headers or {}),
                 saved_data_json=list(saved_data or []),
                 created_at=now,
@@ -347,6 +361,7 @@ async def save_results_version(
             )
         )
     else:
+        payload.version_name = effective_version_name
         payload.mapped_headers_json = dict(mapped_headers or {})
         payload.saved_data_json = list(saved_data or [])
         payload.updated_at = now

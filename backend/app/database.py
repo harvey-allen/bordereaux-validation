@@ -284,6 +284,7 @@ class ValidationResultVersion(Base):
         index=True,
     )
     test_pack: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    version_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     results_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     tagged_cells_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
@@ -314,6 +315,7 @@ class ValidationResultPayload(Base):
         nullable=False,
         index=True,
     )
+    version_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     mapped_headers_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     saved_data_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
@@ -420,6 +422,10 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def init_db() -> None:
     """Initialize tables and rebuild result/run persistence schema."""
     async with engine.begin() as conn:
+        # Rebuild saved-report tables from scratch.
+        await conn.execute(text("DROP TABLE IF EXISTS validation_result_payloads CASCADE"))
+        await conn.execute(text("DROP TABLE IF EXISTS validation_result_versions CASCADE"))
+
         # Drop old per-test table and old validation_runs schema; recreate as one-row-per-run.
         await conn.execute(text("DROP TABLE IF EXISTS test_results CASCADE"))
         await conn.execute(text("DROP TABLE IF EXISTS validation_runs CASCADE"))
@@ -451,6 +457,7 @@ async def init_db() -> None:
                 CREATE TABLE IF NOT EXISTS validation_result_payloads (
                     id SERIAL PRIMARY KEY,
                     validation_result_version_id INTEGER NOT NULL UNIQUE REFERENCES validation_result_versions(id) ON DELETE CASCADE,
+                    version_name VARCHAR(255),
                     mapped_headers_json JSON NOT NULL DEFAULT '{}'::json,
                     saved_data_json JSON NOT NULL DEFAULT '[]'::json,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
