@@ -2303,75 +2303,35 @@ async function clearCommentsInRange(startRow, startCol, rowCount, columnCount) {
 }
 
 async function applyResultsToSheet(results, maxSeverityScore) {
-  await Excel.run(async (context) => {
-    const worksheet = context.workbook.worksheets.getActiveWorksheet();
+  const APPLY_BATCH_SIZE = 1000;
+  const MAX_COMMENT_LENGTH = 4000;
 
-    // Phase 1: Apply all fill colors (no sync needed between each)
-    const cellsWithFailures = [];
-    const cellsWithoutFailures = [];
+  for (let start = 0; start < results.length; start += APPLY_BATCH_SIZE) {
+    const batch = results.slice(start, start + APPLY_BATCH_SIZE);
 
-    for (const result of results) {
-      const cell = worksheet.getRange(result.address);
-      // Use severityScore for heatmap coloring (falls back to failCount for compatibility)
-      const severityScore = result.severityScore !== undefined ? result.severityScore : result.failCount;
-      const color = heatmapColor(severityScore, maxSeverityScore);
-      cell.format.fill.color = color;
+    await Excel.run(async (context) => {
+      const worksheet = context.workbook.worksheets.getActiveWorksheet();
 
-      if (result.failCount > 0) {
-        // Header issues should be highlighted but comments stay in frontend status.
-        if (result.rowIndex > 0) {
-          cellsWithFailures.push({ address: result.address, comment: result.comment });
-        } else {
-          cellsWithoutFailures.push(result.address);
+      for (const result of batch) {
+        const cell = worksheet.getRange(result.address);
+        // Use severityScore for heatmap coloring (falls back to failCount for compatibility)
+        const severityScore = result.severityScore !== undefined ? result.severityScore : result.failCount;
+        const color = heatmapColor(severityScore, maxSeverityScore);
+        cell.format.fill.color = color;
+
+        // Comments for failures only (comments are pre-cleared for the whole selected range).
+        if (result.failCount > 0 && result.rowIndex > 0) {
+          const rawComment = String(result.comment || "Validation failure");
+          const safeComment = rawComment.length > MAX_COMMENT_LENGTH
+            ? `${rawComment.slice(0, MAX_COMMENT_LENGTH - 1)}…`
+            : rawComment;
+          worksheet.comments.add(result.address, safeComment, Excel.ContentType.plain);
         }
-      } else {
-        cellsWithoutFailures.push(result.address);
       }
-    }
 
-    await context.sync();
-
-    // Phase 2: Load all existing comments once
-    const comments = worksheet.comments;
-    comments.load("items");
-    await context.sync();
-
-    // Build a map of existing comment addresses
-    const commentLocations = [];
-    for (const comment of comments.items) {
-      const location = comment.getLocation();
-      location.load("address");
-      commentLocations.push({ comment, location });
-    }
-    await context.sync();
-
-    const existingCommentMap = new Map();
-    for (const { comment, location } of commentLocations) {
-      const addr = location.address;
-      const cellPart = addr.includes("!") ? addr.split("!")[1] : addr;
-      existingCommentMap.set(cellPart, comment);
-    }
-
-    // Phase 3: Add/update comments for failed cells
-    for (const { address, comment } of cellsWithFailures) {
-      const existing = existingCommentMap.get(address);
-      if (existing) {
-        existing.content = comment;
-      } else {
-        worksheet.comments.add(address, comment, Excel.ContentType.plain);
-      }
-    }
-
-    // Phase 4: Delete comments for passing cells (already cleared at start, but just in case)
-    for (const address of cellsWithoutFailures) {
-      const existing = existingCommentMap.get(address);
-      if (existing) {
-        existing.delete();
-      }
-    }
-
-    await context.sync();
-  });
+      await context.sync();
+    });
+  }
 }
 
 async function buildFailureExportRows() {
