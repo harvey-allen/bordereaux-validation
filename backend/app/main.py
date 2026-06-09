@@ -839,7 +839,7 @@ class SaveResultsVersionRequest(BaseModel):
     mapped_headers: dict[str, str] = Field(default_factory=dict)
     saved_data: list[dict[str, Any]] = Field(default_factory=list)
     tagged_cells: list[dict[str, Any]] = Field(default_factory=list)
-    version_name: Optional[str] = None
+    version_name: Optional[str] = Field(default=None, max_length=32)
     kpis: dict[str, Any] = Field(default_factory=dict)
     summary_metrics: dict[str, Any] = Field(default_factory=dict)
 

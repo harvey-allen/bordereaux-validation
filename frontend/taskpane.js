@@ -1234,14 +1234,25 @@ function promptForReportName(defaultValue = "") {
 
     const input = document.createElement("input");
     input.type = "text";
-    input.value = String(defaultValue || "").trim();
+    input.value = String(defaultValue || "").trim().slice(0, 32);
     input.placeholder = "Enter report name";
+    input.maxLength = 32;
     input.style.width = "100%";
     input.style.boxSizing = "border-box";
     input.style.padding = "8px 10px";
     input.style.border = "1px solid #cbd5e1";
     input.style.borderRadius = "6px";
-    input.style.marginBottom = "12px";
+    input.style.marginBottom = "4px";
+
+    const charHint = document.createElement("div");
+    charHint.style.fontSize = "11px";
+    charHint.style.color = "#94a3b8";
+    charHint.style.textAlign = "right";
+    charHint.style.marginBottom = "10px";
+    charHint.textContent = `${input.value.length}/32`;
+    input.addEventListener("input", () => {
+      charHint.textContent = `${input.value.length}/32`;
+    });
 
     const actions = document.createElement("div");
     actions.style.display = "flex";
@@ -1294,6 +1305,7 @@ function promptForReportName(defaultValue = "") {
     panel.appendChild(title);
     panel.appendChild(label);
     panel.appendChild(input);
+    panel.appendChild(charHint);
     panel.appendChild(actions);
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
