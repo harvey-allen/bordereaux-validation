@@ -20,6 +20,28 @@ from app.utils.normalization import (
 class PackConfigService:
     """CRUD for pack configurations."""
 
+    async def _find_sheet_key(
+        self,
+        db: AsyncSession,
+        *,
+        organisation_id: int,
+        workbook_name: str | None,
+        sheet_name: str | None,
+        test_pack: str | None = None,
+    ) -> SheetKey | None:
+        normalized_workbook = normalize_scope_value(workbook_name, fallback=UNKNOWN_WORKBOOK)
+        normalized_sheet = normalize_scope_value(sheet_name, fallback=UNKNOWN_SHEET)
+        normalized_pack = normalize_pack_storage_value(test_pack)
+
+        result = await db.execute(
+            select(SheetKey)
+            .where(SheetKey.organisation_id == organisation_id)
+            .where(SheetKey.workbook_name == normalized_workbook)
+            .where(SheetKey.sheet_name == normalized_sheet)
+            .where(SheetKey.test_pack == normalized_pack)
+        )
+        return result.scalar_one_or_none()
+
     async def _get_or_create_sheet_key(
         self,
         db: AsyncSession,
@@ -69,13 +91,16 @@ class PackConfigService:
         sheet_name: str,
         test_pack: str,
     ) -> dict[str, Any] | None:
-        sheet_key = await self._get_or_create_sheet_key(
+        sheet_key = await self._find_sheet_key(
             db,
             organisation_id=organisation_id,
             workbook_name=workbook_name,
             sheet_name=sheet_name,
             test_pack=test_pack,
         )
+        if sheet_key is None:
+            return None
+
         result = await db.execute(
             select(PackConfiguration)
             .where(PackConfiguration.user_id == user_id)

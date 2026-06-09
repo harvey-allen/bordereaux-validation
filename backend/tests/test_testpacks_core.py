@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.testpacks.core import BaseTestPack, get_pack_name_variants, register_test
+from app.utils.normalization import normalize_pack_storage_value
 
 
 class ExamplePack(BaseTestPack):
@@ -81,3 +82,9 @@ def test_pack_name_variants_include_aliases():
     variants = get_pack_name_variants("premium")
     assert variants[0] == "risk_and_premium"
     assert set(variants[1:]) == {"premium", "bordereaux"}
+
+
+def test_normalize_pack_storage_value_collapses_aliases():
+    assert normalize_pack_storage_value("premium") == "risk_and_premium"
+    assert normalize_pack_storage_value("bordereaux") == "risk_and_premium"
+    assert normalize_pack_storage_value("risk_and_premium") == "risk_and_premium"
