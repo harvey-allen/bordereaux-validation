@@ -71,6 +71,29 @@ async def _get_or_create_sheet_key(
     return sheet_key
 
 
+async def _find_sheet_key(
+    session: AsyncSession,
+    *,
+    organisation_id: int,
+    workbook_name: str | None,
+    sheet_name: str | None,
+    test_pack: str | None = None,
+) -> SheetKey | None:
+    """Return an existing sheet key if present, without creating one."""
+    normalized_workbook = normalize_scope_value(workbook_name, fallback=UNKNOWN_WORKBOOK)
+    normalized_sheet = normalize_scope_value(sheet_name, fallback=UNKNOWN_SHEET)
+    normalized_pack = normalize_pack_storage_value(test_pack)
+
+    result = await session.execute(
+        select(SheetKey)
+        .where(SheetKey.organisation_id == organisation_id)
+        .where(SheetKey.workbook_name == normalized_workbook)
+        .where(SheetKey.sheet_name == normalized_sheet)
+        .where(SheetKey.test_pack == normalized_pack)
+    )
+    return result.scalar_one_or_none()
+
+
 # ---------------------------------------------------------------------------
 # RunSummary dataclass — presents the same attribute interface that main.py
 # previously consumed from the ValidationRun ORM model.
@@ -96,6 +119,15 @@ class RunSummary:
     tagged_cells_json: list[dict[str, Any]] = field(default_factory=list)
     user_id: int | None = None
     api_key_hash: str | None = None
+
+
+@dataclass
+class SavedVersionWithScope:
+    """Saved result version enriched with workbook/sheet scope metadata."""
+
+    version: ValidationResultVersion
+    workbook_name: str
+    sheet_name: str
 
 
 def _normalize_tagged_cells(tagged_cells: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
@@ -264,6 +296,7 @@ async def save_results_version(
     saved_data: list[dict[str, Any]] | None = None,
     tagged_cells: list[dict[str, Any]] | None = None,
     version_name: str | None = None,
+    kpis: dict[str, Any] | None = None,
 ) -> ValidationResultVersion:
     """
     Upsert one saved result per (sheet_key, test_pack).
@@ -299,6 +332,8 @@ async def save_results_version(
         "passed_tests": passed_test_list,
         "passed_ids": passed_test_list,  # legacy compatibility
         "test_pack": normalized_test_pack,
+        "KPIs": dict(kpis or {}),
+        "summary_metrics": dict(kpis or {}),
     }
 
     # Upsert ValidationResultVersion
@@ -385,19 +420,49 @@ async def get_results_version(
 ) -> ValidationResultVersion | None:
     """Return the saved result version for a sheet+pack, or None."""
     normalized_test_pack = normalize_pack_storage_value(test_pack)
-    sheet_key = await _get_or_create_sheet_key(
+    sheet_key = await _find_sheet_key(
         session,
         organisation_id=organisation_id,
         workbook_name=workbook_name,
         sheet_name=sheet_name,
         test_pack=normalized_test_pack,
     )
+    if sheet_key is None:
+        return None
     result = await session.execute(
         select(ValidationResultVersion)
         .where(ValidationResultVersion.sheet_key_id == int(sheet_key.id))
         .where(ValidationResultVersion.test_pack == normalized_test_pack)
     )
     return result.scalar_one_or_none()
+
+
+async def list_results_versions_for_pack(
+    session: AsyncSession,
+    *,
+    organisation_id: int,
+    test_pack: str,
+) -> list[SavedVersionWithScope]:
+    """Return all saved result versions for an organisation and test pack, newest first."""
+    normalized_test_pack = normalize_pack_storage_value(test_pack)
+    result = await session.execute(
+        select(ValidationResultVersion, SheetKey)
+        .join(SheetKey, ValidationResultVersion.sheet_key_id == SheetKey.id)
+        .where(SheetKey.organisation_id == organisation_id)
+        .where(ValidationResultVersion.test_pack == normalized_test_pack)
+        .order_by(desc(ValidationResultVersion.updated_at), desc(ValidationResultVersion.id))
+    )
+
+    items: list[SavedVersionWithScope] = []
+    for version, sheet_key in result.all():
+        items.append(
+            SavedVersionWithScope(
+                version=version,
+                workbook_name=sheet_key.workbook_name,
+                sheet_name=sheet_key.sheet_name,
+            )
+        )
+    return items
 
 
 async def delete_results_version(

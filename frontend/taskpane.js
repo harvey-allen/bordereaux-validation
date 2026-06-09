@@ -1959,6 +1959,7 @@ Office.onReady(async () => {
     syncPackConfigEditorWithSelectedPack();
     await hydrateSelectedPackConfigFromServer();
     await syncTerritorySelectorForSelectedPack();
+    await refreshVersionStateForActiveSheet();
     if (document.getElementById("exceptionModal")?.classList.contains("active")) {
       await loadLinkedFieldsForExceptionModal();
     }
@@ -1999,9 +2000,18 @@ Office.onReady(async () => {
   
   // Restore previously saved validation results
   restoreValidationResults();
+  try {
+    await Excel.run(async (context) => {
+      context.workbook.worksheets.onActivated.add(() => {
+        refreshVersionStateForActiveSheet().catch(() => {});
+      });
+      await context.sync();
+    });
+  } catch {
+    // Best effort only.
+  }
   // Initialize button states (Extract / Visualise disabled until validation run)
-  await checkSavedResultsVersion();
-  updateActionButtons();
+  await refreshVersionStateForActiveSheet();
   
   // Load exceptions on startup
   await loadExceptions();
@@ -2066,14 +2076,23 @@ function extractTestIdFromFailureMessage(testMessage) {
   return "";
 }
 
-async function getCurrentResultsScope() {
+async function getCurrentResultsScope(options = {}) {
+  const preferValidationSheet = Boolean(options?.preferValidationSheet);
   const workbookName = getWorkbookName() || "__unknown_workbook__";
   const activeSheetName = await getActiveSheetName();
-  const sheetName = String(lastValidationSourceSheetName || activeSheetName || "__unknown_sheet__").trim();
+  const selectedSheetName = preferValidationSheet
+    ? (lastValidationSourceSheetName || activeSheetName)
+    : activeSheetName;
+  const sheetName = String(selectedSheetName || "__unknown_sheet__").trim();
   return {
     workbookName,
     sheetName: sheetName || "__unknown_sheet__",
   };
+}
+
+async function refreshVersionStateForActiveSheet() {
+  await checkSavedResultsVersion();
+  updateActionButtons();
 }
 
 async function checkSavedResultsVersion() {
@@ -2125,9 +2144,10 @@ async function checkSavedResultsVersion() {
     const payload = await response.json().catch(() => ({}));
     const versions = Array.isArray(payload?.versions) ? payload.versions : [];
     renderSavedVersionsDropdown(versions);
-    savedResultsVersionExists = versions.length > 0;
+    const currentScopeVersion = versions.find((item) => Boolean(item?.current_scope || item?.currentScope));
+    savedResultsVersionExists = Boolean(currentScopeVersion);
     savedResultsVersionCreatedAt = savedResultsVersionExists
-      ? String(versions[0]?.updated_at || versions[0]?.updatedAt || versions[0]?.created_at || versions[0]?.createdAt || "").trim() || null
+      ? String(currentScopeVersion?.updated_at || currentScopeVersion?.updatedAt || currentScopeVersion?.created_at || currentScopeVersion?.createdAt || "").trim() || null
       : null;
     updateSavedResultsInfo();
     updateActionButtons();
@@ -2636,6 +2656,78 @@ async function extractValidationResults() {
   }
 }
 
+async function computeVisualisationKpisFromCurrentRun(exportRows) {
+  const failedUmrs = new Set((exportRows || []).map((r) => String(r.umr || "").trim()).filter(Boolean));
+  const failedFields = new Set((exportRows || []).map((r) => String(r.fieldName || "").trim()).filter(Boolean));
+  const failedTests = new Set((exportRows || []).map((r) => String(r.testId || "").trim()).filter(Boolean));
+
+  let totalSubmittedUmrs = null;
+  let totalFields = null;
+
+  try {
+    await Excel.run(async (context) => {
+      const workbook = context.workbook;
+      const worksheet = lastValidationSourceSheetName
+        ? workbook.worksheets.getItemOrNullObject(lastValidationSourceSheetName)
+        : workbook.worksheets.getActiveWorksheet();
+      worksheet.load("isNullObject");
+      await context.sync();
+      if (worksheet.isNullObject) return;
+
+      const usedRange = worksheet.getUsedRangeOrNullObject();
+      usedRange.load(["isNullObject", "values"]);
+      await context.sync();
+      if (usedRange.isNullObject) return;
+
+      const allValues = usedRange.values || [];
+      if (!allValues.length) return;
+
+      const header = allValues[0] || [];
+      totalFields = header.length || null;
+
+      const umrCol = resolveReferenceColumnIndex(header, lastValidationPack || currentPackSelection);
+      if (umrCol >= 0) {
+        const umrSet = new Set();
+        for (let i = 1; i < allValues.length; i += 1) {
+          const value = allValues[i] && allValues[i][umrCol];
+          if (value !== null && value !== undefined && String(value).trim() !== "") {
+            umrSet.add(String(value).trim());
+          }
+        }
+        totalSubmittedUmrs = umrSet.size;
+      }
+    });
+  } catch {
+    // best-effort only
+  }
+
+  const totalTests = Array.isArray(lastValidationExecutedTests) ? lastValidationExecutedTests.length : null;
+
+  const submissionsFailedPct = totalSubmittedUmrs ? ((failedUmrs.size / totalSubmittedUmrs) * 100) : null;
+  const fieldsFailedPct = totalFields ? ((failedFields.size / totalFields) * 100) : null;
+  const testsFailedPct = totalTests ? ((failedTests.size / totalTests) * 100) : null;
+  const testsPassedPct = totalTests ? ((1 - (failedTests.size / totalTests)) * 100) : null;
+
+  return {
+    submissions_failed: failedUmrs.size,
+    submissions_failed_pct: submissionsFailedPct,
+    fields_failed: failedFields.size,
+    fields_failed_pct: fieldsFailedPct,
+    tests_failed: failedTests.size,
+    tests_failed_pct: testsFailedPct,
+    tests_passed_pct: testsPassedPct,
+    total_submissions: totalSubmittedUmrs,
+    total_fields: totalFields,
+    total_tests: totalTests,
+    computed_at: new Date().toISOString(),
+    failed_sets: {
+      submissions: failedUmrs,
+      fields: failedFields,
+      tests: failedTests,
+    },
+  };
+}
+
 async function saveResultsVersion() {
   const saveButton = document.getElementById("saveResultsVersion");
   if (!Array.isArray(lastValidationResults) || lastValidationResults.length === 0) {
@@ -2654,12 +2746,20 @@ async function saveResultsVersion() {
   }
 
   try {
-    const isUpdate = savedResultsVersionExists;
-    const { workbookName, sheetName } = await getCurrentResultsScope();
+    const activeSheetName = await getActiveSheetName();
+    if (activeSheetName && lastValidationSourceSheetName && activeSheetName !== lastValidationSourceSheetName) {
+      setStatus("Please run validation on the active sheet before saving a version.", true);
+      return;
+    }
+
+    const { workbookName, sheetName } = await getCurrentResultsScope({ preferValidationSheet: true });
     const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
     if (!selectedPack) {
       throw new Error("Select a test pack before saving.");
     }
+
+    await checkSavedResultsVersion();
+    const isUpdate = savedResultsVersionExists;
 
     const selectedVersion = (savedVersionItems || []).find(
       (item) => Number(item?.id || 0) === Number(document.getElementById("savedVersions")?.value || 0)
@@ -2711,6 +2811,21 @@ async function saveResultsVersion() {
 
     const savedData = await buildCurrentSheetDataPayload();
     const taggedCells = getTaggedCellsForScope(workbookName, sheetName);
+    const exportRows = await buildFailureExportRows();
+    const computedKpis = await computeVisualisationKpisFromCurrentRun(exportRows);
+    const kpisForSave = {
+      submissions_failed: computedKpis.submissions_failed,
+      submissions_failed_pct: computedKpis.submissions_failed_pct,
+      fields_failed: computedKpis.fields_failed,
+      fields_failed_pct: computedKpis.fields_failed_pct,
+      tests_failed: computedKpis.tests_failed,
+      tests_failed_pct: computedKpis.tests_failed_pct,
+      tests_passed_pct: computedKpis.tests_passed_pct,
+      total_submissions: computedKpis.total_submissions,
+      total_fields: computedKpis.total_fields,
+      total_tests: computedKpis.total_tests,
+      computed_at: computedKpis.computed_at,
+    };
 
     const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/results/versions`, {
       method: "POST",
@@ -2729,6 +2844,8 @@ async function saveResultsVersion() {
         saved_data: savedData,
         tagged_cells: taggedCells,
         version_name: versionName,
+        kpis: kpisForSave,
+        summary_metrics: kpisForSave,
       }),
     });
 
@@ -2812,57 +2929,140 @@ async function visualiseValidationResults() {
     setStatus("Preparing front-end visualisation...");
     const exportRows = await buildFailureExportRows();
 
-    // Compute simple KPIs from exportRows (no Excel sheet interaction)
-    const failedUmrs = new Set(exportRows.map((r) => String(r.umr || "").trim()).filter(Boolean));
-    const failedFields = new Set(exportRows.map((r) => String(r.fieldName || "").trim()).filter(Boolean));
-    const failedTests = new Set(exportRows.map((r) => String(r.testId || "").trim()).filter(Boolean));
-
-    let totalSubmittedUmrs = null; // attempt to read totals from source sheet
-    let totalFields = null;
-    try {
-      await Excel.run(async (context) => {
-        const workbook = context.workbook;
-        const worksheet = lastValidationSourceSheetName
-          ? workbook.worksheets.getItemOrNullObject(lastValidationSourceSheetName)
-          : workbook.worksheets.getActiveWorksheet();
-        worksheet.load('isNullObject');
-        await context.sync();
-        if (worksheet.isNullObject) return;
-        const usedRange = worksheet.getUsedRangeOrNullObject();
-        usedRange.load(['isNullObject', 'values']);
-        await context.sync();
-        if (usedRange.isNullObject) return;
-        const allValues = usedRange.values || [];
-        if (!allValues || allValues.length === 0) return;
-        const header = allValues[0] || [];
-        totalFields = header.length || null;
-        const umrCol = resolveReferenceColumnIndex(header, currentPackSelection);
-        if (umrCol >= 0) {
-          const umrSet = new Set();
-          for (let i = 1; i < allValues.length; i++) {
-            const v = allValues[i] && allValues[i][umrCol];
-            if (v !== null && v !== undefined && String(v).trim() !== '') umrSet.add(String(v).trim());
-          }
-          totalSubmittedUmrs = umrSet.size;
-        }
-      });
-    } catch (e) {
-      // best-effort only; leave totals as null if reading fails
-    }
-    const totalTests = Array.isArray(lastValidationExecutedTests) ? lastValidationExecutedTests.length : null;
+    const computedKpis = await computeVisualisationKpisFromCurrentRun(exportRows);
+    const failedUmrs = computedKpis.failed_sets?.submissions || new Set();
+    const failedFields = computedKpis.failed_sets?.fields || new Set();
+    const failedTests = computedKpis.failed_sets?.tests || new Set();
+    const totalSubmittedUmrs = computedKpis.total_submissions;
+    const totalFields = computedKpis.total_fields;
+    const totalTests = computedKpis.total_tests;
 
     const formatPercent = (numerator, denominator) => {
       if (!denominator) return "N/A";
       return `${((numerator / denominator) * 100).toFixed(1)}%`;
     };
 
+    const currentKpiValues = {
+      submissions_failed: computedKpis.submissions_failed,
+      submissions_failed_pct: computedKpis.submissions_failed_pct,
+      fields_failed: computedKpis.fields_failed,
+      fields_failed_pct: computedKpis.fields_failed_pct,
+      tests_failed: computedKpis.tests_failed,
+      tests_failed_pct: computedKpis.tests_failed_pct,
+      tests_passed_pct: computedKpis.tests_passed_pct,
+      total_submissions: computedKpis.total_submissions,
+      total_fields: computedKpis.total_fields,
+      total_tests: computedKpis.total_tests,
+    };
+
+    let previousVersionSummary = null;
+    let trendSeries = [];
+
+    try {
+      const excelUserEmail = getExcelUserEmail();
+      const selectedPack = String(lastValidationPack || document.getElementById("testPacks")?.value || "").trim().toLowerCase();
+      if (excelUserEmail && selectedPack) {
+        const { workbookName, sheetName } = await getCurrentResultsScope();
+        const comparisonQuery = new URLSearchParams({
+          workbook_name: workbookName,
+          sheet_name: sheetName,
+          test_pack: selectedPack,
+        });
+
+        const comparisonResponse = await fetch(`${CONFIG.BACKEND_URL}/api/v1/results/versions/comparison?${comparisonQuery.toString()}`, {
+          method: "GET",
+          headers: {
+            "X-Excel-User-Email": excelUserEmail,
+          },
+          cache: "no-store",
+        });
+
+        if (comparisonResponse.ok) {
+          const comparisonPayload = await comparisonResponse.json().catch(() => ({}));
+          previousVersionSummary = comparisonPayload?.previous_version || null;
+          trendSeries = Array.isArray(comparisonPayload?.trend) ? comparisonPayload.trend : [];
+        }
+      }
+    } catch {
+      // best-effort only
+    }
+
+    if (trendSeries.length > 0 && Number.isFinite(currentKpiValues.tests_passed_pct)) {
+      trendSeries = [
+        ...trendSeries,
+        {
+          id: "current",
+          version_name: "Current",
+          workbook_name: "Current",
+          sheet_name: "Current worksheet",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          test_passed_pct: currentKpiValues.tests_passed_pct,
+          submissions_failed_pct: currentKpiValues.submissions_failed_pct,
+          fields_failed_pct: currentKpiValues.fields_failed_pct,
+          is_current: true,
+        },
+      ];
+    }
+
+    const previousKpis = previousVersionSummary?.kpis || null;
+    const buildDelta = (currentValue, previousValue, isPercent) => {
+      if (!Number.isFinite(currentValue) || !Number.isFinite(previousValue)) {
+        return null;
+      }
+      const delta = currentValue - previousValue;
+      if (Math.abs(delta) < 0.0001) {
+        return { label: "No change", tone: "neutral" };
+      }
+      if (isPercent) {
+        return {
+          label: `${delta > 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}%`,
+          tone: delta > 0 ? "up" : "down",
+        };
+      }
+      return {
+        label: `${delta > 0 ? "▲" : "▼"} ${Math.abs(Math.round(delta))}`,
+        tone: delta > 0 ? "up" : "down",
+      };
+    };
+
     const kpis = [
-      { title: "Submissions Failed", value: String(failedUmrs.size) },
-      { title: "Submissions Failed %", value: formatPercent(failedUmrs.size, totalSubmittedUmrs) },
-      { title: "Fields Failed", value: String(failedFields.size) },
-      { title: "Fields Failed %", value: formatPercent(failedFields.size, totalFields) },
-      { title: "Tests Failed", value: String(failedTests.size) },
-      { title: "Tests Failed %", value: formatPercent(failedTests.size, totalTests) },
+      {
+        key: "submissions_failed",
+        title: "Submissions Failed",
+        value: String(failedUmrs.size),
+        delta: buildDelta(currentKpiValues.submissions_failed, Number(previousKpis?.submissions_failed), false),
+      },
+      {
+        key: "submissions_failed_pct",
+        title: "Submissions Failed %",
+        value: formatPercent(failedUmrs.size, totalSubmittedUmrs),
+        delta: buildDelta(currentKpiValues.submissions_failed_pct, Number(previousKpis?.submissions_failed_pct), true),
+      },
+      {
+        key: "fields_failed",
+        title: "Fields Failed",
+        value: String(failedFields.size),
+        delta: buildDelta(currentKpiValues.fields_failed, Number(previousKpis?.fields_failed), false),
+      },
+      {
+        key: "fields_failed_pct",
+        title: "Fields Failed %",
+        value: formatPercent(failedFields.size, totalFields),
+        delta: buildDelta(currentKpiValues.fields_failed_pct, Number(previousKpis?.fields_failed_pct), true),
+      },
+      {
+        key: "tests_failed",
+        title: "Tests Failed",
+        value: String(failedTests.size),
+        delta: buildDelta(currentKpiValues.tests_failed, Number(previousKpis?.tests_failed), false),
+      },
+      {
+        key: "tests_failed_pct",
+        title: "Tests Failed %",
+        value: formatPercent(failedTests.size, totalTests),
+        delta: buildDelta(currentKpiValues.tests_failed_pct, Number(previousKpis?.tests_failed_pct), true),
+      },
     ];
 
     const getKpiAccent = (kpi) => {
@@ -2925,6 +3125,18 @@ async function visualiseValidationResults() {
       exceptionId: r.exceptionId || '',
       description: r.description || ''
     })));
+    const trendJson = safeJson(trendSeries.map((item) => ({
+      id: item.id,
+      version_name: item.version_name,
+      workbook_name: item.workbook_name,
+      sheet_name: item.sheet_name,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      test_passed_pct: item.test_passed_pct,
+      submissions_failed_pct: item.submissions_failed_pct,
+      fields_failed_pct: item.fields_failed_pct,
+      is_current: Boolean(item.is_current),
+    })));
 
     // Generate Sankey PNG base64 for embedding (stable rendering path)
     let sankeyBase64 = null;
@@ -2945,6 +3157,9 @@ async function visualiseValidationResults() {
 
     const nowStr = new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
     const packLabel = formatPackLabel(lastValidationPack || currentPackSelection || "Unknown");
+    const previousVersionLabel = previousVersionSummary
+      ? String(previousVersionSummary.version_name || `${previousVersionSummary.workbook_name} / ${previousVersionSummary.sheet_name}`).trim()
+      : "None";
 
     const html = `<!doctype html>
 <html lang="en">
@@ -3012,6 +3227,10 @@ async function visualiseValidationResults() {
     .stat-label { font-size:11px; font-weight:600; color:var(--text-2); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
     .stat-value { font-size:28px; font-weight:700; line-height:1; letter-spacing:-.5px; color:var(--text-1); }
     .stat-sub { font-size:11px; color:var(--text-3); margin-top:5px; }
+    .stat-delta { margin-top:8px; font-size:11px; font-weight:600; }
+    .stat-delta.up { color:#b91c1c; }
+    .stat-delta.down { color:#15803d; }
+    .stat-delta.neutral { color:var(--text-3); }
 
     /* ── Panels ── */
     .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:16px; }
@@ -3076,6 +3295,10 @@ async function visualiseValidationResults() {
     .pg-btn:hover:not(:disabled) { background:#f0f2f5; }
     .pg-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
     .pg-btn:disabled { opacity:.4; cursor:default; }
+
+    .sparkline-wrap { width:100%; margin:0; min-height:0; }
+    .sparkline-empty { text-align:center; color:var(--text-3); padding:24px 0; }
+    .sparkline-svg { display:block; width:100%; height:auto; }
   </style>
 </head>
 <body>
@@ -3091,6 +3314,7 @@ async function visualiseValidationResults() {
   <span class="nav-meta">Pack: <strong style="color:#fff">${escapeHtml(packLabel)}</strong></span>
   <div class="nav-divider"></div>
   <span class="nav-meta">${escapeHtml(nowStr)}</span>
+  <span class="nav-badge">Previous: ${escapeHtml(previousVersionLabel)}</span>
   <span class="nav-badge">${exportRows.length} failure rows</span>
 </nav>
 
@@ -3108,15 +3332,19 @@ async function visualiseValidationResults() {
     ${kpis.map((k,i)=>{
       const accent = getKpiAccent(k);
       const sub = getKpiSub(k);
-      return `<div class="stat-card ${accent}"><div class="stat-label">${escapeHtml(k.title)}</div><div class="stat-value">${escapeHtml(k.value)}</div><div class="stat-sub">${sub}</div></div>`;
+      const delta = k?.delta || null;
+      const deltaHtml = delta
+        ? `<div class="stat-delta ${escapeHtml(delta.tone || 'neutral')}">${escapeHtml(delta.label || 'No change')} vs previous run</div>`
+        : `<div class="stat-delta neutral">No previous run comparison</div>`;
+      return `<div class="stat-card ${accent}"><div class="stat-label">${escapeHtml(k.title)}</div><div class="stat-value">${escapeHtml(k.value)}</div><div class="stat-sub">${sub}</div>${deltaHtml}</div>`;
     }).join('')}
   </div>
 
   <!-- Flow diagram -->
   ${sankeyBase64 ? `
-  <div class="panel" style="margin-bottom:16px">
+  <div class="panel" id="trend-panel" style="margin-bottom:16px">
     <div class="panel-header">
-      <div><div class="panel-title">Test Flow Overview</div><div class="panel-subtitle">Test flow representing the outcomes of the validation run</div></div>
+      <div><div class="panel-title">Test Flow Overview</div><div class="panel-subtitle">Test flow representing the outcomes of the validation run from source to result</div></div>
     </div>
     <div class="panel-body" style="padding:12px 18px 18px;background:#fff">
       <div class="sankey-wrap">
@@ -3130,7 +3358,7 @@ async function visualiseValidationResults() {
     <div class="panel-header">
       <div>
         <div class="panel-title">Top Failure Breakdown</div>
-        <div class="panel-subtitle">Top 10 by failure count, split by severity</div>
+        <div class="panel-subtitle">Top 10 by failure count on a test, field and submission level (broken down by severity)</div>
       </div>
       <div class="tab-group" id="bar-controls"></div>
     </div>
@@ -3139,12 +3367,21 @@ async function visualiseValidationResults() {
     </div>
   </div>
 
+  <div class="panel" style="margin-bottom:16px">
+    <div class="panel-header">
+      <div><div class="panel-title">Historic Test Pass Rate</div><div class="panel-subtitle">The test pass rate over time for saved report versions associated with the current test pack</div></div>
+    </div>
+    <div class="panel-body" style="padding:0 0 2px;">
+      <div class="sparkline-wrap" id="trend-chart"></div>
+    </div>
+  </div>
+
   <!-- Failure detail table -->
   <div class="panel">
     <div class="panel-header">
       <div>
         <div class="panel-title">Failure Detail</div>
-        <div class="panel-subtitle">Complete failure analysis</div>
+        <div class="panel-subtitle">Complete failure analysis for full transparency into each validation failure</div>
       </div>
       <span style="font-size:12px;color:var(--text-3)">${exportRows.length} rows</span>
     </div>
@@ -3171,7 +3408,144 @@ async function visualiseValidationResults() {
 <script>
 (function(){
   const datasets = ${datasetsJson};
+  const trendRows = ${trendJson};
   const labels = { test: 'Test', trade: 'Field', umr: 'Submission' };
+
+  function renderTrendChart() {
+    const container = document.getElementById('trend-chart');
+    const panel = document.getElementById('trend-panel');
+    if (!container) return;
+    const rows = (trendRows || [])
+      .map((row) => ({
+        date: new Date(row.created_at || row.updated_at || Date.now()),
+        testPassedPct: Number(row.test_passed_pct),
+        submissionsPassedPct: Number.isFinite(Number(row.submissions_failed_pct))
+          ? (100 - Number(row.submissions_failed_pct))
+          : Number.NaN,
+        fieldsPassedPct: Number.isFinite(Number(row.fields_failed_pct))
+          ? (100 - Number(row.fields_failed_pct))
+          : Number.NaN,
+        versionName: String(row.version_name || "").trim(),
+        workbook: String(row.workbook_name || ''),
+        sheet: String(row.sheet_name || ''),
+        isCurrent: Boolean(row.is_current),
+      }))
+      .filter((row) => {
+        const hasAnyMetric = Number.isFinite(row.testPassedPct)
+          || Number.isFinite(row.submissionsPassedPct)
+          || Number.isFinite(row.fieldsPassedPct);
+        return hasAnyMetric && row.date instanceof Date && !Number.isNaN(row.date.getTime());
+      })
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    if (rows.length <= 2) {
+      if (panel) panel.style.display = 'none';
+      return;
+    }
+
+    if (panel) panel.style.display = '';
+
+    const visibleRows = rows
+      .slice()
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, 5)
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    if (!visibleRows.length) {
+      container.innerHTML = '<div class="sparkline-empty">No saved historical pass-rate data available.</div>';
+      return;
+    }
+
+    const width = 1200;
+    const height = 320;
+    const pad = { top: 40, right: 40, bottom: 64, left: 60 };
+    const pointCount = visibleRows.length;
+    const xSpan = Math.max(1, width - pad.left - pad.right);
+
+    const xForIndex = (index) => {
+      if (pointCount <= 1) {
+        return pad.left + (xSpan / 2);
+      }
+      return pad.left + ((index / (pointCount - 1)) * xSpan);
+    };
+
+    const xFor = (row) => xForIndex(visibleRows.indexOf(row));
+    const yFor = (value) => pad.top + ((100 - value) / 100) * (height - pad.top - pad.bottom);
+    const escapeSvgText = (value) => String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    const buildSeriesRows = (metricKey) => visibleRows.filter((row) => Number.isFinite(row[metricKey]));
+    const buildSeriesPoints = (metricKey) => buildSeriesRows(metricKey)
+      .map((row) => xFor(row).toFixed(2) + ',' + yFor(row[metricKey]).toFixed(2))
+      .join(' ');
+
+    const testPoints = buildSeriesPoints('testPassedPct');
+    const submissionPoints = buildSeriesPoints('submissionsPassedPct');
+    const fieldPoints = buildSeriesPoints('fieldsPassedPct');
+
+    const yTicks = [0, 25, 50, 75, 100];
+    const tickLines = yTicks.map((tick) => {
+      const y = yFor(tick).toFixed(2);
+      return '<line x1="' + pad.left + '" y1="' + y + '" x2="' + (width - pad.right) + '" y2="' + y + '" stroke="#eef1f5" />' +
+        '<text x="' + (pad.left - 8) + '" y="' + (Number(y) + 4) + '" text-anchor="end" fill="#8a92a6" font-size="10">' + tick + '%</text>';
+    }).join('');
+
+    const verticalLines = visibleRows.map((row, index) => {
+      const x = xForIndex(index).toFixed(2);
+      return '<line x1="' + x + '" y1="' + pad.top + '" x2="' + x + '" y2="' + (height - pad.bottom) + '" stroke="#f1f5f9" />';
+    }).join('');
+
+    const xAxisLabels = visibleRows.map((row, index) => {
+      const x = xForIndex(index).toFixed(2);
+      const rawLabel = String(row.versionName || ('Version ' + (index + 1))).trim();
+      const shortLabel = rawLabel.length > 14 ? (rawLabel.slice(0, 13) + '…') : rawLabel;
+      return '<text x="' + x + '" y="' + (height - pad.bottom + 26) + '" text-anchor="middle" fill="#8a92a6" font-size="10"><title>' + escapeSvgText(rawLabel) + '</title>' + escapeSvgText(shortLabel) + '</text>';
+    }).join('');
+
+    const buildCircles = (metricKey, color, seriesLabel) => buildSeriesRows(metricKey).map((row) => {
+      const x = xFor(row).toFixed(2);
+      const y = yFor(row[metricKey]).toFixed(2);
+      const versionLabel = row.versionName || 'Unnamed version';
+      const tip = (seriesLabel + ' • ' + versionLabel + ' • ' + row.date.toLocaleString('en-GB') + ' • ' + row[metricKey].toFixed(1) + '% • ' + row.workbook + ' / ' + row.sheet).replace(/"/g, '&quot;');
+      const radius = row.isCurrent ? '5' : '3.5';
+      const fill = row.isCurrent ? '#6b7280' : color;
+      return '<circle cx="' + x + '" cy="' + y + '" r="' + radius + '" fill="' + fill + '"><title>' + tip + '</title></circle>';
+    }).join('');
+
+    const circles = [
+      buildCircles('testPassedPct', '#4f6ef7', 'Tests passed %'),
+      buildCircles('submissionsPassedPct', '#ef4444', 'Submissions passed %'),
+      buildCircles('fieldsPassedPct', '#f59e0b', 'Fields passed %'),
+    ].join('');
+
+    const linePaths = [
+      testPoints ? '<polyline fill="none" stroke="#4f6ef7" stroke-width="2.5" points="' + testPoints + '" />' : '',
+      submissionPoints ? '<polyline fill="none" stroke="#ef4444" stroke-width="2.2" points="' + submissionPoints + '" />' : '',
+      fieldPoints ? '<polyline fill="none" stroke="#f59e0b" stroke-width="2.2" points="' + fieldPoints + '" />' : '',
+    ].join('');
+
+    const legend =
+      '<g transform="translate(20,0)">' +
+        '<line x1="8" y1="14" x2="28" y2="14" stroke="#4f6ef7" stroke-width="2.5" />' +
+        '<text x="32" y="17" fill="#5a6072" font-size="10">Tests passed %</text>' +
+        '<line x1="130" y1="14" x2="150" y2="14" stroke="#ef4444" stroke-width="2.2" />' +
+        '<text x="154" y="17" fill="#5a6072" font-size="10">Submissions passed %</text>' +
+        '<line x1="300" y1="14" x2="320" y2="14" stroke="#f59e0b" stroke-width="2.2" />' +
+        '<text x="324" y="17" fill="#5a6072" font-size="10">Fields passed %</text>' +
+      '</g>';
+
+    container.innerHTML =
+      '<svg class="sparkline-svg" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="Pass percentages over time">' +
+        legend +
+        verticalLines +
+        tickLines +
+        linePaths +
+        circles +
+        xAxisLabels +
+      '</svg>';
+  }
 
   function renderBars(key) {
     const rows = datasets[key] || [];
@@ -3315,6 +3689,7 @@ async function visualiseValidationResults() {
   function init() {
     if (initialized) return;
     initialized = true;
+    renderTrendChart();
     setupControls();
     setupTable();
   }
