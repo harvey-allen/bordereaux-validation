@@ -26,7 +26,7 @@
       body {
         font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         margin: 0;
-        padding: 14px;
+        padding: 14px 14px 64px;
         color: var(--text);
         background: linear-gradient(180deg, #f7faff 0%, #f4f8fc 100%);
       }
@@ -195,8 +195,15 @@
         padding: 8px 10px;
         border-radius: 8px;
         background: var(--surface-muted);
-        border: 1px dashed var(--border);
+        border: 1px solid var(--border);
         min-height: 34px;
+        position: fixed;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(calc(100% - 50px), 900px);
+        z-index: 100;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.1);
       }
 
       .section-title {
@@ -420,8 +427,6 @@
           <button id="applyException" class="btn-secondary">Apply Exception</button>
           <button id="manageExceptions" class="btn-secondary">Manage Exceptions</button>
         </div>
-
-        <div class="status" id="status"></div>
       </section>
 
       <section id="panelAnalysis" class="tab-panel panel-card" role="tabpanel" aria-labelledby="tabAnalysis">
@@ -437,6 +442,8 @@
           <button id="deleteResultsVersion" class="btn-secondary">Delete Report</button>
         </div>
       </section>
+
+      <div class="status" id="status"></div>
     </div>
 
     <!-- Exception Management Modal -->

@@ -18,6 +18,7 @@ from app.auth import (
 )
 from app.testpacks.core import TEST_PACKS, BaseTestPack, get_pack_name_variants, normalize_pack_name
 from app.validation import get_pack_territories, get_pack_mandatory_fields, validate_grid_with_packs_report
+from app.utils.normalization import UNKNOWN_SHEET, UNKNOWN_WORKBOOK, normalize_scope_value
 
 # Load environment variables
 load_dotenv()
@@ -32,6 +33,7 @@ try:
         delete_results_version,
         get_or_create_sheet_key,
         get_results_version,
+        list_results_versions_for_pack,
         remove_exception_tags_from_results,
         get_test_statistics,
         get_validation_history,
@@ -837,7 +839,9 @@ class SaveResultsVersionRequest(BaseModel):
     mapped_headers: dict[str, str] = Field(default_factory=dict)
     saved_data: list[dict[str, Any]] = Field(default_factory=list)
     tagged_cells: list[dict[str, Any]] = Field(default_factory=list)
-    version_name: Optional[str] = None
+    version_name: Optional[str] = Field(default=None, max_length=32)
+    kpis: dict[str, Any] = Field(default_factory=dict)
+    summary_metrics: dict[str, Any] = Field(default_factory=dict)
 
 
 class SavedResultsVersionItem(BaseModel):
@@ -845,6 +849,9 @@ class SavedResultsVersionItem(BaseModel):
     created_at: str
     updated_at: str
     version_name: Optional[str] = None
+    workbook_name: Optional[str] = None
+    sheet_name: Optional[str] = None
+    current_scope: bool = False
 
 
 class SavedResultsVersionListResponse(BaseModel):
@@ -859,6 +866,148 @@ class LatestResultsVersionResponse(BaseModel):
     sheet_name: str
     version_name: Optional[str] = None
     results: dict[str, Any]
+
+
+class VersionKpiSummary(BaseModel):
+    submissions_failed: int
+    submissions_failed_pct: Optional[float] = None
+    fields_failed: Optional[int] = None
+    fields_failed_pct: Optional[float] = None
+    tests_failed: int
+    tests_failed_pct: Optional[float] = None
+    tests_passed_pct: Optional[float] = None
+
+
+class PreviousVersionSummary(BaseModel):
+    id: int
+    workbook_name: str
+    sheet_name: str
+    created_at: str
+    updated_at: str
+    version_name: Optional[str] = None
+    kpis: VersionKpiSummary
+
+
+class VersionTrendPoint(BaseModel):
+    id: int
+    workbook_name: str
+    sheet_name: str
+    created_at: str
+    updated_at: str
+    version_name: Optional[str] = None
+    test_passed_pct: Optional[float] = None
+    submissions_failed_pct: Optional[float] = None
+    fields_failed_pct: Optional[float] = None
+
+
+class VersionComparisonResponse(BaseModel):
+    previous_version: Optional[PreviousVersionSummary] = None
+    trend: list[VersionTrendPoint] = Field(default_factory=list)
+
+
+def _to_int(value: Any) -> Optional[int]:
+    try:
+        if value is None:
+            return None
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_float(value: Any) -> Optional[float]:
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_version_kpis(results_json: dict[str, Any]) -> VersionKpiSummary:
+    kpis_from_json = results_json.get("KPIs") if isinstance(results_json, dict) else {}
+    if not isinstance(kpis_from_json, dict):
+        kpis_from_json = {}
+
+    summary_metrics = results_json.get("summary_metrics") if isinstance(results_json, dict) else {}
+    if not isinstance(summary_metrics, dict):
+        summary_metrics = {}
+
+    failed_items = results_json.get("failed") if isinstance(results_json, dict) else []
+    failed_items = failed_items if isinstance(failed_items, list) else []
+    passed_tests = results_json.get("passed_tests") if isinstance(results_json, dict) else []
+    passed_tests = passed_tests if isinstance(passed_tests, list) else []
+    passed_umrs = results_json.get("passed_umrs") if isinstance(results_json, dict) else []
+    passed_umrs = passed_umrs if isinstance(passed_umrs, list) else []
+
+    failed_submission_ids: set[str] = set()
+    failed_test_ids: set[str] = set()
+    for item in failed_items:
+        if not isinstance(item, dict):
+            continue
+        row_id = str(item.get("id") or item.get("umr") or "").strip()
+        if row_id:
+            failed_submission_ids.add(row_id)
+        for test_id in (item.get("tests") or []):
+            text_id = str(test_id or "").strip()
+            if text_id:
+                failed_test_ids.add(text_id)
+
+    submissions_failed = len(failed_submission_ids)
+    tests_failed = len(failed_test_ids)
+
+    submissions_failed = _to_int(kpis_from_json.get("submissions_failed")) if kpis_from_json else submissions_failed
+    if submissions_failed is None:
+        submissions_failed = len(failed_submission_ids)
+
+    tests_failed = _to_int(kpis_from_json.get("tests_failed")) if kpis_from_json else tests_failed
+    if tests_failed is None:
+        tests_failed = len(failed_test_ids)
+
+    total_submissions = _to_int(kpis_from_json.get("total_submissions"))
+    if total_submissions is None:
+        total_submissions = _to_int(summary_metrics.get("total_submissions"))
+    if total_submissions is None:
+        total_submissions = len(failed_submission_ids.union({str(v).strip() for v in passed_umrs if str(v).strip()}))
+
+    total_tests = _to_int(kpis_from_json.get("total_tests"))
+    if total_tests is None:
+        total_tests = _to_int(summary_metrics.get("total_tests"))
+    if total_tests is None:
+        total_tests = len(failed_test_ids.union({str(v).strip() for v in passed_tests if str(v).strip()}))
+
+    submissions_failed_pct = _to_float(kpis_from_json.get("submissions_failed_pct"))
+    if submissions_failed_pct is None:
+        submissions_failed_pct = ((submissions_failed / total_submissions) * 100) if total_submissions else None
+
+    tests_failed_pct = _to_float(kpis_from_json.get("tests_failed_pct"))
+    if tests_failed_pct is None:
+        tests_failed_pct = ((tests_failed / total_tests) * 100) if total_tests else None
+
+    tests_passed_pct = _to_float(kpis_from_json.get("tests_passed_pct"))
+    if tests_passed_pct is None:
+        tests_passed_pct = ((1 - (tests_failed / total_tests)) * 100) if total_tests else None
+
+    fields_failed = _to_int(kpis_from_json.get("fields_failed"))
+    if fields_failed is None:
+        fields_failed = _to_int(summary_metrics.get("fields_failed"))
+
+    total_fields = _to_int(kpis_from_json.get("total_fields"))
+    if total_fields is None:
+        total_fields = _to_int(summary_metrics.get("total_fields"))
+
+    fields_failed_pct = _to_float(kpis_from_json.get("fields_failed_pct"))
+    if fields_failed_pct is None:
+        fields_failed_pct = ((fields_failed / total_fields) * 100) if fields_failed is not None and total_fields else None
+
+    return VersionKpiSummary(
+        submissions_failed=submissions_failed,
+        submissions_failed_pct=submissions_failed_pct,
+        fields_failed=fields_failed,
+        fields_failed_pct=fields_failed_pct,
+        tests_failed=tests_failed,
+        tests_failed_pct=tests_failed_pct,
+        tests_passed_pct=tests_passed_pct,
+    )
 
 
 @app.get("/api/v1/history", response_model=ValidationHistoryResponse)
@@ -1042,6 +1191,7 @@ async def save_results(
             saved_data=payload.saved_data,
             tagged_cells=payload.tagged_cells,
             version_name=payload.version_name,
+            kpis=dict(payload.kpis or payload.summary_metrics or {}),
         )
         saved_version_name = str(getattr(saved, "version_name", "") or "").strip() or None
         if saved_version_name is None and isinstance(saved.results_json, dict):
@@ -1139,27 +1289,46 @@ async def get_result_versions(
         if not normalized_pack:
             raise HTTPException(status_code=400, detail="test_pack is required")
 
-        version = await get_results_version(
+        current_workbook = normalize_scope_value(workbook_name, fallback=UNKNOWN_WORKBOOK)
+        current_sheet = normalize_scope_value(sheet_name, fallback=UNKNOWN_SHEET)
+
+        versions_with_scope = await list_results_versions_for_pack(
             session,
             organisation_id=organisation_id,
-            workbook_name=workbook_name,
-            sheet_name=sheet_name,
             test_pack=normalized_pack,
         )
-        if version is None:
-            return SavedResultsVersionListResponse(versions=[])
-        
-        return SavedResultsVersionListResponse(
-            versions=[
+
+        items: list[SavedResultsVersionItem] = []
+        for entry in versions_with_scope:
+            version = entry.version
+            version_name = (str(getattr(version, "version_name", "") or "").strip() or None)
+            if version_name is None and isinstance(version.results_json, dict):
+                version_name = str(version.results_json.get("version_name") or "").strip() or None
+
+            is_current_scope = (
+                str(entry.workbook_name or "").strip() == current_workbook
+                and str(entry.sheet_name or "").strip() == current_sheet
+            )
+
+            items.append(
                 SavedResultsVersionItem(
                     id=version.id,
                     created_at=version.created_at.isoformat(),
                     updated_at=version.updated_at.isoformat(),
-                    version_name=(str(getattr(version, "version_name", "") or "").strip() or None)
-                    or ((str(version.results_json.get("version_name") or "").strip() if isinstance(version.results_json, dict) else None) or None),
+                    version_name=version_name,
+                    workbook_name=entry.workbook_name,
+                    sheet_name=entry.sheet_name,
+                    current_scope=is_current_scope,
                 )
-            ]
-        )
+            )
+
+        items.sort(key=lambda item: (0 if item.current_scope else 1, item.updated_at), reverse=False)
+        current_items = [item for item in items if item.current_scope]
+        other_items = [item for item in items if not item.current_scope]
+        current_items.sort(key=lambda item: item.updated_at, reverse=True)
+        other_items.sort(key=lambda item: item.updated_at, reverse=True)
+
+        return SavedResultsVersionListResponse(versions=[*current_items, *other_items])
 
 
 @app.get("/api/v1/results/latest", response_model=LatestResultsVersionResponse)
@@ -1192,12 +1361,80 @@ async def get_latest_results(
             id=latest.id,
             created_at=latest.created_at.isoformat(),
             updated_at=latest.updated_at.isoformat(),
-            workbook_name=(workbook_name or "").strip() or "__unknown_workbook__",
-            sheet_name=(sheet_name or "").strip() or "__unknown_sheet__",
+            workbook_name=normalize_scope_value(workbook_name, fallback=UNKNOWN_WORKBOOK),
+            sheet_name=normalize_scope_value(sheet_name, fallback=UNKNOWN_SHEET),
             version_name=(str(getattr(latest, "version_name", "") or "").strip() or None)
             or ((str(latest.results_json.get("version_name") or "").strip() if isinstance(latest.results_json, dict) else None) or None),
             results=dict(latest.results_json or {}),
         )
+
+
+@app.get("/api/v1/results/versions/comparison", response_model=VersionComparisonResponse)
+async def get_result_versions_comparison(
+    sheet_name: str,
+    test_pack: str,
+    workbook_name: Optional[str] = None,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> VersionComparisonResponse:
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    _, organisation_id = _require_db_backed_user(subscription)
+
+    normalized_pack = normalize_pack_name(test_pack)
+    if not normalized_pack:
+        raise HTTPException(status_code=400, detail="test_pack is required")
+
+    current_workbook = normalize_scope_value(workbook_name, fallback=UNKNOWN_WORKBOOK)
+    current_sheet = normalize_scope_value(sheet_name, fallback=UNKNOWN_SHEET)
+
+    async with async_session_maker() as session:
+        saved_versions = await list_results_versions_for_pack(
+            session,
+            organisation_id=organisation_id,
+            test_pack=normalized_pack,
+        )
+
+        trend_items: list[VersionTrendPoint] = []
+        previous_version: Optional[PreviousVersionSummary] = None
+
+        for item in sorted(saved_versions, key=lambda v: v.version.created_at):
+            kpis = _build_version_kpis(dict(item.version.results_json or {}))
+            trend_version_name = (str(getattr(item.version, "version_name", "") or "").strip() or None)
+            if trend_version_name is None and isinstance(item.version.results_json, dict):
+                trend_version_name = str(item.version.results_json.get("version_name") or "").strip() or None
+            trend_items.append(
+                VersionTrendPoint(
+                    id=item.version.id,
+                    workbook_name=item.workbook_name,
+                    sheet_name=item.sheet_name,
+                    created_at=item.version.created_at.isoformat(),
+                    updated_at=item.version.updated_at.isoformat(),
+                    version_name=trend_version_name,
+                    test_passed_pct=kpis.tests_passed_pct,
+                    submissions_failed_pct=kpis.submissions_failed_pct,
+                    fields_failed_pct=kpis.fields_failed_pct,
+                )
+            )
+
+        for item in saved_versions:
+            same_scope = item.workbook_name == current_workbook and item.sheet_name == current_sheet
+            if same_scope:
+                continue
+
+            kpis = _build_version_kpis(dict(item.version.results_json or {}))
+            previous_version = PreviousVersionSummary(
+                id=item.version.id,
+                workbook_name=item.workbook_name,
+                sheet_name=item.sheet_name,
+                created_at=item.version.created_at.isoformat(),
+                updated_at=item.version.updated_at.isoformat(),
+                version_name=(str(getattr(item.version, "version_name", "") or "").strip() or None)
+                or ((str(item.version.results_json.get("version_name") or "").strip() if isinstance(item.version.results_json, dict) else None) or None),
+                kpis=kpis,
+            )
+            break
+
+        return VersionComparisonResponse(previous_version=previous_version, trend=trend_items)
 
 
 @app.delete("/api/v1/results/versions")
