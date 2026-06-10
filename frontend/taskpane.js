@@ -995,6 +995,60 @@ async function loadExceptions() {
   }
 }
 
+function normalizeExceptionMatchValue(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function buildLinkedExceptionLookup(exceptions) {
+  const lookup = new Map();
+
+  for (const rawException of exceptions || []) {
+    const exceptionId = String(rawException?.exception_id || "").trim();
+    const linkedField = String(rawException?.linked_field || rawException?.test_id || "").trim();
+    const linkedUmr = String(rawException?.linked_umr || "").trim();
+
+    if (!exceptionId || !linkedField || !linkedUmr) {
+      continue;
+    }
+
+    const key = `${normalizeExceptionMatchValue(linkedUmr)}::${normalizeExceptionMatchValue(linkedField)}`;
+    if (!lookup.has(key)) {
+      lookup.set(key, {
+        exception_id: exceptionId,
+        linked_field: linkedField,
+        linked_umr: linkedUmr,
+      });
+    }
+  }
+
+  return lookup;
+}
+
+async function fetchStoredExceptionsForAutoTagging(excelUserEmail) {
+  if (!excelUserEmail) {
+    return [];
+  }
+
+  try {
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/exceptions`, {
+      method: "GET",
+      headers: {
+        "X-Excel-User-Email": excelUserEmail,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const payload = await response.json().catch(() => ({ exceptions: [] }));
+    return Array.isArray(payload?.exceptions) ? payload.exceptions : [];
+  } catch {
+    return [];
+  }
+}
+
 async function loadLinkedFieldsForExceptionModal() {
   try {
     const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
@@ -4414,6 +4468,22 @@ async function runValidation() {
     const failedUmrs = new Set();  // Track UMRs that had failures
     const coverageWarnings = new Set();
     const referenceColumnIndex = resolveReferenceColumnIndex(selectionMeta.headerValues, selectedPack);
+    const workbookNameForScope = getWorkbookName() || "__unknown_workbook__";
+    const sheetNameForScope = selectionMeta.sheetName || "__unknown_sheet__";
+
+    const storedExceptions = await fetchStoredExceptionsForAutoTagging(excelUserEmail);
+    const exceptionLookup = buildLinkedExceptionLookup(storedExceptions);
+
+    const alreadyTaggedAddresses = new Set();
+    for (const rawItem of getTaggedCellsForScope(workbookNameForScope, sheetNameForScope)) {
+      const taggedCell = normalizeTaggedCellRecord(rawItem);
+      if (!taggedCell) {
+        continue;
+      }
+      alreadyTaggedAddresses.add(String(taggedCell.address || "").replace(/\$/g, "").trim().toUpperCase());
+    }
+
+    const autoTaggedCellByAddress = new Map();
 
     for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
       const chunkDataStartOffset = chunkIndex * rowsPerChunk;
@@ -4523,6 +4593,34 @@ async function runValidation() {
           failedUmrs.add(umrValue);
         }
 
+        const fieldName = String(selectionMeta.headerValues?.[Number(result?.columnIndex)] || "").trim();
+        const exceptionLookupKey = `${normalizeExceptionMatchValue(umrValue)}::${normalizeExceptionMatchValue(fieldName)}`;
+        const matchedException = exceptionLookup.get(exceptionLookupKey);
+        const normalizedResultAddress = String(result?.address || "")
+          .split("!")
+          .pop()
+          .replace(/\$/g, "")
+          .trim()
+          .toUpperCase();
+
+        if (
+          matchedException
+          && normalizedResultAddress
+          && !alreadyTaggedAddresses.has(normalizedResultAddress)
+          && !autoTaggedCellByAddress.has(normalizedResultAddress)
+        ) {
+          autoTaggedCellByAddress.set(normalizedResultAddress, {
+            address: normalizedResultAddress,
+            exception_id: matchedException.exception_id,
+            comment: `Exception tagged: ${matchedException.exception_id}`,
+            fill_color: EXCEPTION_TAG_FILL,
+            previous_fill_color: "",
+            sheet_name: sheetNameForScope,
+            workbook_name: workbookNameForScope,
+            tagged_at: new Date().toISOString(),
+          });
+        }
+
         for (const failedMessage of failedMessages) {
           const testId = extractTestIdFromFailureMessage(failedMessage);
           if (!testId) {
@@ -4546,18 +4644,63 @@ async function runValidation() {
       failedCount += results.filter((item) => item.rowIndex > 0 && item.failCount > 0).length;
     }
 
+    let autoTaggedCount = 0;
+    if (autoTaggedCellByAddress.size > 0) {
+      const autoTaggedCells = Array.from(autoTaggedCellByAddress.values());
+      const fillByAddress = await getCurrentFillColorsForAddresses(autoTaggedCells.map((item) => item.address));
+      const tagsWithPreviousFill = autoTaggedCells.map((item) => ({
+        ...item,
+        previous_fill_color: String(fillByAddress.get(item.address) || item.previous_fill_color || "").trim(),
+      }));
+
+      await applyExceptionTagsToSheet(tagsWithPreviousFill);
+      lastTaggedCells = mergeTaggedCells(lastTaggedCells, tagsWithPreviousFill);
+      persistValidationResults();
+
+      const tagsByException = new Map();
+      for (const taggedCell of tagsWithPreviousFill) {
+        const exceptionId = String(taggedCell.exception_id || "").trim();
+        if (!exceptionId) {
+          continue;
+        }
+        if (!tagsByException.has(exceptionId)) {
+          tagsByException.set(exceptionId, []);
+        }
+        tagsByException.get(exceptionId).push(taggedCell);
+      }
+
+      for (const [exceptionId, taggedCells] of tagsByException.entries()) {
+        const addresses = taggedCells.map((item) => item.address);
+        await syncTaggedCellsToBackend(
+          exceptionId,
+          addresses,
+          sheetNameForScope,
+          workbookNameForScope,
+          taggedCells
+        );
+      }
+
+      autoTaggedCount = tagsWithPreviousFill.length;
+    }
+
     const packName = testPacks[0];
     lastValidationResults = aggregatedResults;
     lastValidationExecutedTests = Array.from(executedTestNames).sort();
     lastValidationFailedTests = Array.from(failedEntryByKey.values());
     lastValidationPassedTests = Array.from(executedTestIds).filter((testId) => !failedTestIds.has(testId)).sort();
     lastValidationPassedUmrs = Array.from(umrsInData).filter((umr) => !failedUmrs.has(umr)).sort();
-    await reapplyTaggedCellsForScope(getWorkbookName() || "__unknown_workbook__", lastValidationSourceSheetName || selectionMeta.sheetName || "__unknown_sheet__");
+    await reapplyTaggedCellsForScope(workbookNameForScope, sheetNameForScope);
     persistValidationResults();
     await checkSavedResultsVersion();
     const warningText = Array.from(coverageWarnings).join(" | ");
     const statusMessage = `Validation complete with ${packName}: ${failedCount} cells failed at least one test.`;
-    setStatus(warningText ? `${statusMessage} Warning: ${warningText}.` : statusMessage, Boolean(warningText));
+    const autoTagStatus = autoTaggedCount > 0
+      ? ` Auto-tagged ${autoTaggedCount} cell(s) from linked exceptions.`
+      : "";
+    setStatus(
+      warningText ? `${statusMessage}${autoTagStatus} Warning: ${warningText}.` : `${statusMessage}${autoTagStatus}`,
+      Boolean(warningText)
+    );
   } catch (error) {
     const message = error?.message || "Unexpected error";
 
