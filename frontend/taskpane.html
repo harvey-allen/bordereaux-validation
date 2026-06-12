@@ -169,6 +169,37 @@
         background: #eef2f7;
       }
 
+      #generateTemplate {
+        margin-top: 10px;
+      }
+
+      .coming-soon-wrap {
+        position: relative;
+        width: 100%;
+      }
+
+      .coming-soon-wrap::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: calc(100% + 8px);
+        background: #0f172a;
+        color: #fff;
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s ease;
+        z-index: 30;
+      }
+
+      .coming-soon-wrap:hover::after {
+        opacity: 1;
+      }
+
       .tab-panel {
         display: none;
         margin-top: 12px;
@@ -211,6 +242,42 @@
         font-size: 12px;
         font-weight: 600;
         color: #334155;
+      }
+
+      .collapsible-section {
+        margin-top: 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface-muted);
+        padding: 8px;
+      }
+
+      .collapsible-section summary {
+        list-style: none;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        color: #334155;
+        display: flex;
+        align-items: center;
+      }
+
+      .collapsible-section summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .collapsible-section summary::before {
+        content: "▸";
+        margin-right: 6px;
+        transition: transform 0.15s ease;
+      }
+
+      .collapsible-section[open] summary::before {
+        transform: rotate(90deg);
+      }
+
+      .collapsible-content {
+        margin-top: 8px;
       }
 
       /* Modal styles */
@@ -406,10 +473,14 @@
           <select id="territory"></select>
         </div>
 
-        <button id="generateTemplate" class="btn-secondary">Generate Template</button>
+        <details class="collapsible-section">
+          <summary>Validation Configuration</summary>
+          <div class="collapsible-content">
+            <textarea id="packConfigs"></textarea>
+          </div>
+        </details>
 
-        <label for="packConfigs">Validation Configuration</label>
-        <textarea id="packConfigs"></textarea>
+        <button id="generateTemplate" class="btn-secondary">Generate Template</button>
       </section>
 
       <section id="panelControl" class="tab-panel panel-card" role="tabpanel" aria-labelledby="tabControl">
@@ -417,30 +488,44 @@
           <button id="runValidation">Validate</button>
           <button id="clearTable" class="btn-secondary">Clear</button>
         </div>
-        
-        <div class="section-title">Exception Management</div>
-        <select id="exceptionSelect">
-          <option value="">No exceptions available</option>
-        </select>
-        
-        <div class="actions-grid">
-          <button id="applyException" class="btn-secondary">Apply Exception</button>
-          <button id="manageExceptions" class="btn-secondary">Manage Exceptions</button>
-        </div>
+
+        <details class="collapsible-section">
+          <summary>Exception Management</summary>
+          <div class="collapsible-content">
+            <select id="exceptionSelect">
+              <option value="">No exceptions available</option>
+            </select>
+
+            <div class="actions-grid">
+              <button id="applyException" class="btn-secondary">Apply Exception</button>
+              <button id="manageExceptions" class="btn-secondary">Manage Exceptions</button>
+            </div>
+          </div>
+        </details>
+
+        <details class="collapsible-section">
+          <summary>Report Management</summary>
+          <div class="collapsible-content">
+            <div class="actions-grid">
+              <button id="viewSavedVersion" class="btn-secondary">View</button>
+              <select id="savedVersions">
+                <option value="">No saved reports</option>
+              </select>
+              <button id="saveResultsVersion" class="btn-secondary">Save Report</button>
+              <button id="deleteResultsVersion" class="btn-secondary">Delete Report</button>
+            </div>
+          </div>
+        </details>
       </section>
 
       <section id="panelAnalysis" class="tab-panel panel-card" role="tabpanel" aria-labelledby="tabAnalysis">
         <div class="actions-grid">
           <button id="visualiseResults" class="btn-secondary">Visualise</button>
+          <div class="coming-soon-wrap" data-tooltip="Coming soon">
+            <button id="benchmarking" class="btn-secondary" disabled>Benchmarking</button>
+          </div>
           <button id="rulesEngine" class="btn-secondary">Rules Engine</button>
           <button id="extractResults" class="btn-secondary">Extract</button>
-          <label for="savedVersions">Report Management</label>
-          <button id="viewSavedVersion" class="btn-secondary">View</button>
-          <select id="savedVersions">
-            <option value="">No saved reports</option>
-          </select>
-          <button id="saveResultsVersion" class="btn-secondary">Save Report</button>
-          <button id="deleteResultsVersion" class="btn-secondary">Delete Report</button>
         </div>
       </section>
 
