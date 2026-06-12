@@ -31,6 +31,7 @@ try:
     from app.results_service import (
         delete_results_version_by_id,
         delete_results_version,
+        get_results_version_payload_by_id,
         get_or_create_sheet_key,
         get_results_version,
         list_results_versions_for_pack,
@@ -40,6 +41,7 @@ try:
         get_validation_run,
         save_results_version,
         store_validation_results,
+        update_results_version_by_id,
         upsert_validation_run_tagged_cells,
     )
     from app.pack_config_service import pack_config_service
@@ -858,6 +860,21 @@ class SavedResultsVersionListResponse(BaseModel):
     versions: list[SavedResultsVersionItem]
 
 
+class SavedResultsVersionPayloadResponse(BaseModel):
+    id: int
+    sheet_key_id: int
+    created_at: str
+    updated_at: str
+    test_pack: str
+    version_name: Optional[str] = None
+    workbook_name: str
+    sheet_name: str
+    mapped_headers: dict[str, str] = Field(default_factory=dict)
+    saved_data: list[dict[str, Any]] = Field(default_factory=list)
+    tagged_cells: list[dict[str, Any]] = Field(default_factory=list)
+    pack_config: dict[str, Any] = Field(default_factory=dict)
+
+
 class LatestResultsVersionResponse(BaseModel):
     id: int
     created_at: str
@@ -1369,6 +1386,27 @@ async def get_latest_results(
         )
 
 
+@app.get("/api/v1/results/versions/{version_id}", response_model=SavedResultsVersionPayloadResponse)
+async def get_result_version_payload(
+    version_id: int,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> SavedResultsVersionPayloadResponse:
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    user_id, organisation_id = _require_db_backed_user(subscription)
+
+    async with async_session_maker() as session:
+        payload = await get_results_version_payload_by_id(
+            session,
+            organisation_id=organisation_id,
+            user_id=user_id,
+            version_id=version_id,
+        )
+        if payload is None:
+            raise HTTPException(status_code=404, detail="Saved result version not found")
+        return SavedResultsVersionPayloadResponse(**payload)
+
+
 @app.get("/api/v1/results/versions/comparison", response_model=VersionComparisonResponse)
 async def get_result_versions_comparison(
     sheet_name: str,
@@ -1435,6 +1473,61 @@ async def get_result_versions_comparison(
             break
 
         return VersionComparisonResponse(previous_version=previous_version, trend=trend_items)
+
+
+@app.put("/api/v1/results/versions/{version_id}", response_model=SavedResultsVersionItem)
+async def update_result_version_by_id_endpoint(
+    version_id: int,
+    payload: SaveResultsVersionRequest,
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> SavedResultsVersionItem:
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    user_id, organisation_id = _require_db_backed_user(subscription)
+
+    resolved_pack_name = payload.test_pack
+    if not resolved_pack_name:
+        if isinstance(payload.test_packs, list):
+            resolved_pack_name = payload.test_packs[0] if payload.test_packs else None
+        else:
+            resolved_pack_name = payload.test_packs
+
+    normalized_pack = normalize_pack_name(resolved_pack_name)
+    if not normalized_pack:
+        raise HTTPException(status_code=400, detail="test_pack is required")
+
+    async with async_session_maker() as session:
+        try:
+            saved = await update_results_version_by_id(
+                session,
+                organisation_id=organisation_id,
+                user_id=user_id,
+                version_id=version_id,
+                test_pack=normalized_pack,
+                failed_tests=[{"umr": item.umr_or_id, "id": item.umr_or_id, "test_id": item.test_id} for item in payload.failed_tests],
+                passed_tests=payload.passed_tests,
+                passed_umrs=payload.passed_umrs,
+                mapped_headers=payload.mapped_headers,
+                saved_data=payload.saved_data,
+                tagged_cells=payload.tagged_cells,
+                version_name=payload.version_name,
+                kpis=dict(payload.kpis or payload.summary_metrics or {}),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        if saved is None:
+            raise HTTPException(status_code=404, detail="Saved result version not found")
+
+        saved_version_name = str(getattr(saved, "version_name", "") or "").strip() or None
+        if saved_version_name is None and isinstance(saved.results_json, dict):
+            saved_version_name = str(saved.results_json.get("version_name") or "").strip() or None
+        return SavedResultsVersionItem(
+            id=saved.id,
+            created_at=saved.created_at.isoformat(),
+            updated_at=saved.updated_at.isoformat(),
+            version_name=saved_version_name,
+        )
 
 
 @app.delete("/api/v1/results/versions")

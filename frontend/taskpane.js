@@ -18,8 +18,12 @@ let lastTaggedCells = [];
 let savedResultsVersionExists = false;
 let savedResultsVersionCreatedAt = null;
 let savedVersionItems = [];
+let activeViewedVersionContext = null;
 const APP_LOGO_URL = `${window.location.origin}/AXIOS.png`;
 const EXCEPTION_TAG_FILL = "#dbeafe";
+const MAX_EXCEL_SHEET_NAME_LENGTH = 31;
+const DEBUG_LOG_STORAGE_KEY = "bordereaux_validator_debug_log";
+const VIEWED_VERSION_CONTEXT_STORAGE_KEY = "bordereaux_validator_viewed_version_context";
 
 const {
   formatPackLabel,
@@ -29,6 +33,146 @@ const {
 } = window.TaskpanePacks || {};
 
 const storageHelpers = window.TaskpaneStorage || {};
+
+function appendDebugLog(message, metadata = null) {
+  try {
+    const entry = {
+      at: new Date().toISOString(),
+      message: String(message || ""),
+      metadata: metadata && typeof metadata === "object" ? metadata : null,
+    };
+    const existing = JSON.parse(localStorage.getItem(DEBUG_LOG_STORAGE_KEY) || "[]");
+    const next = Array.isArray(existing) ? existing : [];
+    next.push(entry);
+    const trimmed = next.slice(-200);
+    localStorage.setItem(DEBUG_LOG_STORAGE_KEY, JSON.stringify(trimmed));
+    if (entry.metadata) {
+      console.log("[BV-DEBUG]", entry.message, entry.metadata);
+    } else {
+      console.log("[BV-DEBUG]", entry.message);
+    }
+  } catch {
+    // best-effort logging only
+  }
+}
+
+function buildSheetScopeKey(workbookName, sheetName) {
+  const wb = String(workbookName || "__unknown_workbook__").trim() || "__unknown_workbook__";
+  const sh = String(sheetName || "__unknown_sheet__").trim() || "__unknown_sheet__";
+  return `${wb}::${sh}`;
+}
+
+function getViewedVersionContextMap() {
+  try {
+    const raw = localStorage.getItem(VIEWED_VERSION_CONTEXT_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return {};
+}
+
+function setViewedVersionContextMap(contextMap) {
+  try {
+    const payload = contextMap && typeof contextMap === "object" && !Array.isArray(contextMap)
+      ? contextMap
+      : {};
+    localStorage.setItem(VIEWED_VERSION_CONTEXT_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore
+  }
+}
+
+function setViewedVersionContextForSheet(context) {
+  const workbookName = String(context?.workbookName || "").trim() || "__unknown_workbook__";
+  const sheetName = String(context?.sheetName || "").trim() || "__unknown_sheet__";
+  const versionId = Number(context?.versionId || 0);
+  const testPack = String(context?.testPack || "").trim().toLowerCase();
+
+  if (!versionId || !testPack) {
+    return;
+  }
+
+  const map = getViewedVersionContextMap();
+  const key = buildSheetScopeKey(workbookName, sheetName);
+  map[key] = {
+    workbookName,
+    sheetName,
+    versionId,
+    sheetKeyId: Number(context?.sheetKeyId || 0) || null,
+    testPack,
+    versionName: String(context?.versionName || "").trim() || null,
+    createdAt: new Date().toISOString(),
+  };
+  setViewedVersionContextMap(map);
+}
+
+function getViewedVersionContextForSheet(workbookName, sheetName) {
+  const map = getViewedVersionContextMap();
+  const key = buildSheetScopeKey(workbookName, sheetName);
+  const context = map[key];
+  if (!context || typeof context !== "object") {
+    return null;
+  }
+  const versionId = Number(context.versionId || 0);
+  const testPack = String(context.testPack || "").trim().toLowerCase();
+  if (!versionId || !testPack) {
+    return null;
+  }
+  return {
+    workbookName: String(context.workbookName || workbookName || "").trim() || "__unknown_workbook__",
+    sheetName: String(context.sheetName || sheetName || "").trim() || "__unknown_sheet__",
+    versionId,
+    sheetKeyId: Number(context.sheetKeyId || 0) || null,
+    testPack,
+    versionName: String(context.versionName || "").trim() || null,
+    createdAt: String(context.createdAt || "").trim() || null,
+  };
+}
+
+function removeViewedVersionContextByVersionId(versionId) {
+  const normalizedVersionId = Number(versionId || 0);
+  if (!normalizedVersionId) {
+    return;
+  }
+  const map = getViewedVersionContextMap();
+  let changed = false;
+  for (const [key, value] of Object.entries(map)) {
+    if (Number(value?.versionId || 0) === normalizedVersionId) {
+      delete map[key];
+      changed = true;
+    }
+  }
+  if (changed) {
+    setViewedVersionContextMap(map);
+  }
+}
+
+async function refreshActiveViewedVersionContext() {
+  const workbookName = getWorkbookName() || "__unknown_workbook__";
+  const activeSheetName = await getActiveSheetName();
+  const sheetName = String(activeSheetName || "__unknown_sheet__").trim() || "__unknown_sheet__";
+  activeViewedVersionContext = getViewedVersionContextForSheet(workbookName, sheetName);
+}
+
+window.__bvGetDebugLogs = function __bvGetDebugLogs() {
+  try {
+    return JSON.parse(localStorage.getItem(DEBUG_LOG_STORAGE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+
+window.__bvClearDebugLogs = function __bvClearDebugLogs() {
+  try {
+    localStorage.removeItem(DEBUG_LOG_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+};
 
 /**
  * Persist all validation results to localStorage
@@ -143,13 +287,20 @@ function updateActionButtons() {
   const visualiseButton = document.getElementById("visualiseResults");
   const saveButton = document.getElementById("saveResultsVersion");
   const deleteButton = document.getElementById("deleteResultsVersion");
+  const viewButton = document.getElementById("viewSavedVersion");
   const savedVersions = document.getElementById("savedVersions");
   const hasResults = Array.isArray(lastValidationResults) && lastValidationResults.length > 0;
   const hasSavedVersionSelection = Boolean(savedVersions && savedVersions.value);
+  const selectedSavedVersion = getSelectedSavedVersionItem();
+  const canViewSavedVersion = Boolean(
+    selectedSavedVersion
+    && !Boolean(selectedSavedVersion.current_scope || selectedSavedVersion.currentScope)
+  );
   if (extractButton) extractButton.disabled = !hasResults;
   if (visualiseButton) visualiseButton.disabled = !hasResults;
   if (saveButton) saveButton.disabled = !hasResults;
   if (deleteButton) deleteButton.disabled = !hasSavedVersionSelection;
+  if (viewButton) viewButton.disabled = !canViewSavedVersion;
 }
 
 function updateSaveButtonLabel() {
@@ -157,7 +308,9 @@ function updateSaveButtonLabel() {
   if (!saveButton) {
     return;
   }
-  saveButton.textContent = savedResultsVersionExists ? "Update Report" : "Save Report";
+  saveButton.textContent = (savedResultsVersionExists || Boolean(activeViewedVersionContext))
+    ? "Update Report"
+    : "Save Report";
 }
 
 function renderSavedVersionsDropdown(items) {
@@ -181,6 +334,7 @@ function renderSavedVersionsDropdown(items) {
   for (const item of savedVersionItems) {
     const option = document.createElement("option");
     option.value = String(item.id || "");
+    option.dataset.currentScope = Boolean(item.current_scope || item.currentScope) ? "true" : "false";
     const versionTimestamp = new Date(
       item.updated_at
       || item.updatedAt
@@ -195,6 +349,324 @@ function renderSavedVersionsDropdown(items) {
 
   select.selectedIndex = 0;
   updateActionButtons();
+}
+
+function getSelectedSavedVersionItem() {
+  const selectedVersionId = Number(document.getElementById("savedVersions")?.value || 0);
+  if (!selectedVersionId) {
+    return null;
+  }
+  return (savedVersionItems || []).find((item) => Number(item?.id || 0) === selectedVersionId) || null;
+}
+
+function normalizeExcelSheetNameCandidate(rawName) {
+  const fallback = "Saved Report";
+  const cleaned = String(rawName || "")
+    .replace(/[\\/?*\[\]:]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const candidate = cleaned || fallback;
+  return candidate.slice(0, MAX_EXCEL_SHEET_NAME_LENGTH);
+}
+
+async function createUniqueWorksheetName(baseName) {
+  const normalizedBase = normalizeExcelSheetNameCandidate(baseName);
+
+  return Excel.run(async (context) => {
+    const worksheets = context.workbook.worksheets;
+    worksheets.load("items/name");
+    await context.sync();
+
+    const existingNames = new Set((worksheets.items || []).map((sheet) => String(sheet.name || "").trim()));
+    if (!existingNames.has(normalizedBase)) {
+      return normalizedBase;
+    }
+
+    let suffixIndex = 2;
+    while (suffixIndex < 1000) {
+      const suffix = ` (${suffixIndex})`;
+      const candidate = `${normalizedBase.slice(0, Math.max(1, MAX_EXCEL_SHEET_NAME_LENGTH - suffix.length))}${suffix}`;
+      if (!existingNames.has(candidate)) {
+        return candidate;
+      }
+      suffixIndex += 1;
+    }
+
+    return `${normalizedBase.slice(0, 26)} (${Date.now() % 1000})`;
+  });
+}
+
+function toExcelCellValue(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "string") {
+    return value;
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function deriveSavedReportHeaders(savedData, mappedHeaders) {
+  const headerSet = new Set();
+
+  if (Array.isArray(savedData)) {
+    for (const row of savedData) {
+      if (!row || typeof row !== "object" || Array.isArray(row)) {
+        continue;
+      }
+      for (const key of Object.keys(row)) {
+        const normalized = String(key || "").trim();
+        if (normalized) {
+          headerSet.add(normalized);
+        }
+      }
+    }
+  }
+
+  if (headerSet.size === 0 && mappedHeaders && typeof mappedHeaders === "object" && !Array.isArray(mappedHeaders)) {
+    for (const [key, value] of Object.entries(mappedHeaders)) {
+      const mapped = String(value || "").trim();
+      const source = String(key || "").trim();
+      if (mapped) {
+        headerSet.add(mapped);
+      } else if (source) {
+        headerSet.add(source);
+      }
+    }
+  }
+
+  return Array.from(headerSet);
+}
+
+async function launchSavedReportSheet({ versionName, savedData, mappedHeaders }) {
+  const sheetName = await createUniqueWorksheetName(versionName);
+  const dataRows = Array.isArray(savedData) ? savedData : [];
+  const headers = deriveSavedReportHeaders(dataRows, mappedHeaders);
+
+  appendDebugLog("Launching saved report sheet", {
+    sheetName,
+    rows: dataRows.length,
+    columns: headers.length,
+  });
+
+  if (headers.length === 0) {
+    throw new Error("Saved report has no tabular data to launch.");
+  }
+
+  await Excel.run(async (context) => {
+    const worksheet = context.workbook.worksheets.add(sheetName);
+    const colCount = Math.max(1, headers.length);
+
+    const headerRowRange = worksheet.getRangeByIndexes(0, 0, 1, colCount);
+    headerRowRange.values = [headers];
+    await context.sync();
+
+    const WRITE_BATCH_SIZE = 1000;
+    for (let start = 0; start < dataRows.length; start += WRITE_BATCH_SIZE) {
+      const batchRows = dataRows.slice(start, start + WRITE_BATCH_SIZE);
+      const normalizedBatch = batchRows.map((row) => headers.map((header) => toExcelCellValue(
+        row && typeof row === "object" && !Array.isArray(row) ? row[header] : ""
+      )));
+      const dataRange = worksheet.getRangeByIndexes(1 + start, 0, normalizedBatch.length, colCount);
+      dataRange.values = normalizedBatch;
+      await context.sync();
+      appendDebugLog("Saved report write batch complete", {
+        sheetName,
+        start,
+        count: normalizedBatch.length,
+      });
+    }
+
+    const headerRange = worksheet.getRangeByIndexes(0, 0, 1, colCount);
+    headerRange.format.font.bold = true;
+    headerRange.format.fill.color = "#ffffff";
+    headerRange.format.font.color = "#000000";
+
+    const usedRange = worksheet.getUsedRangeOrNullObject();
+    usedRange.load("isNullObject");
+    await context.sync();
+    if (!usedRange.isNullObject) {
+      usedRange.format.autofitColumns();
+    }
+    worksheet.activate();
+    await context.sync();
+  });
+
+  return sheetName;
+}
+
+async function persistPackConfigurationForSheet(testPack, packConfig, sheetName) {
+  const normalizedPack = String(testPack || "").trim().toLowerCase();
+  const normalizedSheetName = String(sheetName || "").trim();
+  const excelUserEmail = getExcelUserEmail();
+  if (!normalizedPack || !normalizedSheetName || !excelUserEmail) {
+    return;
+  }
+
+  const workbookName = getWorkbookName();
+  const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/pack-config`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Excel-User-Email": excelUserEmail,
+    },
+    body: JSON.stringify({
+      test_pack: normalizedPack,
+      sheet_name: normalizedSheetName,
+      workbook_name: workbookName,
+      pack_config: packConfig && typeof packConfig === "object" && !Array.isArray(packConfig) ? packConfig : {},
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const detail = formatBackendErrorDetail(errorData?.detail) || `HTTP ${response.status}`;
+    throw new Error(`Could not persist restored pack configuration: ${detail}`);
+  }
+}
+
+async function applySavedVersionPackConfiguration(testPack, packConfig) {
+  const normalizedPack = String(testPack || "").trim().toLowerCase();
+  if (!normalizedPack) {
+    throw new Error("Saved report does not include a test pack.");
+  }
+
+  const testPackSelect = document.getElementById("testPacks");
+  const availablePackValues = Array.from(testPackSelect?.options || []).map((option) => String(option.value || "").trim().toLowerCase());
+  if (!availablePackValues.includes(normalizedPack)) {
+    throw new Error(`Saved report uses pack '${normalizedPack}', which is not available for this user.`);
+  }
+
+  const normalizedConfig = withDefaultEnabledTests(
+    {
+      [normalizedPack]: normalizePackConfigShape(
+        {
+          ...getDefaultPackConfig(normalizedPack),
+          ...(packConfig && typeof packConfig === "object" && !Array.isArray(packConfig) ? packConfig : {}),
+        },
+        normalizedPack
+      ),
+    },
+    normalizedPack
+  )[normalizedPack];
+
+  packConfigsByPack[normalizedPack] = normalizedConfig;
+  if (testPackSelect) {
+    testPackSelect.value = normalizedPack;
+  }
+  currentPackSelection = normalizedPack;
+  renderSelectedPackConfig(normalizedPack);
+  await syncTerritorySelectorForSelectedPack();
+  return normalizedConfig;
+}
+
+async function viewSelectedSavedVersion() {
+  const button = document.getElementById("viewSavedVersion");
+  const selectedVersion = getSelectedSavedVersionItem();
+  if (!selectedVersion) {
+    setStatus("Select a saved version to view.", true);
+    return;
+  }
+
+  if (Boolean(selectedVersion.current_scope || selectedVersion.currentScope)) {
+    setStatus("The selected saved version is already for the active sheet.", true);
+    updateActionButtons();
+    return;
+  }
+
+  const excelUserEmail = getExcelUserEmail();
+  if (!excelUserEmail) {
+    setStatus("Could not determine Excel user email.", true);
+    return;
+  }
+
+  if (button) {
+    button.disabled = true;
+  }
+
+  try {
+    appendDebugLog("View saved version clicked", {
+      versionId: Number(selectedVersion.id),
+      currentScope: Boolean(selectedVersion.current_scope || selectedVersion.currentScope),
+    });
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/results/versions/${Number(selectedVersion.id)}`, {
+      method: "GET",
+      headers: {
+        "X-Excel-User-Email": excelUserEmail,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const detail = formatBackendErrorDetail(errorData?.detail) || `HTTP ${response.status}`;
+      throw new Error(detail);
+    }
+
+    const payload = await response.json().catch(() => ({}));
+    appendDebugLog("Fetched saved version payload", {
+      versionId: Number(selectedVersion.id),
+      testPack: payload?.test_pack,
+      savedDataRows: Array.isArray(payload?.saved_data) ? payload.saved_data.length : 0,
+      mappedHeaderCount: payload?.mapped_headers && typeof payload.mapped_headers === "object"
+        ? Object.keys(payload.mapped_headers).length
+        : 0,
+    });
+    const versionName = String(
+      payload?.version_name
+      || payload?.versionName
+      || selectedVersion?.version_name
+      || selectedVersion?.versionName
+      || "Saved Report"
+    ).trim();
+
+    setStatus("Launching saved report in a new worksheet...");
+    const launchedSheetName = await launchSavedReportSheet({
+      versionName,
+      savedData: payload?.saved_data,
+      mappedHeaders: payload?.mapped_headers,
+    });
+
+    const normalizedConfig = await applySavedVersionPackConfiguration(payload?.test_pack, payload?.pack_config);
+    await persistPackConfigurationForSheet(payload?.test_pack, normalizedConfig, launchedSheetName);
+    setViewedVersionContextForSheet({
+      workbookName: getWorkbookName() || "__unknown_workbook__",
+      sheetName: launchedSheetName,
+      versionId: Number(payload?.id || selectedVersion?.id || 0),
+      sheetKeyId: Number(payload?.sheet_key_id || 0),
+      testPack: payload?.test_pack,
+      versionName,
+    });
+    await refreshActiveViewedVersionContext();
+    appendDebugLog("Saved version config restored and persisted", {
+      versionId: Number(selectedVersion.id),
+      launchedSheetName,
+      testPack: payload?.test_pack,
+    });
+    await refreshVersionStateForActiveSheet();
+
+    setStatus(`Saved report launched in '${launchedSheetName}'. Running validation...`);
+    await runValidation();
+    appendDebugLog("Validation run completed for launched saved version", {
+      launchedSheetName,
+      versionId: Number(selectedVersion.id),
+    });
+  } catch (error) {
+    appendDebugLog("View saved version failed", {
+      message: String(error?.message || "Unexpected error"),
+      stack: String(error?.stack || ""),
+    });
+    setStatus(`View failed: ${error?.message || "Unexpected error"}`, true);
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+    updateActionButtons();
+  }
 }
 
 function updateSavedResultsInfo() {
@@ -2047,6 +2519,7 @@ Office.onReady(async () => {
   document.getElementById("rulesEngine")?.addEventListener("click", openRulesEngine);
   document.getElementById("saveResultsVersion")?.addEventListener("click", saveResultsVersion);
   document.getElementById("deleteResultsVersion")?.addEventListener("click", deleteSelectedResultsVersion);
+  document.getElementById("viewSavedVersion")?.addEventListener("click", viewSelectedSavedVersion);
   document.getElementById("savedVersions")?.addEventListener("change", updateActionButtons);
   document.getElementById("generateTemplate")?.addEventListener("click", generateTemplate);
   
@@ -2157,7 +2630,9 @@ async function getCurrentResultsScope(options = {}) {
 }
 
 async function refreshVersionStateForActiveSheet() {
+  await refreshActiveViewedVersionContext();
   await checkSavedResultsVersion();
+  updateSaveButtonLabel();
   updateActionButtons();
 }
 
@@ -2825,7 +3300,9 @@ async function saveResultsVersion() {
     }
 
     await checkSavedResultsVersion();
-    const isUpdate = savedResultsVersionExists;
+    const viewedVersionContext = getViewedVersionContextForSheet(workbookName, sheetName);
+    const isViewedVersionUpdate = Boolean(viewedVersionContext && Number(viewedVersionContext.versionId || 0));
+    const isUpdate = savedResultsVersionExists || isViewedVersionUpdate;
 
     const selectedVersion = (savedVersionItems || []).find(
       (item) => Number(item?.id || 0) === Number(document.getElementById("savedVersions")?.value || 0)
@@ -2838,7 +3315,8 @@ async function saveResultsVersion() {
       || Date.now()
     ).toLocaleString();
     const suggestedName = String(
-      selectedVersion?.version_name
+      viewedVersionContext?.versionName
+      || selectedVersion?.version_name
       || selectedVersion?.versionName
       || ""
     ).trim() || `Report ${fallbackTimestamp}`;
@@ -2893,8 +3371,20 @@ async function saveResultsVersion() {
       computed_at: computedKpis.computed_at,
     };
 
-    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/results/versions`, {
-      method: "POST",
+    const requestUrl = isViewedVersionUpdate
+      ? `${CONFIG.BACKEND_URL}/api/v1/results/versions/${Number(viewedVersionContext.versionId)}`
+      : `${CONFIG.BACKEND_URL}/api/v1/results/versions`;
+    const requestMethod = isViewedVersionUpdate ? "PUT" : "POST";
+
+    if (isViewedVersionUpdate) {
+      const expectedPack = String(viewedVersionContext?.testPack || "").trim().toLowerCase();
+      if (expectedPack && expectedPack !== selectedPack) {
+        throw new Error(`This viewed report is linked to '${expectedPack}'. Switch back to that pack to update it.`);
+      }
+    }
+
+    const response = await fetch(requestUrl, {
+      method: requestMethod,
       headers: {
         "Content-Type": "application/json",
         "X-Excel-User-Email": excelUserEmail,
@@ -2922,7 +3412,17 @@ async function saveResultsVersion() {
     }
 
     await checkSavedResultsVersion();
-    setStatus(isUpdate ? "Updated current results version." : "Saved current results version.");
+    if (isViewedVersionUpdate) {
+      appendDebugLog("Updated viewed saved version", {
+        versionId: Number(viewedVersionContext.versionId),
+        workbookName,
+        sheetName,
+        selectedPack,
+      });
+      setStatus(`Updated viewed report version ${Number(viewedVersionContext.versionId)}.`);
+    } else {
+      setStatus(isUpdate ? "Updated current results version." : "Saved current results version.");
+    }
   } catch (error) {
     setStatus(`Save failed: ${error?.message || "Unexpected error"}`, true);
   } finally {
@@ -2967,6 +3467,8 @@ async function deleteSelectedResultsVersion() {
       throw new Error(detail);
     }
 
+    removeViewedVersionContextByVersionId(selectedVersionId);
+    await refreshActiveViewedVersionContext();
     await checkSavedResultsVersion();
     setStatus(`Deleted saved version ${selectedVersionId}.`);
   } catch (error) {
