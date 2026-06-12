@@ -18,6 +18,7 @@ from sqlalchemy import delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import (
+    PackConfiguration,
     SheetKey,
     UserSubscription,
     ValidationResultPayload,
@@ -505,6 +506,162 @@ async def delete_results_version_by_id(
     await session.delete(version)
     await session.commit()
     return True
+
+
+async def update_results_version_by_id(
+    session: AsyncSession,
+    *,
+    organisation_id: int,
+    user_id: int | None,
+    version_id: int,
+    test_pack: str,
+    failed_tests: list[dict[str, str]],
+    passed_tests: list[str],
+    passed_umrs: list[str] | None = None,
+    mapped_headers: dict[str, str] | None = None,
+    saved_data: list[dict[str, Any]] | None = None,
+    tagged_cells: list[dict[str, Any]] | None = None,
+    version_name: str | None = None,
+    kpis: dict[str, Any] | None = None,
+) -> ValidationResultVersion | None:
+    """Update an existing saved result version by id within the same sheet_key context."""
+    normalized_test_pack = normalize_pack_storage_value(test_pack)
+
+    result = await session.execute(
+        select(ValidationResultVersion, SheetKey)
+        .join(SheetKey, ValidationResultVersion.sheet_key_id == SheetKey.id)
+        .where(ValidationResultVersion.id == version_id)
+        .where(SheetKey.organisation_id == organisation_id)
+    )
+    row = result.first()
+    if row is None:
+        return None
+
+    version, _sheet_key = row
+    existing_pack = normalize_pack_storage_value(version.test_pack)
+    if existing_pack != normalized_test_pack:
+        raise ValueError("test_pack does not match the selected saved version")
+
+    failed_by_umr: dict[str, list[str]] = {}
+    for item in (failed_tests or []):
+        umr = str(item.get("umr") or item.get("id") or "")
+        test_id = str(item.get("test_id", ""))
+        if umr and test_id:
+            failed_by_umr.setdefault(umr, []).append(test_id)
+
+    passed_test_list = [str(t) for t in (passed_tests or []) if str(t or "").strip()]
+    passed_umr_list = [str(u) for u in (passed_umrs or []) if str(u or "").strip()]
+
+    results_json: dict[str, Any] = {
+        "failed": [{"id": umr, "tests": tests} for umr, tests in failed_by_umr.items()],
+        "passed_umrs": passed_umr_list,
+        "passed_tests": passed_test_list,
+        "passed_ids": passed_test_list,
+        "test_pack": existing_pack,
+        "KPIs": dict(kpis or {}),
+        "summary_metrics": dict(kpis or {}),
+    }
+
+    now = datetime.now(timezone.utc)
+    incoming_version_name = str(version_name or "").strip() or None
+    existing_version_name = str(getattr(version, "version_name", "") or "").strip() or None
+    if existing_version_name is None and isinstance(version.results_json, dict):
+        existing_version_name = str(version.results_json.get("version_name") or "").strip() or None
+    effective_version_name = incoming_version_name or existing_version_name
+
+    if effective_version_name:
+        results_json["version_name"] = effective_version_name
+
+    version.results_json = results_json
+    version.tagged_cells_json = _normalize_tagged_cells(tagged_cells)
+    version.user_id = user_id
+    version.test_pack = existing_pack
+    version.version_name = effective_version_name
+    version.updated_at = now
+    await session.flush()
+
+    pay_result = await session.execute(
+        select(ValidationResultPayload)
+        .where(ValidationResultPayload.validation_result_version_id == int(version.id))
+    )
+    payload = pay_result.scalar_one_or_none()
+
+    if payload is None:
+        session.add(
+            ValidationResultPayload(
+                validation_result_version_id=int(version.id),
+                version_name=effective_version_name,
+                mapped_headers_json=dict(mapped_headers or {}),
+                saved_data_json=list(saved_data or []),
+                created_at=now,
+                updated_at=now,
+            )
+        )
+    else:
+        payload.version_name = effective_version_name
+        payload.mapped_headers_json = dict(mapped_headers or {})
+        payload.saved_data_json = list(saved_data or [])
+        payload.updated_at = now
+
+    await session.commit()
+    await session.refresh(version)
+    return version
+
+
+async def get_results_version_payload_by_id(
+    session: AsyncSession,
+    *,
+    organisation_id: int,
+    user_id: int,
+    version_id: int,
+) -> dict[str, Any] | None:
+    """Return saved version payload + scope + pack config for a specific version id."""
+    result = await session.execute(
+        select(ValidationResultVersion, SheetKey)
+        .join(SheetKey, ValidationResultVersion.sheet_key_id == SheetKey.id)
+        .where(ValidationResultVersion.id == version_id)
+        .where(SheetKey.organisation_id == organisation_id)
+    )
+    row = result.first()
+    if row is None:
+        return None
+
+    version, sheet_key = row
+
+    payload_result = await session.execute(
+        select(ValidationResultPayload)
+        .where(ValidationResultPayload.validation_result_version_id == int(version.id))
+    )
+    payload = payload_result.scalar_one_or_none()
+
+    pack_config_result = await session.execute(
+        select(PackConfiguration)
+        .where(PackConfiguration.user_id == user_id)
+        .where(PackConfiguration.sheet_key_id == int(sheet_key.id))
+        .where(PackConfiguration.test_pack == version.test_pack)
+    )
+    pack_config = pack_config_result.scalar_one_or_none()
+
+    version_name = str(getattr(version, "version_name", "") or "").strip() or None
+    if version_name is None and isinstance(version.results_json, dict):
+        version_name = str(version.results_json.get("version_name") or "").strip() or None
+    if version_name is None and payload is not None:
+        version_name = str(getattr(payload, "version_name", "") or "").strip() or None
+
+    return {
+        "id": int(version.id),
+        "sheet_key_id": int(sheet_key.id),
+        "test_pack": str(version.test_pack or "").strip(),
+        "version_name": version_name,
+        "workbook_name": str(sheet_key.workbook_name or "").strip(),
+        "sheet_name": str(sheet_key.sheet_name or "").strip(),
+        "created_at": version.created_at.isoformat(),
+        "updated_at": version.updated_at.isoformat(),
+        "mapped_headers": dict(payload.mapped_headers_json or {}) if payload is not None else {},
+        "saved_data": list(payload.saved_data_json or []) if payload is not None else [],
+        "tagged_cells": list(version.tagged_cells_json or []),
+        "pack_config": dict(pack_config.config_json or {}) if pack_config is not None else {},
+    }
 
 
 def _run_to_summary(row: ValidationRun) -> RunSummary:
