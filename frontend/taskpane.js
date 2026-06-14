@@ -2522,6 +2522,7 @@ Office.onReady(async () => {
   document.getElementById("viewSavedVersion")?.addEventListener("click", viewSelectedSavedVersion);
   document.getElementById("savedVersions")?.addEventListener("change", updateActionButtons);
   document.getElementById("generateTemplate")?.addEventListener("click", generateTemplate);
+  document.getElementById("estimateFieldMapping")?.addEventListener("click", estimateFieldMapping);
   
   // Exception management event listeners
   document.getElementById("applyException")?.addEventListener("click", applyExceptionToCell);
@@ -4889,6 +4890,136 @@ async function generateTemplate() {
       button.disabled = false;
     }
   }
+}
+
+async function estimateFieldMapping() {
+  const button = document.getElementById("estimateFieldMapping");
+  const excelUserEmail = getExcelUserEmail();
+  const backendUrl = CONFIG.BACKEND_URL;
+
+  if (!button) return;
+
+  try {
+    button.disabled = true;
+    setStatus("Extracting headers and estimating field mapping...");
+
+    // Get the selected test pack and territory
+    const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
+    const selectedTerritory = getSelectedTerritoryValue();
+
+    if (!selectedPack) {
+      throw new Error("Please select a test pack first");
+    }
+
+    if (!selectedTerritory) {
+      throw new Error("Please select a territory first");
+    }
+
+    // Extract headers from the active sheet
+    const sheetContext = await resolveValidationRangeMeta();
+    if (!sheetContext) {
+      throw new Error("Could not extract headers from active sheet");
+    }
+
+    const headerValues = sheetContext.headerValues || [];
+    if (headerValues.length === 0) {
+      throw new Error("No headers found on the active sheet");
+    }
+
+    // Normalize header values to strings
+    const normalizedHeaders = headerValues.map((h) => String(h || "").trim()).filter(Boolean);
+    if (normalizedHeaders.length === 0) {
+      throw new Error("No non-empty headers found on the active sheet");
+    }
+
+    // Call backend to estimate field mapping
+    const { estimateFieldMapping: estimateFieldMappingApi } = window.TaskpanePacks || {};
+    if (!estimateFieldMappingApi) {
+      throw new Error("Field mapping estimation service not available");
+    }
+
+    const estimationResult = await estimateFieldMappingApi(excelUserEmail, selectedPack, selectedTerritory, normalizedHeaders);
+
+    if (!estimationResult) {
+      throw new Error("No estimation result returned from server");
+    }
+
+    // Merge estimation results into pack config
+    await mergeEstimationIntoParkConfig(selectedPack, estimationResult);
+
+    setStatus(
+      `Field mapping estimated: ${estimationResult.matched_count || 0} matched, ${estimationResult.unmatched_count || 0} unmatched`,
+      false
+    );
+  } catch (error) {
+    let errorMessage = "Unexpected error";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === "string") {
+      errorMessage = error;
+    } else if (error && typeof error === "object") {
+      errorMessage = error.detail || error.message || String(error);
+    }
+    setStatus(`Field mapping estimation failed: ${errorMessage}`, true);
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+  }
+}
+
+async function mergeEstimationIntoParkConfig(testPack, estimationResult) {
+  const normalizedPack = String(testPack || "").trim().toLowerCase();
+  if (!normalizedPack) {
+    return;
+  }
+
+  const packConfigEditor = document.getElementById("packConfigs");
+  if (!packConfigEditor) {
+    return;
+  }
+
+  // Parse current pack config
+  let currentConfig;
+  try {
+    currentConfig = parsePackConfigInput(packConfigEditor.value, normalizedPack);
+  } catch {
+    currentConfig = getDefaultPackConfig(normalizedPack);
+  }
+
+  // Helper to normalize field names (strip non-alphanumeric, lowercase)
+  const normalizeForComparison = (value) => String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  // Filter estimated mappings - only keep if normalized header differs from normalized field
+  const estimatedAliases = estimationResult.estimated_mappings || {};
+  const filteredEstimates = {};
+  for (const [header, schemaField] of Object.entries(estimatedAliases)) {
+    const normalizedHeader = normalizeForComparison(header);
+    const normalizedField = normalizeForComparison(schemaField);
+    
+    // Only store if they differ after normalization
+    if (normalizedHeader !== normalizedField) {
+      filteredEstimates[header] = schemaField;
+    }
+  }
+
+  // Preserve existing aliases and only fill in blank ones
+  const mergedAliases = {
+    ...filteredEstimates,
+    ...(currentConfig.aliases || {}),
+  };
+
+  // Update the config
+  const updatedConfig = {
+    ...currentConfig,
+    aliases: mergedAliases,
+  };
+
+  // Format and set the textarea
+  packConfigEditor.value = JSON.stringify(updatedConfig, null, 2);
+
+  // Trigger input event to update any bindings
+  packConfigEditor.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 async function runValidation() {

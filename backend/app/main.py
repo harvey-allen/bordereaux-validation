@@ -154,6 +154,28 @@ class TemplateResponse(BaseModel):
     total_fields: int
 
 
+class FieldMappingEstimationRequest(BaseModel):
+    """Request to estimate field mapping from headers to schema."""
+    test_pack: str
+    territory: str
+    headers: list[str] = Field(description="Column headers from the uploaded data")
+
+
+class FieldMappingEstimationResponse(BaseModel):
+    """Response containing estimated field mapping."""
+    test_pack: str
+    territory: str
+    estimated_mappings: dict[str, str] = Field(
+        description="Estimated mappings from headers to schema fields"
+    )
+    matched_count: int = Field(description="Number of successfully matched headers")
+    unmatched_headers: list[str] = Field(description="Headers that could not be matched")
+    unmatched_fields: list[str] = Field(description="Schema fields that were not matched")
+    confidence_summary: dict[str, str] = Field(
+        description="Mapping of matched headers to confidence level (high/medium/low)"
+    )
+
+
 class ExceptionItem(BaseModel):
     """Single exception response item."""
     id: int
@@ -401,6 +423,49 @@ def generate_template(test_pack: str, territory: Optional[str] = None) -> Templa
         territory=selected_territory,
         headers=headers,
         total_fields=len(headers),
+    )
+
+
+@app.post("/api/v1/field-config/estimate-mapping", response_model=FieldMappingEstimationResponse)
+async def estimate_field_mapping(
+    request: FieldMappingEstimationRequest,
+    subscription: Subscription = Depends(enforce_rate_limit),
+) -> FieldMappingEstimationResponse:
+    """Estimate field mapping from uploaded column headers to schema fields using fuzzy matching."""
+    normalized_pack = normalize_pack_name(request.test_pack)
+    if not normalized_pack:
+        raise HTTPException(status_code=400, detail="test_pack is required")
+
+    if not request.territory or not request.territory.strip():
+        raise HTTPException(status_code=400, detail="territory is required")
+
+    if not request.headers or len(request.headers) == 0:
+        raise HTTPException(status_code=400, detail="headers list cannot be empty")
+
+    # Verify access
+    check_pack_access(subscription, [normalized_pack])
+
+    # Get mandatory and conditional fields for the pack and territory
+    mandatory_fields = get_pack_mandatory_fields(normalized_pack, request.territory)
+    
+    # Import the estimator function
+    from app.pack_config_service import estimate_field_mapping as backend_estimate_field_mapping
+    
+    result = await backend_estimate_field_mapping(
+        test_pack=normalized_pack,
+        territory=request.territory,
+        headers=request.headers,
+        mandatory_fields=mandatory_fields,
+    )
+
+    return FieldMappingEstimationResponse(
+        test_pack=normalized_pack,
+        territory=request.territory,
+        estimated_mappings=result["estimated_mappings"],
+        matched_count=result["matched_count"],
+        unmatched_headers=result["unmatched_headers"],
+        unmatched_fields=result["unmatched_fields"],
+        confidence_summary=result["confidence_summary"],
     )
 
 

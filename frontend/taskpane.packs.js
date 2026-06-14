@@ -84,6 +84,34 @@
     }
   }
 
+  async function estimateFieldMapping(excelUserEmail, testPack, territory, headerValues) {
+    try {
+      const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/field-config/estimate-mapping`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Excel-User-Email": excelUserEmail,
+        },
+        body: JSON.stringify({
+          test_pack: testPack,
+          territory: territory,
+          headers: Array.isArray(headerValues) ? headerValues : [],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.detail || errorData.message || `HTTP ${response.status}`;
+        throw new Error(String(errorMessage));
+      }
+
+      return await response.json();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error || "Unknown error");
+      throw new Error(errorMessage);
+    }
+  }
+
   global.TaskpanePacks = {
     formatPackLabel,
     getDefaultPackValues,
@@ -91,5 +119,6 @@
     formatTestTypeLabel,
     populatePackSelect,
     loadSubscribedPackValues,
+    estimateFieldMapping,
   };
 }(window));
