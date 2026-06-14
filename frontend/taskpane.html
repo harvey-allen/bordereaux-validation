@@ -476,11 +476,14 @@
         <details class="collapsible-section">
           <summary>Validation Configuration</summary>
           <div class="collapsible-content">
-            <textarea id="packConfigs"></textarea>
+              <button id="estimateFieldMapping" class="btn-secondary" style="width: 100%; margin-bottom: 8px;">Field Mapping Estimation</button>
+              <textarea id="packConfigs"></textarea>
           </div>
         </details>
 
-        <button id="generateTemplate" class="btn-secondary">Generate Template</button>
+        <div class="actions-grid">
+          <button id="generateTemplate" class="btn-secondary">Generate Template</button>
+        </div>
       </section>
 
       <section id="panelControl" class="tab-panel panel-card" role="tabpanel" aria-labelledby="tabControl">

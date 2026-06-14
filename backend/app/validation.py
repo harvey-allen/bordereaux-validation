@@ -357,9 +357,24 @@ def validate_grid_with_packs_report(
                 pack_config.get("fieldMappings")
                 or pack_config.get("FieldMappings")
                 or pack_config.get("columnMappings")
+                or pack_config.get("aliases")
+                or pack_config.get("Aliases")
                 or {}
             )
             model_to_sheet_column: dict[str, str] = {}
+            normalized_column_lookup = {
+                _normalize_field_name(column_name): column_name
+                for column_name in data_frame.columns
+            }
+
+            def _resolve_sheet_column(candidate: str) -> str | None:
+                direct = str(candidate).strip()
+                if not direct:
+                    return None
+                if direct in data_frame.columns:
+                    return direct
+                return normalized_column_lookup.get(_normalize_field_name(direct))
+
             if isinstance(field_mappings_raw, dict):
                 for raw_left, raw_right in field_mappings_raw.items():
                     left = str(raw_left).strip()
@@ -367,12 +382,15 @@ def validate_grid_with_packs_report(
                     if not left or not right:
                         continue
 
-                    if right in data_frame.columns:
+                    resolved_right = _resolve_sheet_column(right)
+                    resolved_left = _resolve_sheet_column(left)
+
+                    if resolved_right:
                         # model_field -> sheet_column
-                        model_to_sheet_column[left] = right
-                    elif left in data_frame.columns:
+                        model_to_sheet_column[left] = resolved_right
+                    elif resolved_left:
                         # sheet_column -> model_field
-                        model_to_sheet_column[right] = left
+                        model_to_sheet_column[right] = resolved_left
 
             # Build a pack-specific dataframe that includes mapped model-field aliases.
             pack_data_frame = data_frame.copy()

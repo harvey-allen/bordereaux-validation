@@ -24,6 +24,12 @@ const EXCEPTION_TAG_FILL = "#dbeafe";
 const MAX_EXCEL_SHEET_NAME_LENGTH = 31;
 const DEBUG_LOG_STORAGE_KEY = "bordereaux_validator_debug_log";
 const VIEWED_VERSION_CONTEXT_STORAGE_KEY = "bordereaux_validator_viewed_version_context";
+const PACK_CONFIG_STATE_STORAGE_KEY = "bordereaux_validator_pack_config_state";
+
+let availablePackOptions = [];
+let currentSheetPackConfigScope = null;
+let packConfigInputPersistTimer = null;
+let activeSheetSyncSequence = 0;
 
 const {
   formatPackLabel,
@@ -60,6 +66,354 @@ function buildSheetScopeKey(workbookName, sheetName) {
   const wb = String(workbookName || "__unknown_workbook__").trim() || "__unknown_workbook__";
   const sh = String(sheetName || "__unknown_sheet__").trim() || "__unknown_sheet__";
   return `${wb}::${sh}`;
+}
+
+function ensureStatusElement() {
+  let status = document.getElementById("status");
+  if (status || !document.body) {
+    return status;
+  }
+
+  status = document.createElement("div");
+  status.id = "status";
+  status.className = "status";
+  document.body.appendChild(status);
+  return status;
+}
+
+function buildFrontendErrorMessage(prefix, error) {
+  const detail = error instanceof Error
+    ? error.message
+    : String(error?.message || error || "Unexpected error");
+  return `${prefix}: ${detail}`;
+}
+
+function shouldSuppressFrontendError(error) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return message.includes("invalid api call in the current context");
+}
+
+function reportFrontendError(prefix, error, options = {}) {
+  appendDebugLog(prefix, {
+    message: String(error?.message || error || "Unexpected error"),
+    stack: String(error?.stack || ""),
+  });
+
+  if (shouldSuppressFrontendError(error)) {
+    return;
+  }
+
+  if (options.showStatus === false) {
+    return;
+  }
+
+  setStatus(buildFrontendErrorMessage(prefix, error), true);
+}
+
+function installGlobalFrontendErrorHandlers() {
+  if (window.__bvGlobalErrorHandlersInstalled) {
+    return;
+  }
+
+  window.__bvGlobalErrorHandlersInstalled = true;
+
+  window.addEventListener("error", (event) => {
+    reportFrontendError("Frontend error", event?.error || event?.message || "Unexpected error");
+  });
+
+  window.addEventListener("unhandledrejection", (event) => {
+    reportFrontendError("Unhandled frontend error", event?.reason || "Unexpected error");
+  });
+}
+
+async function closeTaskpaneIfSupported() {
+  try {
+    if (typeof Office?.addin?.hide === "function") {
+      await Office.addin.hide();
+    }
+  } catch {
+    // Best effort only.
+  }
+}
+
+function getAvailablePackValues() {
+  if (Array.isArray(availablePackOptions) && availablePackOptions.length > 0) {
+    return availablePackOptions;
+  }
+
+  const select = document.getElementById("testPacks");
+  const optionValues = Array.from(select?.options || [])
+    .map((option) => String(option.value || "").trim().toLowerCase())
+    .filter(Boolean);
+
+  return optionValues.length > 0 ? optionValues : ["risk_and_premium"];
+}
+
+function buildDefaultPackConfigs(packValues = getAvailablePackValues()) {
+  return Object.fromEntries(
+    packValues.map((packName) => [packName, getDefaultPackConfig(packName)])
+  );
+}
+
+function normalizePackConfigsByPack(rawPackConfigs) {
+  const normalized = buildDefaultPackConfigs();
+  const source = rawPackConfigs && typeof rawPackConfigs === "object" && !Array.isArray(rawPackConfigs)
+    ? rawPackConfigs
+    : {};
+
+  for (const [rawPackName, rawConfig] of Object.entries(source)) {
+    const packName = String(rawPackName || "").trim().toLowerCase();
+    if (!packName) {
+      continue;
+    }
+
+    const defaultConfig = normalized[packName] || getDefaultPackConfig(packName);
+    normalized[packName] = withDefaultEnabledTests(
+      {
+        [packName]: normalizePackConfigShape(
+          {
+            ...defaultConfig,
+            ...(rawConfig && typeof rawConfig === "object" && !Array.isArray(rawConfig) ? rawConfig : {}),
+          },
+          packName
+        ),
+      },
+      packName
+    )[packName];
+  }
+
+  return normalized;
+}
+
+function getSafePackSelection(preferredPack) {
+  const availablePacks = getAvailablePackValues();
+  const normalizedPreferredPack = String(preferredPack || "").trim().toLowerCase();
+  if (normalizedPreferredPack && availablePacks.includes(normalizedPreferredPack)) {
+    return normalizedPreferredPack;
+  }
+  return availablePacks[0] || "risk_and_premium";
+}
+
+function getPackConfigStateMap() {
+  try {
+    const raw = localStorage.getItem(PACK_CONFIG_STATE_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return {};
+}
+
+function setPackConfigStateMap(nextStateMap) {
+  try {
+    const payload = nextStateMap && typeof nextStateMap === "object" && !Array.isArray(nextStateMap)
+      ? nextStateMap
+      : {};
+    localStorage.setItem(PACK_CONFIG_STATE_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore
+  }
+}
+
+function getStoredPackConfigStateForSheet(workbookName, sheetName) {
+  const key = buildSheetScopeKey(workbookName, sheetName);
+  const entry = getPackConfigStateMap()[key];
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  return {
+    selectedPack: getSafePackSelection(entry.selectedPack),
+    packConfigsByPack: normalizePackConfigsByPack(entry.packConfigsByPack),
+  };
+}
+
+function storePackConfigStateForSheet(workbookName, sheetName, state) {
+  const key = buildSheetScopeKey(workbookName, sheetName);
+  const nextStateMap = getPackConfigStateMap();
+  nextStateMap[key] = {
+    selectedPack: getSafePackSelection(state?.selectedPack),
+    packConfigsByPack: normalizePackConfigsByPack(state?.packConfigsByPack),
+    updatedAt: new Date().toISOString(),
+  };
+  setPackConfigStateMap(nextStateMap);
+}
+
+async function resolveSheetPackConfigScope() {
+  const workbookName = getWorkbookName() || "__unknown_workbook__";
+  const sheetName = String(await getActiveSheetName() || "__unknown_sheet__").trim() || "__unknown_sheet__";
+  return {
+    workbookName,
+    sheetName,
+    key: buildSheetScopeKey(workbookName, sheetName),
+  };
+}
+
+function snapshotPackConfigStateFromUi() {
+  const selectedPack = getSafePackSelection(
+    document.getElementById("testPacks")?.value || currentPackSelection || getAvailablePackValues()[0]
+  );
+  const nextPackConfigs = normalizePackConfigsByPack(packConfigsByPack);
+  const packConfigEditor = document.getElementById("packConfigs");
+  let isEditorValid = true;
+  let validationError = null;
+
+  if (selectedPack && packConfigEditor) {
+    try {
+      const parsedConfig = parsePackConfigInput(packConfigEditor.value, selectedPack);
+      const selectedTerritory = getSelectedTerritoryValue();
+      if (selectedTerritory) {
+        parsedConfig.territory = selectedTerritory;
+      } else {
+        delete parsedConfig.territory;
+      }
+      nextPackConfigs[selectedPack] = withDefaultEnabledTests({ [selectedPack]: parsedConfig }, selectedPack)[selectedPack];
+    } catch (error) {
+      isEditorValid = false;
+      validationError = error;
+    }
+  }
+
+  return {
+    selectedPack,
+    packConfigsByPack: nextPackConfigs,
+    isEditorValid,
+    validationError,
+  };
+}
+
+async function persistPackConfigStateForScope(options = {}) {
+  const scope = options.scope || currentSheetPackConfigScope;
+  if (!scope?.sheetName) {
+    return null;
+  }
+
+  const snapshot = snapshotPackConfigStateFromUi();
+  currentPackSelection = snapshot.selectedPack;
+  packConfigsByPack = snapshot.packConfigsByPack;
+  storePackConfigStateForSheet(scope.workbookName, scope.sheetName, snapshot);
+
+  if (options.persistToServer && snapshot.isEditorValid && snapshot.selectedPack) {
+    await persistPackConfigurationForSheet(
+      snapshot.selectedPack,
+      snapshot.packConfigsByPack[snapshot.selectedPack],
+      scope.sheetName
+    );
+  }
+
+  if (!snapshot.isEditorValid && options.showValidationError) {
+    setStatus("Pack configs JSON is invalid.", true);
+  }
+
+  return snapshot;
+}
+
+function applyPackConfigStateToUi(state) {
+  const testPackSelect = document.getElementById("testPacks");
+  const nextState = state || {
+    selectedPack: getSafePackSelection(testPackSelect?.value || currentPackSelection),
+    packConfigsByPack: buildDefaultPackConfigs(),
+  };
+  const selectedPack = getSafePackSelection(nextState.selectedPack);
+
+  // Preserve existing pack configurations when switching sheets (retain aliases and other settings)
+  // Only merge in defaults for packs that aren't already configured
+  const preservedConfigs = { ...packConfigsByPack };
+  packConfigsByPack = normalizePackConfigsByPack(nextState.packConfigsByPack);
+  
+  // Restore previously configured aliases and settings
+  for (const [packName, config] of Object.entries(preservedConfigs)) {
+    if (config?.aliases && !packConfigsByPack[packName]?.aliases) {
+      packConfigsByPack[packName].aliases = config.aliases;
+    }
+    if (config?.enabledTests && !packConfigsByPack[packName]?.enabledTests) {
+      packConfigsByPack[packName].enabledTests = config.enabledTests;
+    }
+  }
+  
+  currentPackSelection = selectedPack;
+
+  if (testPackSelect) {
+    testPackSelect.value = selectedPack;
+    if (!testPackSelect.value) {
+      testPackSelect.value = getSafePackSelection(selectedPack);
+      currentPackSelection = String(testPackSelect.value || currentPackSelection || "").trim().toLowerCase();
+    }
+  }
+
+  renderSelectedPackConfig(currentPackSelection);
+}
+
+function schedulePackConfigStatePersist(options = {}) {
+  if (packConfigInputPersistTimer) {
+    window.clearTimeout(packConfigInputPersistTimer);
+  }
+
+  const delayMs = Number(options.delayMs);
+  const effectiveDelay = Number.isFinite(delayMs) ? delayMs : 450;
+
+  packConfigInputPersistTimer = window.setTimeout(() => {
+    persistPackConfigStateForScope({
+      persistToServer: Boolean(options.persistToServer),
+      showValidationError: Boolean(options.showValidationError),
+    }).catch((error) => {
+      reportFrontendError("Pack config save failed", error, { showStatus: Boolean(options.showSaveError) });
+    });
+  }, Math.max(0, effectiveDelay));
+}
+
+async function syncPackConfigStateWithActiveSheet(options = {}) {
+  const syncSequence = ++activeSheetSyncSequence;
+
+  if (!options.skipSavePreviousSheet && currentSheetPackConfigScope?.sheetName) {
+    try {
+      await persistPackConfigStateForScope({
+        scope: currentSheetPackConfigScope,
+        persistToServer: true,
+        showValidationError: false,
+      });
+    } catch (error) {
+      reportFrontendError("Could not save the previous sheet configuration", error, { showStatus: false });
+    }
+  }
+
+  const nextScope = await resolveSheetPackConfigScope();
+  if (syncSequence !== activeSheetSyncSequence) {
+    return;
+  }
+
+  currentSheetPackConfigScope = nextScope;
+  const storedState = getStoredPackConfigStateForSheet(nextScope.workbookName, nextScope.sheetName);
+  applyPackConfigStateToUi(storedState);
+  await syncTerritorySelectorForSelectedPack();
+
+  try {
+    await hydrateSelectedPackConfigFromServer({
+      workbookName: nextScope.workbookName,
+      sheetName: nextScope.sheetName,
+    });
+  } catch (error) {
+    reportFrontendError("Could not load sheet-specific pack configuration", error, { showStatus: false });
+  }
+
+  if (syncSequence !== activeSheetSyncSequence) {
+    return;
+  }
+
+  storePackConfigStateForSheet(nextScope.workbookName, nextScope.sheetName, {
+    selectedPack: currentPackSelection,
+    packConfigsByPack,
+  });
+
+  await syncTerritorySelectorForSelectedPack();
+  await refreshVersionStateForActiveSheet();
+
+  if (document.getElementById("exceptionModal")?.classList.contains("active")) {
+    await loadLinkedFieldsForExceptionModal();
+  }
 }
 
 function getViewedVersionContextMap() {
@@ -1209,6 +1563,9 @@ function parsePackConfigInput(packConfigText, selectedPack) {
 function renderSelectedPackConfig(selectedPack) {
   const normalizedPack = String(selectedPack || "").trim().toLowerCase();
   const packConfigEditor = document.getElementById("packConfigs");
+  if (!packConfigEditor) {
+    return;
+  }
   const config = withDefaultEnabledTests(
     { [normalizedPack]: packConfigsByPack[normalizedPack] || getDefaultPackConfig(normalizedPack) },
     normalizedPack
@@ -1219,8 +1576,13 @@ function renderSelectedPackConfig(selectedPack) {
 }
 
 function syncPackConfigEditorWithSelectedPack() {
-  const selectedPack = document.getElementById("testPacks").value;
+  const testPackSelect = document.getElementById("testPacks");
   const packConfigEditor = document.getElementById("packConfigs");
+  if (!testPackSelect || !packConfigEditor) {
+    return;
+  }
+
+  const selectedPack = testPackSelect.value;
   const normalizedPack = String(selectedPack || "").trim().toLowerCase();
   const selectedTerritory = getSelectedTerritoryValue();
 
@@ -1236,7 +1598,7 @@ function syncPackConfigEditorWithSelectedPack() {
       )[currentPackSelection];
     } catch {
       // Keep current editor value if invalid, but do not switch contexts.
-      document.getElementById("testPacks").value = currentPackSelection;
+      testPackSelect.value = currentPackSelection;
       setStatus("Pack configs JSON is invalid.", true);
       return;
     }
@@ -1247,10 +1609,14 @@ function syncPackConfigEditorWithSelectedPack() {
 }
 
 function getExcelUserEmail() {
-  const officeMailboxEmail = Office?.context?.mailbox?.userProfile?.emailAddress;
-  const officeProfileEmail = Office?.context?.userProfile?.emailAddress;
+  let officeProfileEmail = null;
+  try {
+    officeProfileEmail = Office?.context?.userProfile?.emailAddress || null;
+  } catch {
+    officeProfileEmail = null;
+  }
 
-  const email = officeMailboxEmail || officeProfileEmail || DEFAULT_EXCEL_EMAIL;
+  const email = officeProfileEmail || DEFAULT_EXCEL_EMAIL;
   return String(email).trim().toLowerCase();
 }
 
@@ -1312,14 +1678,14 @@ async function getActiveSheetName() {
   }
 }
 
-async function hydrateSelectedPackConfigFromServer() {
+async function hydrateSelectedPackConfigFromServer(options = {}) {
   const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
   if (!selectedPack) {
     return;
   }
 
   const excelUserEmail = getExcelUserEmail();
-  const sheetName = await getActiveSheetName();
+  const sheetName = String(options.sheetName || await getActiveSheetName() || "").trim();
   if (!excelUserEmail || !sheetName) {
     return;
   }
@@ -1328,7 +1694,7 @@ async function hydrateSelectedPackConfigFromServer() {
     test_pack: selectedPack,
     sheet_name: sheetName,
   });
-  const workbookName = getWorkbookName();
+  const workbookName = String(options.workbookName || getWorkbookName() || "").trim();
   if (workbookName) {
     query.set("workbook_name", workbookName);
   }
@@ -1367,6 +1733,12 @@ async function hydrateSelectedPackConfigFromServer() {
     )[selectedPack];
 
     packConfigsByPack[selectedPack] = mergedConfig;
+    if (workbookName || sheetName) {
+      storePackConfigStateForSheet(workbookName || "__unknown_workbook__", sheetName, {
+        selectedPack,
+        packConfigsByPack,
+      });
+    }
     if (currentPackSelection === selectedPack) {
       renderSelectedPackConfig(selectedPack);
     }
@@ -2468,16 +2840,21 @@ async function reapplyTaggedCellsForScope(workbookName, sheetName) {
 }
 
 
-Office.onReady(async () => {
+async function initializeTaskpaneApp() {
   initializeValidatorTabs();
 
   const testPackSelect = document.getElementById("testPacks");
+  if (!testPackSelect) {
+    throw new Error("Could not find the test pack selector.");
+  }
+
   const excelUserEmail = getExcelUserEmail();
   const availablePacks = populatePackSelect(await loadSubscribedPackValues(excelUserEmail));
+  availablePackOptions = availablePacks.length > 0 ? availablePacks : ["risk_and_premium"];
 
   const defaultPackFromConfig = String(CONFIG.DEFAULT_PACK || "").trim().toLowerCase();
-  const fallbackPack = availablePacks[0] || "risk_and_premium";
-  const initialPack = availablePacks.includes(defaultPackFromConfig)
+  const fallbackPack = availablePackOptions[0] || "risk_and_premium";
+  const initialPack = availablePackOptions.includes(defaultPackFromConfig)
     ? defaultPackFromConfig
     : fallbackPack;
 
@@ -2486,24 +2863,24 @@ Office.onReady(async () => {
     testPackSelect.value = fallbackPack;
   }
 
-  packConfigsByPack = Object.fromEntries(
-    availablePacks.map((packName) => [packName, getDefaultPackConfig(packName)])
-  );
-
-  currentPackSelection = String(testPackSelect.value || "").trim().toLowerCase();
+  packConfigsByPack = buildDefaultPackConfigs(availablePackOptions);
+  currentPackSelection = getSafePackSelection(testPackSelect.value);
   renderSelectedPackConfig(currentPackSelection);
-  await syncTerritorySelectorForSelectedPack();
-  document.getElementById("testPacks").addEventListener("change", async () => {
+
+  document.getElementById("testPacks")?.addEventListener("change", async () => {
     syncPackConfigEditorWithSelectedPack();
-    await hydrateSelectedPackConfigFromServer();
+    await hydrateSelectedPackConfigFromServer({
+      workbookName: currentSheetPackConfigScope?.workbookName,
+      sheetName: currentSheetPackConfigScope?.sheetName,
+    });
     await syncTerritorySelectorForSelectedPack();
+    await persistPackConfigStateForScope({ persistToServer: true, showValidationError: true });
     await refreshVersionStateForActiveSheet();
     if (document.getElementById("exceptionModal")?.classList.contains("active")) {
       await loadLinkedFieldsForExceptionModal();
     }
   });
-  await hydrateSelectedPackConfigFromServer();
-  await syncTerritorySelectorForSelectedPack();
+
   document.getElementById("territory")?.addEventListener("change", () => {
     const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
     const territory = getSelectedTerritoryValue();
@@ -2511,8 +2888,17 @@ Office.onReady(async () => {
     if (currentPackSelection === selectedPack) {
       renderSelectedPackConfig(selectedPack);
     }
+    schedulePackConfigStatePersist({ delayMs: 0, persistToServer: true, showValidationError: true, showSaveError: true });
   });
-  document.getElementById("runValidation").addEventListener("click", runValidation);
+
+  document.getElementById("packConfigs")?.addEventListener("input", () => {
+    schedulePackConfigStatePersist({ delayMs: 400, persistToServer: false, showValidationError: false, showSaveError: false });
+  });
+  document.getElementById("packConfigs")?.addEventListener("blur", () => {
+    schedulePackConfigStatePersist({ delayMs: 0, persistToServer: true, showValidationError: true, showSaveError: true });
+  });
+
+  document.getElementById("runValidation")?.addEventListener("click", runValidation);
   document.getElementById("clearTable")?.addEventListener("click", clearTableFormattingAndComments);
   document.getElementById("extractResults")?.addEventListener("click", extractValidationResults);
   document.getElementById("visualiseResults")?.addEventListener("click", visualiseValidationResults);
@@ -2522,42 +2908,66 @@ Office.onReady(async () => {
   document.getElementById("viewSavedVersion")?.addEventListener("click", viewSelectedSavedVersion);
   document.getElementById("savedVersions")?.addEventListener("change", updateActionButtons);
   document.getElementById("generateTemplate")?.addEventListener("click", generateTemplate);
-  
-  // Exception management event listeners
+  document.getElementById("estimateFieldMapping")?.addEventListener("click", estimateFieldMapping);
+
   document.getElementById("applyException")?.addEventListener("click", applyExceptionToCell);
   document.getElementById("manageExceptions")?.addEventListener("click", openExceptionModal);
   document.getElementById("createExceptionBtn")?.addEventListener("click", createException);
   document.getElementById("closeExceptionModalBtn")?.addEventListener("click", closeExceptionModal);
-  
-  // Close modal when clicking outside the content
+
   document.getElementById("exceptionModal")?.addEventListener("click", (event) => {
     const modal = document.getElementById("exceptionModal");
     if (event.target === modal) {
       closeExceptionModal();
     }
   });
-  
-  // Restore previously saved validation results
+
   restoreValidationResults();
+
   try {
     await Excel.run(async (context) => {
       context.workbook.worksheets.onActivated.add(() => {
-        refreshVersionStateForActiveSheet().catch(() => {});
+        syncPackConfigStateWithActiveSheet().catch((error) => {
+          reportFrontendError("Could not refresh sheet-specific configuration", error);
+        });
+        
+        // Ensure taskpane is visible when switching sheets
+        try {
+          if (typeof Office?.addin?.show === "function") {
+            Office.addin.show();
+          }
+        } catch {
+          // Best effort only
+        }
+        
+        // Ensure Configuration tab is active
+        const configTab = document.getElementById("tabConfiguration");
+        if (configTab) {
+          configTab.click();
+        }
       });
       await context.sync();
     });
   } catch {
     // Best effort only.
   }
-  // Initialize button states (Extract / Visualise disabled until validation run)
-  await refreshVersionStateForActiveSheet();
-  
-  // Load exceptions on startup
+
+  await syncPackConfigStateWithActiveSheet({ skipSavePreviousSheet: true });
   await loadExceptions();
+}
+
+Office.onReady(() => {
+  installGlobalFrontendErrorHandlers();
+  initializeTaskpaneApp().catch((error) => {
+    reportFrontendError("Taskpane initialization failed", error);
+  });
 });
 
 function setStatus(message, isError = false) {
-  const status = document.getElementById("status");
+  const status = ensureStatusElement();
+  if (!status) {
+    return;
+  }
   status.textContent = message;
   status.style.color = isError ? "#b00020" : "#1e4620";
 }
@@ -2588,17 +2998,7 @@ function buildAddressRow(globalRowZeroBased, startColZeroBased, columnCount) {
 }
 
 function getWorkbookName() {
-  try {
-    const url = String(Office?.context?.document?.url || "").trim();
-    if (!url) {
-      return null;
-    }
-    const withoutQuery = url.split("?")[0];
-    const lastSegment = withoutQuery.split("/").pop() || "";
-    return lastSegment ? decodeURIComponent(lastSegment) : null;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 function extractTestIdFromFailureMessage(testMessage) {
@@ -4808,6 +5208,7 @@ async function generateTemplate() {
   const button = document.getElementById("generateTemplate");
   const backendUrl = CONFIG.BACKEND_URL;
   const excelUserEmail = getExcelUserEmail();
+  let generatedSheetName = null;
 
   if (!button) return;
 
@@ -4844,11 +5245,26 @@ async function generateTemplate() {
     }
 
     const templateData = await response.json();
-    const headers = templateData.headers || [];
+    let headers = templateData.headers || [];
 
     if (headers.length === 0) {
       throw new Error("No fields available for this pack and territory");
     }
+
+    // Apply aliases from current pack configuration if available
+    const currentPackConfig = packConfigsByPack[selectedPack];
+    const aliases = currentPackConfig?.aliases || {};
+    
+    // Replace header keys with their aliases where configured
+    headers = headers.map((header) => {
+      // Check if this header has an alias mapped to it (value is the original header, key is the alias)
+      for (const [aliasKey, aliasValue] of Object.entries(aliases)) {
+        if (aliasValue === header) {
+          return aliasKey; // Use the alias key instead of the original header
+        }
+      }
+      return header; // Use original header if no alias found
+    });
 
     // Create new worksheet and add template
     await Excel.run(async (context) => {
@@ -4856,8 +5272,8 @@ async function generateTemplate() {
       const sheets = workbook.worksheets;
 
       // Create a new worksheet with a name based on the pack and territory
-      const sheetName = `${formatPackLabel(selectedPack)} - ${selectedTerritory}`.substring(0, 31);
-      const newSheet = sheets.add(sheetName);
+      generatedSheetName = `${formatPackLabel(selectedPack)} - ${selectedTerritory}`.substring(0, 31);
+      const newSheet = sheets.add(generatedSheetName);
 
       // Calculate the range for all header columns
       const lastCol = columnToA1(headers.length - 1);
@@ -4869,8 +5285,8 @@ async function generateTemplate() {
 
       // Format the header row
       headerRange.format.font.bold = true;
-      headerRange.format.fill.color = "#1d4ed8";
-      headerRange.format.font.color = "#ffffff";
+      headerRange.format.fill.color = "#ffffff";
+      headerRange.format.font.color = "#000000";
 
       // Auto-fit columns
       headerRange.format.autofitColumns();
@@ -4881,7 +5297,36 @@ async function generateTemplate() {
       await context.sync();
     });
 
-    setStatus(`Template generated with ${headers.length} fields in new sheet: ${sheetName}`);
+    setStatus(`Template generated with ${headers.length} fields in new sheet: ${generatedSheetName}`);
+    
+    // Save current pack configuration state before sheet switch
+    try {
+      await persistPackConfigStateForScope({
+        scope: currentSheetPackConfigScope,
+        persistToServer: true,
+        showValidationError: false,
+      });
+    } catch (error) {
+      reportFrontendError("Could not save configuration before sheet switch", error, { showStatus: false });
+    }
+    
+    // Give the sheet activation and sync process time to complete, then ensure Configuration tab is visible
+    await new Promise(resolve => setTimeout(resolve, 250));
+    
+    // Keep taskpane open and ensure Configuration tab is active
+    const configTab = document.getElementById("tabConfiguration");
+    if (configTab) {
+      configTab.click();
+    }
+    
+    // Try to show the taskpane if it's been hidden
+    try {
+      if (typeof Office?.addin?.show === "function") {
+        await Office.addin.show();
+      }
+    } catch {
+      // Best effort only
+    }
   } catch (error) {
     setStatus(`Template generation failed: ${error?.message || "Unexpected error"}`, true);
   } finally {
@@ -4889,6 +5334,137 @@ async function generateTemplate() {
       button.disabled = false;
     }
   }
+}
+
+async function estimateFieldMapping() {
+  const button = document.getElementById("estimateFieldMapping");
+  const excelUserEmail = getExcelUserEmail();
+  const backendUrl = CONFIG.BACKEND_URL;
+
+  if (!button) return;
+
+  try {
+    button.disabled = true;
+    setStatus("Extracting headers and estimating field mapping...");
+
+    // Get the selected test pack and territory
+    const selectedPack = String(document.getElementById("testPacks")?.value || "").trim().toLowerCase();
+    const selectedTerritory = getSelectedTerritoryValue();
+
+    if (!selectedPack) {
+      throw new Error("Please select a test pack first");
+    }
+
+    if (!selectedTerritory) {
+      throw new Error("Please select a territory first");
+    }
+
+    // Extract headers from the active sheet
+    const sheetContext = await resolveValidationRangeMeta();
+    if (!sheetContext) {
+      throw new Error("Could not extract headers from active sheet");
+    }
+
+    const headerValues = sheetContext.headerValues || [];
+    if (headerValues.length === 0) {
+      throw new Error("No headers found on the active sheet");
+    }
+
+    // Normalize header values to strings
+    const normalizedHeaders = headerValues.map((h) => String(h || "").trim()).filter(Boolean);
+    if (normalizedHeaders.length === 0) {
+      throw new Error("No non-empty headers found on the active sheet");
+    }
+
+    // Call backend to estimate field mapping
+    const { estimateFieldMapping: estimateFieldMappingApi } = window.TaskpanePacks || {};
+    if (!estimateFieldMappingApi) {
+      throw new Error("Field mapping estimation service not available");
+    }
+
+    const estimationResult = await estimateFieldMappingApi(excelUserEmail, selectedPack, selectedTerritory, normalizedHeaders);
+
+    if (!estimationResult) {
+      throw new Error("No estimation result returned from server");
+    }
+
+    // Merge estimation results into pack config
+    await mergeEstimationIntoParkConfig(selectedPack, estimationResult);
+
+    setStatus(
+      `Field mapping estimated: ${estimationResult.matched_count || 0} matched, ${estimationResult.unmatched_count || 0} unmatched`,
+      false
+    );
+  } catch (error) {
+    let errorMessage = "Unexpected error";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === "string") {
+      errorMessage = error;
+    } else if (error && typeof error === "object") {
+      errorMessage = error.detail || error.message || String(error);
+    }
+    setStatus(`Field mapping estimation failed: ${errorMessage}`, true);
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+  }
+}
+
+async function mergeEstimationIntoParkConfig(testPack, estimationResult) {
+  const normalizedPack = String(testPack || "").trim().toLowerCase();
+  if (!normalizedPack) {
+    return;
+  }
+
+  const packConfigEditor = document.getElementById("packConfigs");
+  if (!packConfigEditor) {
+    return;
+  }
+
+  // Parse current pack config
+  let currentConfig;
+  try {
+    currentConfig = parsePackConfigInput(packConfigEditor.value, normalizedPack);
+  } catch {
+    currentConfig = getDefaultPackConfig(normalizedPack);
+  }
+
+  // Helper to normalize field names (strip non-alphanumeric, lowercase)
+  const normalizeForComparison = (value) => String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  // Filter estimated mappings - only keep if normalized header differs from normalized field
+  const estimatedAliases = estimationResult.estimated_mappings || {};
+  const filteredEstimates = {};
+  for (const [header, schemaField] of Object.entries(estimatedAliases)) {
+    const normalizedHeader = normalizeForComparison(header);
+    const normalizedField = normalizeForComparison(schemaField);
+    
+    // Only store if they differ after normalization
+    if (normalizedHeader !== normalizedField) {
+      filteredEstimates[header] = schemaField;
+    }
+  }
+
+  // Preserve existing aliases and only fill in blank ones
+  const mergedAliases = {
+    ...filteredEstimates,
+    ...(currentConfig.aliases || {}),
+  };
+
+  // Update the config
+  const updatedConfig = {
+    ...currentConfig,
+    aliases: mergedAliases,
+  };
+
+  // Format and set the textarea
+  packConfigEditor.value = JSON.stringify(updatedConfig, null, 2);
+
+  // Trigger input event to update any bindings
+  packConfigEditor.dispatchEvent(new Event("input", { bubbles: true }));
+  schedulePackConfigStatePersist({ delayMs: 0, persistToServer: true, showValidationError: true, showSaveError: true });
 }
 
 async function runValidation() {
@@ -4923,6 +5499,8 @@ async function runValidation() {
   currentPackSelection = selectedPack;
   packConfigEditor.value = JSON.stringify(normalizedConfig, null, 2);
   const packConfigs = { [selectedPack]: normalizedConfig };
+
+  await persistPackConfigStateForScope({ persistToServer: true, showValidationError: true });
 
   const excelUserEmail = getExcelUserEmail();
   if (!excelUserEmail) {
