@@ -4266,10 +4266,14 @@ async function visualiseValidationResults() {
 
     /* ── Panels ── */
     .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:16px; }
-    .panel-header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px 12px; border-bottom:1px solid var(--border); }
+    .panel-header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px 12px; border-bottom:1px solid var(--border); cursor:pointer; user-select:none; transition:background .12s; }
+    .panel-header:hover { background:#fafbfc; }
     .panel-title { font-size:13px; font-weight:600; color:var(--text-1); margin:0; }
     .panel-subtitle { font-size:12px; color:var(--text-3); margin-top:2px; }
-    .panel-body { padding:18px; }
+    .panel-body { padding:18px; transition:max-height .3s ease, opacity .3s ease, padding .3s ease, visibility .3s ease; overflow:hidden; }
+    .panel-body.collapsed { max-height:0; opacity:0; padding:0 18px; visibility:hidden; }
+    .panel-collapse-btn { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border:none; background:transparent; cursor:pointer; color:var(--text-2); font-size:16px; padding:0; margin:0; transition:transform .3s ease; flex-shrink:0; }
+    .panel-collapse-btn.collapsed { transform:rotate(-90deg); }
 
     /* ── Toggle tabs ── */
     .tab-group { display:inline-flex; gap:2px; background:#f0f2f5; border-radius:6px; padding:3px; border:1px solid var(--border); }
@@ -4377,6 +4381,7 @@ async function visualiseValidationResults() {
   <div class="panel" id="sankey-panel" style="margin-bottom:16px">
     <div class="panel-header">
       <div><div class="panel-title">Test Flow Overview</div><div class="panel-subtitle">Test flow representing the outcomes of the validation run from source to result</div></div>
+      <button class="panel-collapse-btn" data-panel="sankey" title="Collapse/expand">▼</button>
     </div>
     <div class="panel-body" style="padding:12px 18px 18px;background:#fff">
       <div class="sankey-wrap">
@@ -4392,7 +4397,10 @@ async function visualiseValidationResults() {
         <div class="panel-title">Top Failure Breakdown</div>
         <div class="panel-subtitle">Top 10 by failure count on a test, field and submission level (broken down by severity)</div>
       </div>
-      <div class="tab-group" id="bar-controls"></div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div class="tab-group" id="bar-controls"></div>
+        <button class="panel-collapse-btn" data-panel="bar" title="Collapse/expand">▼</button>
+      </div>
     </div>
     <div class="panel-body">
       <div class="chart-wrap" id="bar-container"></div>
@@ -4402,6 +4410,7 @@ async function visualiseValidationResults() {
   <div class="panel" id="trend-panel" style="margin-bottom:16px">
     <div class="panel-header">
       <div><div class="panel-title">Historic Test Pass Rate</div><div class="panel-subtitle">The test pass rate over time for saved report versions associated with the current test pack</div></div>
+      <button class="panel-collapse-btn" data-panel="trend" title="Collapse/expand">▼</button>
     </div>
     <div class="panel-body" style="padding:0 0 2px;">
       <div class="sparkline-wrap" id="trend-chart"></div>
@@ -4415,7 +4424,10 @@ async function visualiseValidationResults() {
         <div class="panel-title">Failure Detail</div>
         <div class="panel-subtitle">Complete failure analysis for full transparency into each validation failure</div>
       </div>
-      <span style="font-size:12px;color:var(--text-3)">${exportRows.length} rows</span>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="font-size:12px;color:var(--text-3)">${exportRows.length} rows</span>
+        <button class="panel-collapse-btn" data-panel="failure" title="Collapse/expand">▼</button>
+      </div>
     </div>
     <div class="panel-body" style="padding:0;overflow-x:auto;">
       ${exportRows.length === 0 ? '<div class="empty">No failures recorded.</div>' : `
@@ -4724,6 +4736,41 @@ async function visualiseValidationResults() {
     renderTrendChart();
     setupControls();
     setupTable();
+    setupPanelCollapse();
+  }
+
+  function setupPanelCollapse() {
+    const panels = document.querySelectorAll('.panel-header');
+    panels.forEach(header => {
+      header.addEventListener('click', (e) => {
+        // Don't collapse if clicking on interactive elements
+        if (e.target.closest('.tab-group') || e.target.closest('.tab-btn')) return;
+        
+        const panel = header.closest('.panel');
+        const body = panel.querySelector('.panel-body');
+        const btn = header.querySelector('.panel-collapse-btn');
+        
+        if (!body) return;
+        
+        body.classList.toggle('collapsed');
+        if (btn) btn.classList.toggle('collapsed');
+      });
+    });
+    
+    // Also handle direct button clicks
+    const collapseButtons = document.querySelectorAll('.panel-collapse-btn');
+    collapseButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const panel = btn.closest('.panel');
+        const body = panel.querySelector('.panel-body');
+        
+        if (!body) return;
+        
+        body.classList.toggle('collapsed');
+        btn.classList.toggle('collapsed');
+      });
+    });
   }
 
   // Robust init for document.write/new-tab flow.
