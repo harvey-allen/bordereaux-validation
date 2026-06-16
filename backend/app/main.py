@@ -1451,7 +1451,7 @@ async def get_latest_results(
         )
 
 
-@app.get("/api/v1/results/versions/{version_id}", response_model=SavedResultsVersionPayloadResponse)
+@app.get("/api/v1/results/versions/{version_id:int}", response_model=SavedResultsVersionPayloadResponse)
 async def get_result_version_payload(
     version_id: int,
     subscription: Subscription = Depends(get_authenticated_subscription),
@@ -1479,7 +1479,7 @@ async def get_result_versions_comparison(
     workbook_name: Optional[str] = None,
     subscription: Subscription = Depends(get_authenticated_subscription),
 ) -> VersionComparisonResponse:
-    if not DB_AVAILABLE:
+    if not DB_AVAILABLE:  # static route — must stay above /{version_id}
         raise HTTPException(status_code=503, detail="Database not available")
     _, organisation_id = _require_db_backed_user(subscription)
 
@@ -1540,7 +1540,7 @@ async def get_result_versions_comparison(
         return VersionComparisonResponse(previous_version=previous_version, trend=trend_items)
 
 
-@app.put("/api/v1/results/versions/{version_id}", response_model=SavedResultsVersionItem)
+@app.put("/api/v1/results/versions/{version_id:int}", response_model=SavedResultsVersionItem)
 async def update_result_version_by_id_endpoint(
     version_id: int,
     payload: SaveResultsVersionRequest,
@@ -1628,7 +1628,7 @@ async def remove_result_version(
         return {"deleted": True, "sheet_key_id": sheet_key.id}
 
 
-@app.delete("/api/v1/results/versions/{version_id}")
+@app.delete("/api/v1/results/versions/{version_id:int}")
 async def remove_result_version_by_id(
     version_id: int,
     subscription: Subscription = Depends(get_authenticated_subscription),
