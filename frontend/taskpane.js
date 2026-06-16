@@ -386,6 +386,8 @@ async function syncPackConfigStateWithActiveSheet(options = {}) {
   }
 
   currentSheetPackConfigScope = nextScope;
+  restoreValidationResultsForScope(nextScope);
+  updateActionButtons();
   const storedState = getStoredPackConfigStateForSheet(nextScope.workbookName, nextScope.sheetName);
   applyPackConfigStateToUi(storedState);
   await syncTerritorySelectorForSelectedPack();
@@ -535,6 +537,14 @@ function persistValidationResults() {
   if (typeof storageHelpers.persist !== "function") {
     return;
   }
+  const workbookName = currentSheetPackConfigScope?.workbookName || getWorkbookName() || "__unknown_workbook__";
+  const sheetName = String(
+    lastValidationSourceSheetName
+      || currentSheetPackConfigScope?.sheetName
+      || "__unknown_sheet__"
+  ).trim() || "__unknown_sheet__";
+  const scopeKey = buildSheetScopeKey(workbookName, sheetName);
+
   storageHelpers.persist({
     results: lastValidationResults,
     sourceSheetName: lastValidationSourceSheetName,
@@ -544,20 +554,40 @@ function persistValidationResults() {
     passedTests: lastValidationPassedTests,
     passedUmrs: lastValidationPassedUmrs,
     taggedCells: lastTaggedCells,
-  });
+  }, { scopeKey });
 }
 
 /**
  * Restore validation results from localStorage
  */
-function restoreValidationResults() {
+function restoreValidationResultsForScope(scope) {
+  const workbookName = String(scope?.workbookName || "__unknown_workbook__").trim() || "__unknown_workbook__";
+  const sheetName = String(scope?.sheetName || "__unknown_sheet__").trim() || "__unknown_sheet__";
+  const scopeKey = buildSheetScopeKey(workbookName, sheetName);
+
   if (typeof storageHelpers.restore !== "function") {
+    lastValidationResults = [];
+    lastValidationSourceSheetName = null;
+    lastValidationExecutedTests = [];
+    lastValidationPack = null;
+    lastValidationFailedTests = [];
+    lastValidationPassedTests = [];
+    lastValidationPassedUmrs = [];
     return false;
   }
-  const persistData = storageHelpers.restore();
+
+  const persistData = storageHelpers.restore({ scopeKey });
   if (!persistData) {
+    lastValidationResults = [];
+    lastValidationSourceSheetName = null;
+    lastValidationExecutedTests = [];
+    lastValidationPack = null;
+    lastValidationFailedTests = [];
+    lastValidationPassedTests = [];
+    lastValidationPassedUmrs = [];
     return false;
   }
+
   lastValidationResults = Array.isArray(persistData.results) ? persistData.results : [];
   lastValidationSourceSheetName = persistData.sourceSheetName || null;
   lastValidationExecutedTests = Array.isArray(persistData.executedTests) ? persistData.executedTests : [];
@@ -565,18 +595,28 @@ function restoreValidationResults() {
   lastValidationFailedTests = Array.isArray(persistData.failedTests) ? persistData.failedTests : [];
   lastValidationPassedTests = Array.isArray(persistData.passedTests) ? persistData.passedTests : [];
   lastValidationPassedUmrs = Array.isArray(persistData.passedUmrs) ? persistData.passedUmrs : [];
-  lastTaggedCells = Array.isArray(persistData.taggedCells) ? persistData.taggedCells : [];
+  const restoredTaggedCells = Array.isArray(persistData.taggedCells) ? persistData.taggedCells : [];
+  lastTaggedCells = mergeTaggedCells(lastTaggedCells, restoredTaggedCells);
+
+  if (!lastValidationSourceSheetName && sheetName !== "__unknown_sheet__") {
+    lastValidationSourceSheetName = sheetName;
+  }
+
   return true;
 }
 
 /**
  * Clear persisted validation results from localStorage
  */
-function clearPersistedValidationResults() {
+function clearPersistedValidationResultsForScope(scope) {
+  const workbookName = String(scope?.workbookName || "__unknown_workbook__").trim() || "__unknown_workbook__";
+  const sheetName = String(scope?.sheetName || "__unknown_sheet__").trim() || "__unknown_sheet__";
+  const scopeKey = buildSheetScopeKey(workbookName, sheetName);
+
   if (typeof storageHelpers.clear !== "function") {
     return;
   }
-  storageHelpers.clear();
+  storageHelpers.clear({ scopeKey });
 }
 
 function normalizeTaggedCellRecord(item) {
@@ -2922,8 +2962,6 @@ async function initializeTaskpaneApp() {
     }
   });
 
-  restoreValidationResults();
-
   try {
     await Excel.run(async (context) => {
       context.workbook.worksheets.onActivated.add(() => {
@@ -3027,6 +3065,22 @@ async function getCurrentResultsScope(options = {}) {
     workbookName,
     sheetName: sheetName || "__unknown_sheet__",
   };
+}
+
+async function ensureValidationResultsLoadedForActiveSheet() {
+  const activeScope = await getCurrentResultsScope();
+  const activeSheetName = String(activeScope?.sheetName || "").trim();
+  const loadedSheetName = String(lastValidationSourceSheetName || "").trim();
+  const hasLoadedResults = Array.isArray(lastValidationResults) && lastValidationResults.length > 0;
+
+  if (hasLoadedResults && loadedSheetName && loadedSheetName === activeSheetName) {
+    return true;
+  }
+
+  restoreValidationResultsForScope(activeScope);
+  updateActionButtons();
+
+  return Array.isArray(lastValidationResults) && lastValidationResults.length > 0;
 }
 
 async function refreshVersionStateForActiveSheet() {
@@ -3274,7 +3328,13 @@ async function clearTableFormattingAndComments() {
     lastValidationPassedTests = [];
     lastValidationPassedUmrs = [];
     lastTaggedCells = [];
-    clearPersistedValidationResults();
+    clearPersistedValidationResultsForScope(
+      currentSheetPackConfigScope
+      || {
+        workbookName: getWorkbookName() || "__unknown_workbook__",
+        sheetName: tableMeta.sheetName || "__unknown_sheet__",
+      }
+    );
     updateActionButtons();
 
     setStatus("Cleared all comments and highlights in the table.");
@@ -3548,6 +3608,8 @@ async function buildFailureExportRows() {
 
 async function extractValidationResults() {
   const extractButton = document.getElementById("extractResults");
+
+  await ensureValidationResultsLoadedForActiveSheet();
   
   if (!lastValidationResults || lastValidationResults.length === 0) {
     setStatus("No validation results to extract. Please run validation first.", true);
@@ -3883,6 +3945,8 @@ async function deleteSelectedResultsVersion() {
 
 async function visualiseValidationResults() {
   const visualiseButton = document.getElementById("visualiseResults");
+
+  await ensureValidationResultsLoadedForActiveSheet();
 
   if (!lastValidationResults || lastValidationResults.length === 0) {
     setStatus("No validation results to visualise. Please run validation first.", true);
@@ -4310,7 +4374,7 @@ async function visualiseValidationResults() {
 
   <!-- Flow diagram -->
   ${sankeyBase64 ? `
-  <div class="panel" id="trend-panel" style="margin-bottom:16px">
+  <div class="panel" id="sankey-panel" style="margin-bottom:16px">
     <div class="panel-header">
       <div><div class="panel-title">Test Flow Overview</div><div class="panel-subtitle">Test flow representing the outcomes of the validation run from source to result</div></div>
     </div>
@@ -4322,7 +4386,7 @@ async function visualiseValidationResults() {
   </div>` : ''}
 
   <!-- Bar chart panel -->
-  <div class="panel" style="margin-bottom:16px">
+  <div class="panel" id="bar-panel" style="margin-bottom:16px">
     <div class="panel-header">
       <div>
         <div class="panel-title">Top Failure Breakdown</div>
@@ -4335,7 +4399,7 @@ async function visualiseValidationResults() {
     </div>
   </div>
 
-  <div class="panel" style="margin-bottom:16px">
+  <div class="panel" id="trend-panel" style="margin-bottom:16px">
     <div class="panel-header">
       <div><div class="panel-title">Historic Test Pass Rate</div><div class="panel-subtitle">The test pass rate over time for saved report versions associated with the current test pack</div></div>
     </div>
@@ -5519,7 +5583,10 @@ async function runValidation() {
     lastValidationFailedTests = [];
     lastValidationPassedTests = [];
     lastValidationPack = selectedPack;
-    clearPersistedValidationResults();
+    clearPersistedValidationResultsForScope({
+      workbookName: getWorkbookName() || "__unknown_workbook__",
+      sheetName: selectionMeta.sheetName || "__unknown_sheet__",
+    });
 
     if (clearButton) {
       clearButton.disabled = true;
