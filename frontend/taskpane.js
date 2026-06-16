@@ -4274,6 +4274,7 @@ async function visualiseValidationResults() {
     .panel-body.collapsed { max-height:0; opacity:0; padding:0 18px; visibility:hidden; }
     .panel-collapse-btn { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border:none; background:transparent; cursor:pointer; color:var(--text-2); font-size:16px; padding:0; margin:0; transition:transform .3s ease; flex-shrink:0; }
     .panel-collapse-btn.collapsed { transform:rotate(-90deg); }
+    #sankey-panel .panel-header { border-bottom:none; }
 
     /* ── Toggle tabs ── */
     .tab-group { display:inline-flex; gap:2px; background:#f0f2f5; border-radius:6px; padding:3px; border:1px solid var(--border); }
@@ -4381,9 +4382,9 @@ async function visualiseValidationResults() {
   <div class="panel" id="sankey-panel" style="margin-bottom:16px">
     <div class="panel-header">
       <div><div class="panel-title">Test Flow Overview</div><div class="panel-subtitle">Test flow representing the outcomes of the validation run from source to result</div></div>
-      <button class="panel-collapse-btn" data-panel="sankey" title="Collapse/expand">▼</button>
+      <button class="panel-collapse-btn" data-panel="sankey" title="Collapse/expand" aria-label="Collapse panel">−</button>
     </div>
-    <div class="panel-body" style="padding:12px 18px 18px;background:#fff">
+    <div class="panel-body" style="padding:0 18px 18px;background:#fff">
       <div class="sankey-wrap">
         <img alt="High quality Sankey diagram" src="data:image/png;base64,${sankeyBase64}" />
       </div>
@@ -4399,7 +4400,7 @@ async function visualiseValidationResults() {
       </div>
       <div style="display:flex; align-items:center; gap:12px;">
         <div class="tab-group" id="bar-controls"></div>
-        <button class="panel-collapse-btn" data-panel="bar" title="Collapse/expand">▼</button>
+        <button class="panel-collapse-btn" data-panel="bar" title="Collapse/expand" aria-label="Collapse panel">−</button>
       </div>
     </div>
     <div class="panel-body">
@@ -4410,7 +4411,7 @@ async function visualiseValidationResults() {
   <div class="panel" id="trend-panel" style="margin-bottom:16px">
     <div class="panel-header">
       <div><div class="panel-title">Historic Test Pass Rate</div><div class="panel-subtitle">The test pass rate over time for saved report versions associated with the current test pack</div></div>
-      <button class="panel-collapse-btn" data-panel="trend" title="Collapse/expand">▼</button>
+      <button class="panel-collapse-btn" data-panel="trend" title="Collapse/expand" aria-label="Collapse panel">−</button>
     </div>
     <div class="panel-body" style="padding:0 0 2px;">
       <div class="sparkline-wrap" id="trend-chart"></div>
@@ -4426,7 +4427,7 @@ async function visualiseValidationResults() {
       </div>
       <div style="display:flex; align-items:center; gap:12px;">
         <span style="font-size:12px;color:var(--text-3)">${exportRows.length} rows</span>
-        <button class="panel-collapse-btn" data-panel="failure" title="Collapse/expand">▼</button>
+        <button class="panel-collapse-btn" data-panel="failure" title="Collapse/expand" aria-label="Collapse panel">−</button>
       </div>
     </div>
     <div class="panel-body" style="padding:0;overflow-x:auto;">
@@ -4753,7 +4754,12 @@ async function visualiseValidationResults() {
         if (!body) return;
         
         body.classList.toggle('collapsed');
-        if (btn) btn.classList.toggle('collapsed');
+        if (btn) {
+          btn.classList.toggle('collapsed');
+          const isCollapsed = body.classList.contains('collapsed');
+          btn.textContent = isCollapsed ? '+' : '−';
+          btn.setAttribute('aria-label', isCollapsed ? 'Expand panel' : 'Collapse panel');
+        }
       });
     });
     
@@ -4769,6 +4775,9 @@ async function visualiseValidationResults() {
         
         body.classList.toggle('collapsed');
         btn.classList.toggle('collapsed');
+        const isCollapsed = body.classList.contains('collapsed');
+        btn.textContent = isCollapsed ? '+' : '−';
+        btn.setAttribute('aria-label', isCollapsed ? 'Expand panel' : 'Collapse panel');
       });
     });
   }
