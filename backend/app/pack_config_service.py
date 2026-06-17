@@ -247,8 +247,7 @@ async def estimate_field_mapping(
                 all_schema_fields.append(field_name)
                 conditional_fields.add(field_name)
     
-    # Normalize headers and schema fields for matching
-    normalized_headers = {_normalize_field_name(h): h for h in headers if h}
+    # Normalize schema fields for matching
     normalized_fields = {_normalize_field_name(f): f for f in all_schema_fields if f}
     
     estimated_mappings: dict[str, str] = {}
@@ -272,7 +271,6 @@ async def estimate_field_mapping(
         
         best_match = None
         best_ratio = 0.0
-        best_field_name = None
         is_mandatory_match = False
         
         # Try to find best match among all schema fields
@@ -288,7 +286,6 @@ async def estimate_field_mapping(
             if ratio > best_ratio and ratio >= threshold:
                 best_ratio = ratio
                 best_match = orig_field
-                best_field_name = orig_field
                 is_mandatory_match = is_mandatory
         
         if best_match:
