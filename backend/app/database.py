@@ -420,17 +420,10 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    """Initialize tables and rebuild result/run persistence schema."""
+    """Initialize tables and apply non-destructive schema migrations."""
     async with engine.begin() as conn:
-        # Rebuild saved-report tables from scratch.
-        await conn.execute(text("DROP TABLE IF EXISTS validation_result_payloads CASCADE"))
-        await conn.execute(text("DROP TABLE IF EXISTS validation_result_versions CASCADE"))
-
-        # Drop old per-test table and old validation_runs schema; recreate as one-row-per-run.
-        await conn.execute(text("DROP TABLE IF EXISTS test_results CASCADE"))
-        await conn.execute(text("DROP TABLE IF EXISTS validation_runs CASCADE"))
-
         # Create baseline ORM schema before applying migration tweaks.
+        # NOTE: This must be non-destructive so persisted runs/tags survive restarts.
         await conn.run_sync(Base.metadata.create_all)
 
         await conn.execute(

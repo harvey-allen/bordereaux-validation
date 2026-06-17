@@ -26,7 +26,14 @@ load_dotenv()
 # Database imports (optional - gracefully handle if DB not available)
 try:
     from sqlalchemy.ext.asyncio import AsyncSession
-    from app.database import get_db, init_db, close_db, async_session_maker
+    from app.database import (
+        get_db, 
+        init_db, 
+        close_db, 
+        async_session_maker,
+        ValidationResultVersion,
+        UserSubscription,
+    )
     from app.subscription_service import subscription_service
     from app.results_service import (
         delete_results_version_by_id,
@@ -1827,4 +1834,112 @@ async def delete_exception(
             "versions_updated": int(tag_cleanup_result.get("versions_updated", 0) or 0),
             "removed_tagged_cells": list(tag_cleanup_result.get("removed_tagged_cells") or []),
         }
+
+
+class ExceptionAnalyticsItem(BaseModel):
+    """Exception with tag count for analytics visualization."""
+    exception_id: str
+    description: str
+    tag_count: int
+    status: str
+
+
+class ExceptionAnalyticsResponse(BaseModel):
+    """Response for exception analytics endpoint."""
+    analytics: list[ExceptionAnalyticsItem]
+
+
+@app.get("/api/v1/exceptions/analytics", response_model=ExceptionAnalyticsResponse)
+async def get_exception_analytics(
+    subscription: Subscription = Depends(get_authenticated_subscription),
+) -> ExceptionAnalyticsResponse:
+    """
+    Get exception analytics showing exception IDs and tag counts.
+    
+    Returns all exceptions for the organisation with the count of tags
+    (cells) associated with each exception, sorted by tag count descending.
+    """
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    _, organisation_id = _require_db_backed_user(subscription)
+
+    async with async_session_maker() as session:
+        # Get all exceptions for the organisation
+        exceptions = await exception_service.get_exceptions(
+            session,
+            organisation_id=organisation_id,
+        )
+        
+        # For each exception, count tags across all validation runs and result versions
+        # by looking at tagged_cells_json arrays
+        exception_tag_counts = {}
+        
+        # Query all validation result versions for this organisation
+        from sqlalchemy import select
+        
+        # First get all user IDs in this organisation
+        user_id_query = select(UserSubscription.id).where(
+            UserSubscription.organisation_id == organisation_id
+        )
+        user_result = await session.execute(user_id_query)
+        user_ids = [row[0] for row in user_result.fetchall()]
+        
+        # Then get all validation result versions for those users
+        if user_ids:
+            versions_query = select(ValidationResultVersion).where(
+                ValidationResultVersion.user_id.in_(user_ids)
+            )
+            versions_result = await session.execute(versions_query)
+            versions = versions_result.scalars().all()
+        else:
+            versions = []
+        
+        # Count tags per exception_id from tagged_cells_json in result versions
+        for version in versions:
+            tagged_cells = version.tagged_cells_json or []
+            if isinstance(tagged_cells, list):
+                for tagged_cell in tagged_cells:
+                    if isinstance(tagged_cell, dict):
+                        exc_id = str(tagged_cell.get("exception_id") or "").strip()
+                        if exc_id:
+                            exception_tag_counts[exc_id] = exception_tag_counts.get(exc_id, 0) + 1
+        
+        # Also count tags from validation runs
+        if user_ids:
+            from app.database import ValidationRun
+            runs_query = select(ValidationRun).where(
+                ValidationRun.user_id.in_(user_ids)
+            )
+            runs_result = await session.execute(runs_query)
+            runs = runs_result.scalars().all()
+        else:
+            runs = []
+        
+        # Count tags from runs
+        for run in runs:
+            tagged_cells = run.tagged_cells_json or []
+            if isinstance(tagged_cells, list):
+                for tagged_cell in tagged_cells:
+                    if isinstance(tagged_cell, dict):
+                        exc_id = str(tagged_cell.get("exception_id") or "").strip()
+                        if exc_id:
+                            exception_tag_counts[exc_id] = exception_tag_counts.get(exc_id, 0) + 1
+        
+        # Build response items
+        items = []
+        for exc in exceptions:
+            tag_count = exception_tag_counts.get(exc.exception_id, 0)
+            items.append(
+                ExceptionAnalyticsItem(
+                    exception_id=exc.exception_id,
+                    description=exc.description,
+                    tag_count=tag_count,
+                    status=exc.status,
+                )
+            )
+        
+        # Sort by tag_count descending
+        items.sort(key=lambda x: x.tag_count, reverse=True)
+        
+        return ExceptionAnalyticsResponse(analytics=items)
 

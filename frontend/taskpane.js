@@ -1179,16 +1179,16 @@ async function buildSankeyPngBase64(exportRows) {
 
   const graph = sankeyGenerator({ nodes: nodes.map(d => Object.assign({}, d)), links: links.map(d => Object.assign({}, d)) });
 
-  // Colour mapping requested: pass (light green), fail (light red), warning (yellow), error (orange), critical (red)
+  // Colour mapping aligned with dashboard palette used elsewhere on this screen
   const COLOR = {
     ALL: '#e5e7eb',
     TOTAL: '#e5e7eb',
-    PASS: '#c8f7d4', // light green
-    FAIL: '#ffd6d6', // light red
-    INFO: '#d9d9d9',
-    WARNING: '#ffd966',
-    ERROR: '#ffb74d',
-    CRITICAL: '#ff4d4d',
+    PASS: '#bbf7d0',
+    FAIL: '#fecaca',
+    INFO: '#cbd5e1',
+    WARNING: '#fde68a',
+    ERROR: '#fdba74',
+    CRITICAL: '#fca5a5',
     DEFAULT: '#0f6cbd',
     LINK_DEFAULT: '#7aa3d9',
   };
@@ -4170,6 +4170,10 @@ async function visualiseValidationResults() {
       is_current: Boolean(item.is_current),
     })));
 
+    const backendUrl = String(CONFIG.BACKEND_URL || '').trim();
+    const userEmail = String(getExcelUserEmail() || '').trim();
+    const configJson = safeJson({ backendUrl, userEmail });
+
     // Generate Sankey PNG base64 for embedding (stable rendering path)
     let sankeyBase64 = null;
     try {
@@ -4301,6 +4305,18 @@ async function visualiseValidationResults() {
     .severity-dot.error { background:#fdba74; }
     .severity-dot.critical { background:#fca5a5; }
 
+    /* ── Vertical bar chart ── */
+    .vertical-chart-wrap { display:flex; gap:12px; align-items:flex-end; padding:24px 0; min-height:280px; justify-content:center; overflow-x:auto; }
+    .vertical-bar-container { display:flex; flex-direction:column; align-items:center; gap:6px; min-width:60px; }
+    .vertical-bar-track { width:40px; background:#f0f2f5; border-radius:4px 4px 0 0; min-height:2px; display:flex; flex-direction:column-reverse; }
+    .vertical-bar-fill { width:100%; border-radius:4px 4px 0 0; transition:height .3s ease; }
+    .vertical-bar-label { font-size:11px; color:var(--text-1); text-align:center; word-break:break-word; max-width:50px; line-height:1.2; }
+    .vertical-bar-value { font-size:12px; font-weight:600; color:var(--text-1); }
+    .vertical-chart-empty { text-align:center; color:var(--text-3); padding:40px 0; width:100%; }
+    .status-legend { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:2px 0 12px; }
+    .status-legend-item { display:inline-flex; align-items:center; gap:6px; color:var(--text-2); font-size:11px; }
+    .status-legend-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+
     /* ── Sankey ── */
     .sankey-wrap { background:#fff; border-radius:8px; overflow:hidden; border:none; box-shadow:none; }
     .sankey-wrap img { display:block; width:100%; height:auto; min-height:180px; object-fit:contain; image-rendering:auto; }
@@ -4410,11 +4426,26 @@ async function visualiseValidationResults() {
 
   <div class="panel" id="trend-panel" style="margin-bottom:16px">
     <div class="panel-header">
-      <div><div class="panel-title">Historic Test Pass Rate</div><div class="panel-subtitle">The test pass rate over time for saved report versions associated with the current test pack</div></div>
+      <div><div class="panel-title">Historic Report Performance</div><div class="panel-subtitle">The test, submission and field pass rate over time for saved report versions associated with the current test pack</div></div>
       <button class="panel-collapse-btn" data-panel="trend" title="Collapse/expand" aria-label="Collapse panel">−</button>
     </div>
     <div class="panel-body" style="padding:0 0 2px;">
       <div class="sparkline-wrap" id="trend-chart"></div>
+    </div>
+  </div>
+
+  <!-- Exception Management Analysis -->
+  <div class="panel" id="exception-analytics-panel" style="margin-bottom:16px">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Exception Management Analysis</div>
+        <div class="panel-subtitle">Count of exception tags applied to data points by exception for your organisation</div>
+      </div>
+      <button class="panel-collapse-btn" data-panel="exception-analytics" title="Collapse/expand" aria-label="Collapse panel">−</button>
+    </div>
+    <div class="panel-body">
+      <div class="chart-wrap" id="exception-analytics-chart"></div>
+      <div class="pagination" id="exception-analytics-pagination"></div>
     </div>
   </div>
 
@@ -4454,6 +4485,7 @@ async function visualiseValidationResults() {
 (function(){
   const datasets = ${datasetsJson};
   const trendRows = ${trendJson};
+  const config = ${configJson};
   const labels = { test: 'Test', trade: 'Field', umr: 'Submission' };
 
   function renderTrendChart() {
@@ -4651,6 +4683,269 @@ async function visualiseValidationResults() {
     renderBars('test');
   }
 
+  // ── Exception analytics chart ──
+  const EXCEPTION_ANALYTICS_PAGE_SIZE = 10;
+  let exceptionAnalyticsData = [];
+  let exceptionAnalyticsCurrentPage = 1;
+
+  const EXCEPTION_STATUS_STYLES = {
+    'to do': { color: '#cbd5e1', label: 'To Do' },
+    'in progress': { color: '#93c5fd', label: 'In Progress' },
+    'in review': { color: '#a78bfa', label: 'In Review' },
+    'blocked': { color: '#fca5a5', label: 'Blocked' },
+    'complete': { color: '#86efac', label: 'Complete' },
+    'default': { color: '#7aa3d9', label: 'Other' },
+  };
+
+  function normalizeExceptionStatus(status) {
+    return String(status || '').trim().toLowerCase();
+  }
+
+  function getExceptionStatusStyle(status) {
+    const normalizedStatus = normalizeExceptionStatus(status);
+    return EXCEPTION_STATUS_STYLES[normalizedStatus] || EXCEPTION_STATUS_STYLES.default;
+  }
+
+  function renderExceptionStatusLegend(container) {
+    const statusesInData = new Set(
+      (exceptionAnalyticsData || []).map((item) => normalizeExceptionStatus(item.status)).filter(Boolean)
+    );
+    const statusOrder = ['to do', 'in progress', 'in review', 'blocked', 'complete'];
+    const orderedStatuses = statusOrder.filter((status) => statusesInData.has(status));
+    const unknownStatuses = Array.from(statusesInData).filter((status) => !statusOrder.includes(status));
+    const legendStatuses = orderedStatuses.concat(unknownStatuses);
+
+    if (!legendStatuses.length) {
+      return;
+    }
+
+    const legend = document.createElement('div');
+    legend.className = 'status-legend';
+
+    legendStatuses.forEach((status) => {
+      const style = getExceptionStatusStyle(status);
+      const item = document.createElement('span');
+      item.className = 'status-legend-item';
+      item.innerHTML =
+        '<span class="status-legend-dot" style="background:' + style.color + '"></span>' +
+        '<span>' + (EXCEPTION_STATUS_STYLES[status]?.label || status || EXCEPTION_STATUS_STYLES.default.label) + '</span>';
+      legend.appendChild(item);
+    });
+
+    container.appendChild(legend);
+  }
+
+  function renderExceptionAnalyticsChart() {
+    console.log('renderExceptionAnalyticsChart called, data length:', exceptionAnalyticsData.length);
+    const container = document.getElementById('exception-analytics-chart');
+    const panel = document.getElementById('exception-analytics-panel');
+    if (!container) {
+      console.warn('exception-analytics-chart container not found');
+      return;
+    }
+
+    if (!Array.isArray(exceptionAnalyticsData) || exceptionAnalyticsData.length === 0) {
+      console.log('No exception data available');
+      if (panel) panel.style.display = '';
+      container.innerHTML = '<div class="vertical-chart-empty">No exceptions have been created for your organisation yet.</div>';
+      
+      // Clear pagination
+      const paginationDiv = document.getElementById('exception-analytics-pagination');
+      if (paginationDiv) paginationDiv.innerHTML = '';
+      return;
+    }
+
+    if (panel) panel.style.display = '';
+
+    // Get the current page of data
+    const totalPages = Math.ceil(exceptionAnalyticsData.length / EXCEPTION_ANALYTICS_PAGE_SIZE);
+    const start = (exceptionAnalyticsCurrentPage - 1) * EXCEPTION_ANALYTICS_PAGE_SIZE;
+    const end = start + EXCEPTION_ANALYTICS_PAGE_SIZE;
+    const pageData = exceptionAnalyticsData.slice(start, end);
+
+    if (!pageData.length) {
+      container.innerHTML = '';
+      return;
+    }
+
+    // Find max tag count for scaling
+    const maxCount = Math.max(...exceptionAnalyticsData.map(item => item.tag_count), 1);
+    const chartHeight = 200; // pixels
+
+    // Clear container
+    container.innerHTML = '';
+
+    // Render status legend
+    renderExceptionStatusLegend(container);
+
+    // Render vertical bars chart
+    const chartWrap = document.createElement('div');
+    chartWrap.className = 'vertical-chart-wrap';
+
+    pageData.forEach((item) => {
+      const count = Number(item.tag_count || 0);
+      const barHeight = count > 0 ? (count / maxCount) * chartHeight : 2;
+      
+      // Container for bar group
+      const barContainer = document.createElement('div');
+      barContainer.className = 'vertical-bar-container';
+
+      // Value label (above bar)
+      const valueLabel = document.createElement('div');
+      valueLabel.className = 'vertical-bar-value';
+      valueLabel.textContent = count;
+
+      // Bar track and fill
+      const barTrack = document.createElement('div');
+      barTrack.className = 'vertical-bar-track';
+      barTrack.style.height = chartHeight + 'px';
+
+      const barFill = document.createElement('div');
+      barFill.className = 'vertical-bar-fill';
+      barFill.style.height = barHeight + 'px';
+      barFill.style.background = getExceptionStatusStyle(item.status).color;
+
+      barTrack.appendChild(barFill);
+
+      // Label (below bar)
+      const barLabel = document.createElement('div');
+      barLabel.className = 'vertical-bar-label';
+      barLabel.title = item.exception_id;
+      barLabel.textContent = item.exception_id.length > 12 ? item.exception_id.substring(0, 10) + '...' : item.exception_id;
+
+      barContainer.appendChild(valueLabel);
+      barContainer.appendChild(barTrack);
+      barContainer.appendChild(barLabel);
+
+      chartWrap.appendChild(barContainer);
+    });
+
+    container.appendChild(chartWrap);
+
+    // Render pagination
+    renderExceptionAnalyticsPagination(totalPages);
+  }
+
+  function renderExceptionAnalyticsPagination(totalPages) {
+    const paginationDiv = document.getElementById('exception-analytics-pagination');
+    if (!paginationDiv) return;
+
+    const currentPage = exceptionAnalyticsCurrentPage;
+    const start = (currentPage - 1) * EXCEPTION_ANALYTICS_PAGE_SIZE + 1;
+    const end = Math.min(currentPage * EXCEPTION_ANALYTICS_PAGE_SIZE, exceptionAnalyticsData.length);
+
+    let html = '<span class="page-info">Showing ' + start + '–' + end + ' of ' + exceptionAnalyticsData.length + ' exceptions</span>';
+
+    // Prev button
+    html += '<button class="pg-btn" id="exc-pg-prev"' + (currentPage <= 1 ? ' disabled' : '') + '>&lsaquo; Prev</button>';
+
+    // Page numbers
+    const pages = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('...');
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+      if (currentPage < totalPages - 2) pages.push('...');
+      pages.push(totalPages);
+    }
+    
+    pages.forEach(p => {
+      if (p === '...') {
+        html += '<span class="pg-btn" style="border:none;background:none;cursor:default">…</span>';
+      } else {
+        html += '<button class="pg-btn' + (p === currentPage ? ' active' : '') + '" data-exc-page="' + p + '">' + p + '</button>';
+      }
+    });
+
+    // Next button
+    html += '<button class="pg-btn" id="exc-pg-next"' + (currentPage >= totalPages ? ' disabled' : '') + '>Next &rsaquo;</button>';
+
+    paginationDiv.innerHTML = html;
+
+    // Attach event listeners
+    paginationDiv.querySelectorAll('[data-exc-page]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        exceptionAnalyticsCurrentPage = parseInt(btn.dataset.excPage, 10);
+        renderExceptionAnalyticsChart();
+      });
+    });
+
+    const prevBtn = paginationDiv.querySelector('#exc-pg-prev');
+    const nextBtn = paginationDiv.querySelector('#exc-pg-next');
+    
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        if (exceptionAnalyticsCurrentPage > 1) {
+          exceptionAnalyticsCurrentPage--;
+          renderExceptionAnalyticsChart();
+        }
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        if (exceptionAnalyticsCurrentPage < totalPages) {
+          exceptionAnalyticsCurrentPage++;
+          renderExceptionAnalyticsChart();
+        }
+      });
+    }
+  }
+
+  async function fetchExceptionAnalytics() {
+    try {
+      if (!config || !config.backendUrl || !config.userEmail) {
+        console.warn('fetchExceptionAnalytics: missing config', config);
+        exceptionAnalyticsData = [];
+        renderExceptionAnalyticsChart();
+        return;
+      }
+
+      const url = config.backendUrl + '/api/v1/exceptions/analytics';
+      console.log('Fetching exception analytics from:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'X-Excel-User-Email': config.userEmail,
+        },
+        cache: 'no-store',
+      });
+
+      console.log('Exception analytics response status:', response.status);
+
+      if (!response.ok) {
+        console.warn('Exception analytics fetch failed:', response.status);
+        exceptionAnalyticsData = [];
+        renderExceptionAnalyticsChart();
+        return;
+      }
+
+      const payload = await response.json().catch((err) => {
+        console.warn('Failed to parse exception analytics JSON:', err);
+        return { analytics: [] };
+      });
+      
+      console.log('Exception analytics payload:', payload);
+      
+      exceptionAnalyticsData = Array.isArray(payload?.analytics) ? payload.analytics : [];
+
+      // Sort by tag_count descending (should already be sorted by backend, but ensure it here)
+      exceptionAnalyticsData.sort((a, b) => (b.tag_count || 0) - (a.tag_count || 0));
+
+      console.log('Sorted exception analytics data:', exceptionAnalyticsData);
+
+      exceptionAnalyticsCurrentPage = 1;
+      renderExceptionAnalyticsChart();
+    } catch (error) {
+      console.error('Exception analytics fetch error:', error);
+      exceptionAnalyticsData = [];
+      renderExceptionAnalyticsChart();
+    }
+  }
+
   // ── Failure table pagination ──
   const PAGE_SIZE = 10;
   const allRows = ${allRowsJson};
@@ -4734,9 +5029,13 @@ async function visualiseValidationResults() {
   function init() {
     if (initialized) return;
     initialized = true;
+    console.log('Initializing visualization page...');
     renderTrendChart();
     setupControls();
     setupTable();
+    console.log('About to call fetchExceptionAnalytics...');
+    fetchExceptionAnalytics();
+    console.log('fetchExceptionAnalytics called');
     setupPanelCollapse();
   }
 
