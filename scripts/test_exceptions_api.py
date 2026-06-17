@@ -13,7 +13,6 @@ Prerequisites:
 
 import asyncio
 import httpx
-import json
 
 BASE_URL = "http://localhost:8000"
 TEST_EMAIL = "test-exception-user@example.com"
