@@ -535,9 +535,9 @@
       <div class="hint">Identify data issues faster with intelligent bordereaux validation and reporting.</div>
 
       <div class="tabs" role="tablist" aria-label="Validator sections">
-        <button id="tabConfiguration" class="tab-button" role="tab" aria-selected="true" aria-controls="panelConfiguration">Configure</button>
-        <button id="tabControl" class="tab-button" role="tab" aria-selected="false" aria-controls="panelControl">Control</button>
-        <button id="tabAnalysis" class="tab-button" role="tab" aria-selected="false" aria-controls="panelAnalysis">Analyse</button>
+        <button id="tabConfiguration" class="tab-button" role="tab" aria-selected="true" aria-controls="panelConfiguration" title="Configure validation settings, territory, and schema options.">Configure</button>
+        <button id="tabControl" class="tab-button" role="tab" aria-selected="false" aria-controls="panelControl" title="View and manage validation controls and settings.">Control</button>
+        <button id="tabAnalysis" class="tab-button" role="tab" aria-selected="false" aria-controls="panelAnalysis" title="Analyse validation results and data quality trends.">Analyse</button>
       </div>
 
       <section id="panelConfiguration" class="tab-panel active panel-card" role="tabpanel" aria-labelledby="tabConfiguration">
@@ -554,20 +554,20 @@
         <details class="collapsible-section">
           <summary>Validation Configuration</summary>
           <div class="collapsible-content">
-              <button id="estimateFieldMapping" class="btn-secondary" style="width: 100%; margin-bottom: 8px;">Field Mapping Estimation</button>
+              <button id="estimateFieldMapping" class="btn-secondary" style="width: 100%; margin-bottom: 8px;" title="Automatically suggest field mappings using fuzzy matching.">Field Mapping Estimation</button>
               <textarea id="packConfigs"></textarea>
           </div>
         </details>
 
         <div class="actions-grid">
-          <button id="generateTemplate" class="btn-secondary">Generate Template</button>
+          <button id="generateTemplate" class="btn-secondary" title="Create a template workbook based on the selected schema.">Generate Template</button>
         </div>
       </section>
 
       <section id="panelControl" class="tab-panel panel-card" role="tabpanel" aria-labelledby="tabControl">
         <div class="actions-grid">
-          <button id="runValidation">Validate</button>
-          <button id="clearTable" class="btn-secondary">Clear</button>
+          <button id="runValidation" title="Run validation checks against the loaded dataset.">Validate</button>
+          <button id="clearTable" class="btn-secondary" title="Clear current results, selections, and validation outputs.">Clear</button>
         </div>
 
         <details class="collapsible-section">
@@ -578,8 +578,8 @@
             </select>
 
             <div class="actions-grid">
-              <button id="applyException" class="btn-secondary">Apply Exception</button>
-              <button id="manageExceptions" class="btn-secondary">Manage Exceptions</button>
+              <button id="applyException" class="btn-secondary" title="Apply an existing exception to the selected issue.">Apply Exception</button>
+              <button id="manageExceptions" class="btn-secondary" title="View, create, update, and track exceptions.">Manage Exceptions</button>
             </div>
           </div>
         </details>
@@ -588,12 +588,12 @@
           <summary>Report Management</summary>
           <div class="collapsible-content">
             <div class="actions-grid">
-              <button id="viewSavedVersion" class="btn-secondary">View</button>
+              <button id="viewSavedVersion" class="btn-secondary" title="View detailed information and validation results.">View</button>
               <select id="savedVersions">
                 <option value="">No saved reports</option>
               </select>
-              <button id="saveResultsVersion" class="btn-secondary">Save Report</button>
-              <button id="deleteResultsVersion" class="btn-secondary">Delete Report</button>
+              <button id="saveResultsVersion" class="btn-secondary" title="Save the current validation report for future review.">Save Report</button>
+              <button id="deleteResultsVersion" class="btn-secondary" title="Permanently delete the selected report.">Delete Report</button>
             </div>
           </div>
         </details>
@@ -601,12 +601,12 @@
 
       <section id="panelAnalysis" class="tab-panel panel-card" role="tabpanel" aria-labelledby="tabAnalysis">
         <div class="actions-grid">
-          <button id="visualiseResults" class="btn-secondary">Visualise</button>
+          <button id="visualiseResults" class="btn-secondary" title="Explore results through dashboards and heat maps.">Visualise</button>
           <div class="coming-soon-wrap" data-tooltip="Coming soon">
             <button id="benchmarking" class="btn-secondary" disabled>Benchmarking</button>
           </div>
-          <button id="rulesEngine" class="btn-secondary">Rules Engine</button>
-          <button id="extractResults" class="btn-secondary">Extract</button>
+          <button id="rulesEngine" class="btn-secondary" title="View validation rules and failure explanations.">Rules Engine</button>
+          <button id="extractResults" class="btn-secondary" title="Export validation results and issue details.">Extract</button>
         </div>
       </section>
 
@@ -661,7 +661,7 @@
             </select>
           </div>
           <div class="modal-actions">
-            <button id="createExceptionBtn">Create</button>
+            <button id="createExceptionBtn" title="Create a new exception record.">Create</button>
             <button id="closeExceptionModalBtn" class="btn-secondary">Close</button>
           </div>
         </div>

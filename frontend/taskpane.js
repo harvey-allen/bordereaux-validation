@@ -1854,6 +1854,7 @@ function closeExceptionModal() {
   const createBtn = document.getElementById("createExceptionBtn");
   if (createBtn) {
     createBtn.textContent = "Create";
+    createBtn.title = "Create a new exception record.";
     createBtn.dataset.editMode = "false";
     delete createBtn.dataset.originalExceptionId;
   }
@@ -2491,6 +2492,7 @@ async function editException(exceptionId) {
     const createBtn = document.getElementById("createExceptionBtn");
     const originalText = createBtn.textContent;
     createBtn.textContent = "Update";
+    createBtn.title = "Update the selected exception or record.";
     createBtn.dataset.editMode = "true";
     createBtn.dataset.originalExceptionId = exceptionId;
 
