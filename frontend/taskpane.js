@@ -25,11 +25,13 @@ const MAX_EXCEL_SHEET_NAME_LENGTH = 31;
 const DEBUG_LOG_STORAGE_KEY = "bordereaux_validator_debug_log";
 const VIEWED_VERSION_CONTEXT_STORAGE_KEY = "bordereaux_validator_viewed_version_context";
 const PACK_CONFIG_STATE_STORAGE_KEY = "bordereaux_validator_pack_config_state";
+const FALLBACK_DISPLAY_NAME = "there";
 
 let availablePackOptions = [];
 let currentSheetPackConfigScope = null;
 let packConfigInputPersistTimer = null;
 let activeSheetSyncSequence = 0;
+let hasInitializedMainApp = false;
 
 const {
   formatPackLabel,
@@ -1368,6 +1370,146 @@ function getExcelUserEmail() {
   return String(email).trim().toLowerCase();
 }
 
+function formatDisplayNameFallbackFromEmail(email) {
+  const localPart = String(email || "").trim().split("@")[0] || "";
+  if (!localPart) {
+    return FALLBACK_DISPLAY_NAME;
+  }
+
+  return localPart
+    .replace(/[._-]+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase())
+    .join(" ") || FALLBACK_DISPLAY_NAME;
+}
+
+function getExcelDisplayName() {
+  let officeDisplayName = null;
+  try {
+    officeDisplayName = Office?.context?.userProfile?.displayName || null;
+  } catch {
+    officeDisplayName = null;
+  }
+
+  const normalized = String(officeDisplayName || "").trim();
+  if (normalized) {
+    return normalized;
+  }
+
+  return formatDisplayNameFallbackFromEmail(getExcelUserEmail());
+}
+
+function getFirstName(displayName) {
+  const normalized = String(displayName || "").trim();
+  if (!normalized) {
+    return FALLBACK_DISPLAY_NAME;
+  }
+
+  return normalized.split(/\s+/)[0] || FALLBACK_DISPLAY_NAME;
+}
+
+async function isRecognizedExcelUser(excelUserEmail) {
+  if (!excelUserEmail) {
+    return {
+      isRecognized: false,
+      displayName: "",
+    };
+  }
+
+  try {
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/v1/subscription`, {
+      method: "GET",
+      headers: {
+        "X-Excel-User-Email": excelUserEmail,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return {
+        isRecognized: false,
+        displayName: "",
+      };
+    }
+
+    const payload = await response.json().catch(() => ({}));
+    const displayName = String(payload?.display_name || "").trim();
+    return {
+      isRecognized: Boolean(payload?.is_active),
+      displayName,
+    };
+  } catch {
+    return {
+      isRecognized: false,
+      displayName: "",
+    };
+  }
+}
+
+function activateConfigurationTab() {
+  const configTab = document.getElementById("tabConfiguration");
+  if (configTab) {
+    configTab.click();
+  }
+}
+
+function showMainTaskpane() {
+  const launchScreen = document.getElementById("launchScreen");
+  const mainAppShell = document.getElementById("mainAppShell");
+  launchScreen?.classList.add("hidden");
+  mainAppShell?.classList.remove("hidden");
+  activateConfigurationTab();
+}
+
+async function bootstrapTaskpaneLaunchExperience() {
+  const launchLogo = document.getElementById("launchLogo");
+  const launchTitle = document.getElementById("launchTitle");
+  const launchSubtitle = document.getElementById("launchSubtitle");
+  const launchButton = document.getElementById("launchGetStarted");
+
+  if (!launchTitle || !launchSubtitle || !launchButton) {
+    await initializeTaskpaneApp();
+    hasInitializedMainApp = true;
+    return;
+  }
+
+  if (launchLogo) {
+    launchLogo.src = APP_LOGO_URL;
+  }
+
+  launchButton.classList.add("hidden");
+  launchButton.disabled = false;
+
+  const excelUserEmail = getExcelUserEmail();
+  const identity = await isRecognizedExcelUser(excelUserEmail);
+
+  if (!identity.isRecognized) {
+    launchTitle.textContent = "Account not identified";
+    launchSubtitle.textContent = "please contact Axios to for support";
+    return;
+  }
+
+  const displayName = identity.displayName || getExcelDisplayName();
+  launchTitle.textContent = `Welcome, ${getFirstName(displayName)}!`;
+  launchSubtitle.textContent = "";
+  launchButton.classList.remove("hidden");
+
+  launchButton.addEventListener("click", async () => {
+    launchButton.disabled = true;
+    try {
+      if (!hasInitializedMainApp) {
+        await initializeTaskpaneApp();
+        hasInitializedMainApp = true;
+      }
+      showMainTaskpane();
+    } catch (error) {
+      reportFrontendError("Taskpane initialization failed", error);
+      launchButton.disabled = false;
+    }
+  });
+}
+
 function formatBackendErrorDetail(detail) {
   if (!detail) {
     return null;
@@ -2704,7 +2846,7 @@ async function initializeTaskpaneApp() {
 
 Office.onReady(() => {
   installGlobalFrontendErrorHandlers();
-  initializeTaskpaneApp().catch((error) => {
+  bootstrapTaskpaneLaunchExperience().catch((error) => {
     reportFrontendError("Taskpane initialization failed", error);
   });
 });

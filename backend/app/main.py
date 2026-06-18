@@ -131,6 +131,7 @@ class RulesEngineResponse(BaseModel):
 class SubscriptionInfoResponse(BaseModel):
     tier: str
     owner_email: str
+    display_name: Optional[str]
     is_active: bool
     expires_at: Optional[str]
     allowed_packs: Optional[list[str]]
@@ -601,6 +602,7 @@ def get_subscription_info(
     return SubscriptionInfoResponse(
         tier=subscription.tier.value,
         owner_email=subscription.owner_email,
+        display_name=(subscription.metadata.get("display_name") or None),
         is_active=subscription.is_active,
         expires_at=subscription.expires_at.isoformat() if subscription.expires_at else None,
         allowed_packs=allowed_packs,

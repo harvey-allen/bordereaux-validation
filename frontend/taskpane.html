@@ -25,7 +25,7 @@
         margin: 0;
         padding: 14px 14px 64px;
         color: var(--text);
-        background: linear-gradient(180deg, #f7faff 0%, #f4f8fc 100%);
+        background: var(--bg);
       }
 
       .app-shell {
@@ -443,10 +443,91 @@
       #exceptionDescriptionInput {
         resize: none;
       }
+
+      .launch-shell {
+        min-height: calc(100vh - 28px);
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 32px;
+        background: var(--bg);
+        transform: none;
+      }
+
+      .launch-card {
+        width: min(100%, 520px);
+        padding: 24px 18px;
+        text-align: center;
+      }
+
+      .launch-logo {
+        width: 96px;
+        height: 96px;
+        object-fit: contain;
+        margin: 0 auto 4px;
+        display: block;
+      }
+
+      .launch-title {
+        margin: 0;
+        font-size: 22px;
+        letter-spacing: -0.01em;
+      }
+
+      .launch-subtitle {
+        margin: 8px 0 0;
+        font-size: 13px;
+        color: var(--text-muted);
+      }
+
+      .launch-action {
+        margin-top: 16px;
+        width: 80%;
+        max-width: 300px;
+        display: inline-block;
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      .launch-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        margin-top: 32px;
+      }
+
+      .launch-actions .launch-action {
+        margin-top: 0;
+      }
+
+      .launch-terms {
+        margin: 18px 0 0;
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--text-muted);
+      }
+
+      .hidden {
+        display: none !important;
+      }
     </style>
   </head>
   <body>
-    <div class="app-shell">
+    <div id="launchScreen" class="launch-shell">
+      <div class="launch-card">
+        <img id="launchLogo" class="launch-logo" src="./AXIOS.png" alt="Axios logo" />
+        <h1 id="launchTitle" class="launch-title">Loading...</h1>
+        <p id="launchSubtitle" class="launch-subtitle"></p>
+        <div class="launch-actions">
+          <button id="launchGetStarted" class="launch-action hidden" type="button">Start</button>
+          <button id="launchSupportButton" class="launch-action btn-secondary" type="button" onclick="window.location.href='./support.html'">Help</button>
+        </div>
+        <p class="launch-terms">Terms and Conditions</p>
+      </div>
+    </div>
+
+    <div id="mainAppShell" class="app-shell hidden">
       <div class="brand-header">
         <img src="./AXIOS.png" alt="Axios logo" />
         <h2>Bordereaux Validator</h2>
