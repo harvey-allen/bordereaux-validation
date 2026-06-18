@@ -671,10 +671,6 @@ function getTaggedCellsForScope(workbookName, sheetName) {
       && taggedCell.sheet_name === normalizedSheet;
   });
 }
-const SANKEY_EXPORT_WIDTH = 1800;
-const SANKEY_EXPORT_HEIGHT = 330;
-const SANKEY_DISPLAY_WIDTH = 1250;
-const SANKEY_DISPLAY_HEIGHT = Math.round((SANKEY_EXPORT_HEIGHT / SANKEY_EXPORT_WIDTH) * SANKEY_DISPLAY_WIDTH);
 
 function updateActionButtons() {
   const extractButton = document.getElementById("extractResults");
@@ -1082,294 +1078,6 @@ function updateSavedResultsInfo() {
     : "available";
   info.textContent = `Saved version: ${label}`;
   updateSaveButtonLabel();
-}
-
-// Build sankey summarising: Total Tests -> Passed/Failed -> Severity (failed) -> Test Type
-async function buildSankeyPngBase64(exportRows) {
-  // Aggregate distinct failed tests
-  const failedTestInfo = new Map(); // testId -> { severities: Set, types: Set }
-  for (const r of exportRows) {
-    const testId = String(r.testId || "(unknown)").trim();
-    const severity = String((r.severity || "ERROR")).toUpperCase();
-    const testType = String(r.testType || "(unknown)");
-    if (!failedTestInfo.has(testId)) failedTestInfo.set(testId, { severities: new Set(), types: new Set() });
-    const info = failedTestInfo.get(testId);
-    info.severities.add(severity);
-    if (testType) info.types.add(testType);
-  }
-
-  const failedDistinctCount = failedTestInfo.size;
-  const totalTests = Array.isArray(lastValidationExecutedTests) && lastValidationExecutedTests.length > 0
-    ? lastValidationExecutedTests.length
-    : failedDistinctCount;
-  const passedCount = Math.max(0, totalTests - failedDistinctCount);
-
-  // Determine highest severity per failed test (CRITICAL>ERROR>WARNING>INFO)
-  const severityOrder = ["INFO", "WARNING", "ERROR", "CRITICAL"];
-  const severityRank = Object.fromEntries(severityOrder.map((s, i) => [s, i]));
-
-  const severityBuckets = new Map(); // severity -> Set(testId)
-  const severityTypeBuckets = new Map(); // severity -> Map(type -> Set(testId))
-
-  for (const [testId, info] of failedTestInfo.entries()) {
-    // pick highest severity seen for this test
-    let chosen = "ERROR";
-    let bestRank = -1;
-    for (const s of info.severities) {
-      const r = severityRank[s] ?? -1;
-      if (r > bestRank) { bestRank = r; chosen = s; }
-    }
-
-    if (!severityBuckets.has(chosen)) severityBuckets.set(chosen, new Set());
-    severityBuckets.get(chosen).add(testId);
-
-    if (!severityTypeBuckets.has(chosen)) severityTypeBuckets.set(chosen, new Map());
-    const typeMap = severityTypeBuckets.get(chosen);
-    const types = Array.from(info.types).length > 0 ? Array.from(info.types) : ["(unknown)"];
-    // assign test to first type (deterministic)
-    const chosenType = types[0];
-    if (!typeMap.has(chosenType)) typeMap.set(chosenType, new Set());
-    typeMap.get(chosenType).add(testId);
-  }
-
-  // Build node list and links
-  const nodes = [];
-  const links = [];
-  const addNode = (name) => {
-    const idx = nodes.findIndex(n => n.name === name);
-    if (idx >= 0) return idx;
-    nodes.push({ name });
-    return nodes.length - 1;
-  };
-
-  const allTestsNode = addNode('All Tests');
-  const totalNode = addNode('Total Tests');
-  const passedNode = addNode('Passed Tests');
-  const failedNode = addNode('Failed Tests');
-  links.push({ source: allTestsNode, target: totalNode, value: totalTests });
-  links.push({ source: totalNode, target: passedNode, value: passedCount });
-  links.push({ source: totalNode, target: failedNode, value: failedDistinctCount });
-
-  // Failed -> severity
-  for (const [severity, setOfTests] of severityBuckets.entries()) {
-    const sevNode = addNode(severity);
-    links.push({ source: failedNode, target: sevNode, value: setOfTests.size });
-
-    // severity -> test type
-    const typeMap = severityTypeBuckets.get(severity) || new Map();
-    for (const [typeName, testsSet] of typeMap.entries()) {
-      const typeNode = addNode(String(typeName));
-      links.push({ source: sevNode, target: typeNode, value: testsSet.size });
-    }
-  }
-
-  // Create an offscreen SVG using D3 (stretched wider for Sankey)
-  const width = SANKEY_EXPORT_WIDTH;
-  const height = SANKEY_EXPORT_HEIGHT;
-  const svg = d3.create('svg')
-    .attr('xmlns', 'http://www.w3.org/2000/svg')
-    .attr('width', width)
-    .attr('height', height)
-    .style('font-family', 'sans-serif');
-
-  const sankeyGenerator = d3.sankey()
-    .nodeWidth(22)
-    .nodePadding(16)
-    .extent([[1, 1], [width - 1, height - 6]]);
-
-  const graph = sankeyGenerator({ nodes: nodes.map(d => Object.assign({}, d)), links: links.map(d => Object.assign({}, d)) });
-
-  // Colour mapping aligned with dashboard palette used elsewhere on this screen
-  const COLOR = {
-    ALL: '#e5e7eb',
-    TOTAL: '#e5e7eb',
-    PASS: '#bbf7d0',
-    FAIL: '#fecaca',
-    INFO: '#cbd5e1',
-    WARNING: '#fde68a',
-    ERROR: '#fdba74',
-    CRITICAL: '#fca5a5',
-    DEFAULT: '#0f6cbd',
-    LINK_DEFAULT: '#7aa3d9',
-  };
-
-  const TEST_TYPE_COLOR = {
-    LOGIC: '#60a5fa',   // blue
-    DATA_TYPE: '#a78bfa', // purple
-    COMPLETENESS: '#f9a8d4', // pink
-    OTHER: '#d1d5db',   // grey
-  };
-
-  const getTestTypeColor = (name) => {
-    const key = String(name || '').trim().toUpperCase();
-    return TEST_TYPE_COLOR[key] || null;
-  };
-
-  // Helper to choose text colour (black on light backgrounds, white on dark)
-  function textColorFor(hex) {
-    try {
-      const c = hex.replace('#', '');
-      const r = parseInt(c.substring(0,2),16);
-      const g = parseInt(c.substring(2,4),16);
-      const b = parseInt(c.substring(4,6),16);
-      const luminance = (0.2126*r + 0.7152*g + 0.0722*b) / 255;
-      return luminance > 0.6 ? '#000000' : '#ffffff';
-    } catch { return '#ffffff'; }
-  }
-
-  // Build a map of node name -> colour
-  const nodeColourMap = new Map();
-  nodeColourMap.set('All Tests', COLOR.ALL);
-  nodeColourMap.set('Passed Tests', COLOR.PASS);
-  nodeColourMap.set('Failed Tests', COLOR.FAIL);
-  nodeColourMap.set('Total Tests', COLOR.TOTAL);
-  // Map severities
-  nodeColourMap.set('INFO', COLOR.INFO);
-  nodeColourMap.set('WARNING', COLOR.WARNING);
-  nodeColourMap.set('ERROR', COLOR.ERROR);
-  nodeColourMap.set('CRITICAL', COLOR.CRITICAL);
-
-  // Draw links and nodes with colours derived from their target or role
-  svg.append('g')
-    .attr('fill', 'none')
-    .attr('stroke-opacity', 0.7)
-    .selectAll('path')
-    .data(graph.links)
-    .join('path')
-    .attr('d', d3.sankeyLinkHorizontal())
-    .attr('stroke', d => {
-      // Prefer the target node colour where sensible
-      const tgt = d.target && d.target.name ? d.target.name : null;
-      if (!tgt) return COLOR.LINK_DEFAULT;
-      if (tgt === 'Total Tests') return '#cbd5e1';
-      if (tgt === 'Passed Tests') return COLOR.PASS;
-      if (tgt === 'Failed Tests') return COLOR.FAIL;
-      if (tgt === 'WARNING') return COLOR.WARNING;
-      if (tgt === 'ERROR') return COLOR.ERROR;
-      if (tgt === 'CRITICAL') return COLOR.CRITICAL;
-      const testTypeColor = getTestTypeColor(tgt);
-      if (testTypeColor) return testTypeColor;
-      return COLOR.LINK_DEFAULT;
-    })
-    .attr('stroke-width', d => Math.max(1, d.width))
-    .attr('stroke-linecap', 'butt')
-    .attr('stroke-linejoin', 'miter');
-
-  const node = svg.append('g')
-    .selectAll('g')
-    .data(graph.nodes)
-    .join('g');
-
-  node.append('rect')
-    .attr('x', d => d.x0)
-    .attr('y', d => d.y0)
-    .attr('height', d => Math.max(1, d.y1 - d.y0))
-    .attr('width', d => Math.max(1, d.x1 - d.x0))
-    .attr('fill', d => nodeColourMap.get(d.name) || getTestTypeColor(d.name) || COLOR.DEFAULT)
-    .attr('opacity', 0.95);
-
-  node.append('text')
-    .attr('x', d => d.name === 'Failed Tests'
-      ? (d.x0 + d.x1) / 2
-      : (d.x0 < width / 2 ? d.x1 + 8 : d.x0 - 8))
-    .attr('y', d => (d.y1 + d.y0) / 2)
-    .attr('dy', '0.35em')
-    .attr('text-anchor', d => d.name === 'Failed Tests' ? 'middle' : (d.x0 < width / 2 ? 'start' : 'end'))
-    .attr('fill', '#000000')
-    .style('font-size', '13px')
-    .text(d => {
-      if (d.name === 'Total Tests') return '';
-
-      // show node label and value where available
-      const rawLabel = String(d.name || '');
-      const label = rawLabel ? `${rawLabel.charAt(0).toUpperCase()}${rawLabel.slice(1).toLowerCase()}` : '';
-      const val = (typeof d.value === 'number' && d.value > 0) ? ` (${d.value})` : '';
-      return label + val;
-    });
-
-  // Serialize SVG
-  const svgString = new XMLSerializer().serializeToString(svg.node());
-
-  // Convert SVG to PNG via canvas
-  const img = new Image();
-  const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(svgBlob);
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-
-  return new Promise((resolve, reject) => {
-    img.onload = () => {
-      try {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-        const dataUrl = canvas.toDataURL('image/png');
-        URL.revokeObjectURL(url);
-        const base64 = dataUrl.split(',')[1];
-        resolve(base64);
-      } catch (e) {
-        URL.revokeObjectURL(url);
-        reject(e);
-      }
-    };
-    img.onerror = (e) => { URL.revokeObjectURL(url); reject(new Error('Failed to render SVG to image')); };
-    img.src = url;
-  });
-}
-
-async function insertSankeyImageIntoResults(exportRows) {
-  try {
-    setStatus('Generating Sankey image...');
-    const base64Png = await buildSankeyPngBase64(exportRows);
-    setStatus('Inserting Sankey into Results sheet...');
-    await Excel.run(async (context) => {
-      const workbook = context.workbook;
-      let sheet = workbook.worksheets.getItemOrNullObject('Results');
-      sheet.load('isNullObject');
-      await context.sync();
-      if (sheet.isNullObject) {
-        workbook.worksheets.add('Results');
-      }
-      const resultsSheet = workbook.worksheets.getItem('Results');
-
-      // Ensure visualisation sheet uses white background and black fonts.
-      const usedRange = resultsSheet.getUsedRangeOrNullObject();
-      usedRange.load('isNullObject');
-      await context.sync();
-      if (!usedRange.isNullObject) {
-        usedRange.format.fill.color = '#D9D9D9';
-        usedRange.format.font.color = '#000000';
-      } else {
-        // If sheet is empty, apply formatting to a reasonable area
-        const fullRange = resultsSheet.getRange('A1:ZZ1000');
-        fullRange.format.fill.color = '#D9D9D9';
-        fullRange.format.font.color = '#000000';
-      }
-
-      // Add image (expects base64 without prefix) and position at cell B20
-      const anchor = resultsSheet.getRange('B20');
-      anchor.load(['left', 'top']);
-      await context.sync();
-      try {
-        const imgShape = resultsSheet.shapes.addImage(base64Png);
-        try { imgShape.left = anchor.left; } catch {}
-        try { imgShape.top = anchor.top; } catch {}
-        // Keep the same aspect ratio as the exported Sankey image
-        try { imgShape.width = SANKEY_DISPLAY_WIDTH; } catch {}
-        try { imgShape.height = SANKEY_DISPLAY_HEIGHT; } catch {}
-      } catch (shErr) {
-        // fallback: add image without explicit positioning
-        try { resultsSheet.shapes.addImage(base64Png); } catch {}
-      }
-      await context.sync();
-    });
-    setStatus('Sankey image inserted into Results sheet.');
-  } catch (err) {
-    setStatus(`Sankey generation failed: ${err?.message || 'Unknown error'}`, true);
-  }
 }
 
 function getDefaultPackConfig(selectedPack) {
@@ -4174,14 +3882,6 @@ async function visualiseValidationResults() {
     const userEmail = String(getExcelUserEmail() || '').trim();
     const configJson = safeJson({ backendUrl, userEmail });
 
-    // Generate Sankey PNG base64 for embedding (stable rendering path)
-    let sankeyBase64 = null;
-    try {
-      sankeyBase64 = await buildSankeyPngBase64(exportRows);
-    } catch (e) {
-      // continue without sankey
-    }
-
     // Build HTML for new tab
     const win = window.open('', '_blank');
     if (!win) {
@@ -4278,7 +3978,6 @@ async function visualiseValidationResults() {
     .panel-body.collapsed { max-height:0; opacity:0; padding:0 18px; visibility:hidden; }
     .panel-collapse-btn { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border:none; background:transparent; cursor:pointer; color:var(--text-2); font-size:16px; padding:0; margin:0; transition:transform .3s ease; flex-shrink:0; }
     .panel-collapse-btn.collapsed { transform:rotate(-90deg); }
-    #sankey-panel .panel-header { border-bottom:none; }
 
     /* ── Toggle tabs ── */
     .tab-group { display:inline-flex; gap:2px; background:#f0f2f5; border-radius:6px; padding:3px; border:1px solid var(--border); }
@@ -4316,10 +4015,6 @@ async function visualiseValidationResults() {
     .status-legend { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:2px 0 12px; }
     .status-legend-item { display:inline-flex; align-items:center; gap:6px; color:var(--text-2); font-size:11px; }
     .status-legend-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
-
-    /* ── Sankey ── */
-    .sankey-wrap { background:#fff; border-radius:8px; overflow:hidden; border:none; box-shadow:none; }
-    .sankey-wrap img { display:block; width:100%; height:auto; min-height:180px; object-fit:contain; image-rendering:auto; }
 
     /* ── Failure table ── */
     .data-table { width:100%; border-collapse:collapse; font-size:12px; }
@@ -4392,20 +4087,6 @@ async function visualiseValidationResults() {
       return `<div class="stat-card ${accent}"><div class="stat-label">${escapeHtml(k.title)}</div><div class="stat-value">${escapeHtml(k.value)}</div><div class="stat-sub">${sub}</div>${deltaHtml}</div>`;
     }).join('')}
   </div>
-
-  <!-- Flow diagram -->
-  ${sankeyBase64 ? `
-  <div class="panel" id="sankey-panel" style="margin-bottom:16px">
-    <div class="panel-header">
-      <div><div class="panel-title">Test Flow Overview</div><div class="panel-subtitle">Test flow representing the outcomes of the validation run from source to result</div></div>
-      <button class="panel-collapse-btn" data-panel="sankey" title="Collapse/expand" aria-label="Collapse panel">−</button>
-    </div>
-    <div class="panel-body" style="padding:0 18px 18px;background:#fff">
-      <div class="sankey-wrap">
-        <img alt="High quality Sankey diagram" src="data:image/png;base64,${sankeyBase64}" />
-      </div>
-    </div>
-  </div>` : ''}
 
   <!-- Bar chart panel -->
   <div class="panel" id="bar-panel" style="margin-bottom:16px">
