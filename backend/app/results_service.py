@@ -25,12 +25,14 @@ from app.database import (
     ValidationResultVersion,
     ValidationRun,
 )
-from app.utils.normalization import (
+from app.common.utilities.normalization import (
     UNKNOWN_SHEET,
     UNKNOWN_WORKBOOK,
     normalize_pack_storage_value,
     normalize_scope_value,
 )
+from app.repositories.results.results_repository import ResultsRepository
+from app.repositories.shared.sheet_key_repository import SheetKeyRepository
 
 
 async def _get_or_create_sheet_key(
@@ -40,36 +42,14 @@ async def _get_or_create_sheet_key(
     workbook_name: str | None,
     sheet_name: str | None,
     test_pack: str | None = None,
-) -> SheetKey:
-    normalized_workbook = normalize_scope_value(workbook_name, fallback=UNKNOWN_WORKBOOK)
-    normalized_sheet = normalize_scope_value(sheet_name, fallback=UNKNOWN_SHEET)
-    normalized_pack = normalize_pack_storage_value(test_pack)
-
-    result = await session.execute(
-        select(SheetKey)
-        .where(SheetKey.organisation_id == organisation_id)
-        .where(SheetKey.workbook_name == normalized_workbook)
-        .where(SheetKey.sheet_name == normalized_sheet)
-        .where(SheetKey.test_pack == normalized_pack)
-    )
-    sheet_key = result.scalar_one_or_none()
-
-    now = datetime.now(timezone.utc)
-
-    if sheet_key is not None:
-        return sheet_key
-
-    sheet_key = SheetKey(
+):
+    return await SheetKeyRepository.get_or_create(
+        session,
         organisation_id=organisation_id,
-        workbook_name=normalized_workbook,
-        sheet_name=normalized_sheet,
-        test_pack=normalized_pack,
-        created_at=now,
-        updated_at=now,
+        workbook_name=workbook_name,
+        sheet_name=sheet_name,
+        test_pack=test_pack,
     )
-    session.add(sheet_key)
-    await session.flush()
-    return sheet_key
 
 
 async def _find_sheet_key(
@@ -79,20 +59,15 @@ async def _find_sheet_key(
     workbook_name: str | None,
     sheet_name: str | None,
     test_pack: str | None = None,
-) -> SheetKey | None:
+):
     """Return an existing sheet key if present, without creating one."""
-    normalized_workbook = normalize_scope_value(workbook_name, fallback=UNKNOWN_WORKBOOK)
-    normalized_sheet = normalize_scope_value(sheet_name, fallback=UNKNOWN_SHEET)
-    normalized_pack = normalize_pack_storage_value(test_pack)
-
-    result = await session.execute(
-        select(SheetKey)
-        .where(SheetKey.organisation_id == organisation_id)
-        .where(SheetKey.workbook_name == normalized_workbook)
-        .where(SheetKey.sheet_name == normalized_sheet)
-        .where(SheetKey.test_pack == normalized_pack)
+    return await SheetKeyRepository.find(
+        session,
+        organisation_id=organisation_id,
+        workbook_name=workbook_name,
+        sheet_name=sheet_name,
+        test_pack=test_pack,
     )
-    return result.scalar_one_or_none()
 
 
 # ---------------------------------------------------------------------------
@@ -338,12 +313,11 @@ async def save_results_version(
     }
 
     # Upsert ValidationResultVersion
-    ver_result = await session.execute(
-        select(ValidationResultVersion)
-        .where(ValidationResultVersion.sheet_key_id == int(sheet_key.id))
-        .where(ValidationResultVersion.test_pack == normalized_test_pack)
+    version = await ResultsRepository.get_version_for_sheet_key_pack(
+        session,
+        sheet_key_id=int(sheet_key.id),
+        test_pack=normalized_test_pack,
     )
-    version = ver_result.scalar_one_or_none()
     now = datetime.now(timezone.utc)
 
     incoming_version_name = str(version_name or "").strip() or None
@@ -379,11 +353,10 @@ async def save_results_version(
         await session.flush()
 
     # Upsert ValidationResultPayload (mapped_headers + saved_data)
-    pay_result = await session.execute(
-        select(ValidationResultPayload)
-        .where(ValidationResultPayload.validation_result_version_id == int(version.id))
+    payload = await ResultsRepository.get_payload_for_version(
+        session,
+        version_id=int(version.id),
     )
-    payload = pay_result.scalar_one_or_none()
 
     if payload is None:
         session.add(
@@ -430,12 +403,11 @@ async def get_results_version(
     )
     if sheet_key is None:
         return None
-    result = await session.execute(
-        select(ValidationResultVersion)
-        .where(ValidationResultVersion.sheet_key_id == int(sheet_key.id))
-        .where(ValidationResultVersion.test_pack == normalized_test_pack)
+    return await ResultsRepository.get_version_for_sheet_key_pack(
+        session,
+        sheet_key_id=int(sheet_key.id),
+        test_pack=normalized_test_pack,
     )
-    return result.scalar_one_or_none()
 
 
 async def list_results_versions_for_pack(
@@ -446,16 +418,14 @@ async def list_results_versions_for_pack(
 ) -> list[SavedVersionWithScope]:
     """Return all saved result versions for an organisation and test pack, newest first."""
     normalized_test_pack = normalize_pack_storage_value(test_pack)
-    result = await session.execute(
-        select(ValidationResultVersion, SheetKey)
-        .join(SheetKey, ValidationResultVersion.sheet_key_id == SheetKey.id)
-        .where(SheetKey.organisation_id == organisation_id)
-        .where(ValidationResultVersion.test_pack == normalized_test_pack)
-        .order_by(desc(ValidationResultVersion.updated_at), desc(ValidationResultVersion.id))
+    rows = await ResultsRepository.list_versions_for_org_pack(
+        session,
+        organisation_id=organisation_id,
+        test_pack=normalized_test_pack,
     )
 
     items: list[SavedVersionWithScope] = []
-    for version, sheet_key in result.all():
+    for version, sheet_key in rows:
         items.append(
             SavedVersionWithScope(
                 version=version,
@@ -473,13 +443,11 @@ async def delete_results_version(
     sheet_key_id: int,
 ) -> bool:
     """Delete result versions for a sheet_key, constrained to org ownership."""
-    result = await session.execute(
-        select(ValidationResultVersion)
-        .join(SheetKey, ValidationResultVersion.sheet_key_id == SheetKey.id)
-        .where(ValidationResultVersion.sheet_key_id == sheet_key_id)
-        .where(SheetKey.organisation_id == organisation_id)
+    version = await ResultsRepository.get_version_by_sheet_key_for_org(
+        session,
+        organisation_id=organisation_id,
+        sheet_key_id=sheet_key_id,
     )
-    version = result.scalar_one_or_none()
     if version is None:
         return False
     await session.delete(version)
@@ -494,13 +462,12 @@ async def delete_results_version_by_id(
     version_id: int,
 ) -> bool:
     """Delete a specific result version by id, constrained to org ownership."""
-    result = await session.execute(
-        select(ValidationResultVersion)
-        .join(SheetKey, ValidationResultVersion.sheet_key_id == SheetKey.id)
-        .where(ValidationResultVersion.id == version_id)
-        .where(SheetKey.organisation_id == organisation_id)
+    version_with_scope = await ResultsRepository.get_version_by_id_for_org(
+        session,
+        organisation_id=organisation_id,
+        version_id=version_id,
     )
-    version = result.scalar_one_or_none()
+    version = version_with_scope[0] if version_with_scope is not None else None
     if version is None:
         return False
     await session.delete(version)
@@ -527,17 +494,15 @@ async def update_results_version_by_id(
     """Update an existing saved result version by id within the same sheet_key context."""
     normalized_test_pack = normalize_pack_storage_value(test_pack)
 
-    result = await session.execute(
-        select(ValidationResultVersion, SheetKey)
-        .join(SheetKey, ValidationResultVersion.sheet_key_id == SheetKey.id)
-        .where(ValidationResultVersion.id == version_id)
-        .where(SheetKey.organisation_id == organisation_id)
+    version_with_scope = await ResultsRepository.get_version_by_id_for_org(
+        session,
+        organisation_id=organisation_id,
+        version_id=version_id,
     )
-    row = result.first()
-    if row is None:
+    if version_with_scope is None:
         return None
 
-    version, _sheet_key = row
+    version, _sheet_key = version_with_scope
     existing_pack = normalize_pack_storage_value(version.test_pack)
     if existing_pack != normalized_test_pack:
         raise ValueError("test_pack does not match the selected saved version")
@@ -580,11 +545,10 @@ async def update_results_version_by_id(
     version.updated_at = now
     await session.flush()
 
-    pay_result = await session.execute(
-        select(ValidationResultPayload)
-        .where(ValidationResultPayload.validation_result_version_id == int(version.id))
+    payload = await ResultsRepository.get_payload_for_version(
+        session,
+        version_id=int(version.id),
     )
-    payload = pay_result.scalar_one_or_none()
 
     if payload is None:
         session.add(
@@ -616,31 +580,27 @@ async def get_results_version_payload_by_id(
     version_id: int,
 ) -> dict[str, Any] | None:
     """Return saved version payload + scope + pack config for a specific version id."""
-    result = await session.execute(
-        select(ValidationResultVersion, SheetKey)
-        .join(SheetKey, ValidationResultVersion.sheet_key_id == SheetKey.id)
-        .where(ValidationResultVersion.id == version_id)
-        .where(SheetKey.organisation_id == organisation_id)
+    version_with_scope = await ResultsRepository.get_version_by_id_for_org(
+        session,
+        organisation_id=organisation_id,
+        version_id=version_id,
     )
-    row = result.first()
-    if row is None:
+    if version_with_scope is None:
         return None
 
-    version, sheet_key = row
+    version, sheet_key = version_with_scope
 
-    payload_result = await session.execute(
-        select(ValidationResultPayload)
-        .where(ValidationResultPayload.validation_result_version_id == int(version.id))
+    payload = await ResultsRepository.get_payload_for_version(
+        session,
+        version_id=int(version.id),
     )
-    payload = payload_result.scalar_one_or_none()
 
-    pack_config_result = await session.execute(
-        select(PackConfiguration)
-        .where(PackConfiguration.user_id == user_id)
-        .where(PackConfiguration.sheet_key_id == int(sheet_key.id))
-        .where(PackConfiguration.test_pack == version.test_pack)
+    pack_config = await ResultsRepository.get_pack_config_for_user_sheet_pack(
+        session,
+        user_id=user_id,
+        sheet_key_id=int(sheet_key.id),
+        test_pack=version.test_pack,
     )
-    pack_config = pack_config_result.scalar_one_or_none()
 
     version_name = str(getattr(version, "version_name", "") or "").strip() or None
     if version_name is None and isinstance(version.results_json, dict):
@@ -752,26 +712,13 @@ async def store_validation_results(
     # 2. Delete prior ValidationRun rows in the same scope (latest-only)
     # ------------------------------------------------------------------
     if sheet_name:
-        prior_lookup_query = (
-            select(ValidationRun)
-            .where(ValidationRun.sheet_name == sheet_name)
-            .order_by(desc(ValidationRun.run_timestamp))
-            .limit(1)
+        prior_row = await ResultsRepository.get_latest_run_for_scope(
+            session,
+            sheet_name=sheet_name,
+            workbook_name=workbook_name,
+            user_id=user_id,
+            api_key_hash=api_key_hash,
         )
-
-        if user_id is not None:
-            prior_lookup_query = prior_lookup_query.where(ValidationRun.user_id == user_id)
-        elif api_key_hash:
-            prior_lookup_query = prior_lookup_query.where(ValidationRun.api_key_hash == api_key_hash)
-        else:
-            prior_lookup_query = prior_lookup_query.where(ValidationRun.user_id.is_(None))
-            prior_lookup_query = prior_lookup_query.where(ValidationRun.api_key_hash.is_(None))
-
-        if workbook_name:
-            prior_lookup_query = prior_lookup_query.where(ValidationRun.workbook_name == workbook_name)
-
-        prior_lookup = await session.execute(prior_lookup_query)
-        prior_row = prior_lookup.scalar_one_or_none()
         if prior_row is not None:
             existing_tagged_cells = list(prior_row.tagged_cells_json or [])
 
@@ -937,10 +884,10 @@ async def get_validation_run(
     run_token: int,
 ) -> RunSummary | None:
     """Return one RunSummary for the given run_token, or None if not found."""
-    result = await session.execute(
-        select(ValidationRun).where(ValidationRun.run_token == run_token)
+    row = await ResultsRepository.get_run_by_token(
+        session,
+        run_token=run_token,
     )
-    row = result.scalar_one_or_none()
     return _run_to_summary(row) if row is not None else None
 
 
