@@ -25,7 +25,7 @@
         margin: 0;
         padding: 14px 14px 64px;
         color: var(--text);
-        background: linear-gradient(180deg, #f7faff 0%, #f4f8fc 100%);
+        background: var(--bg);
       }
 
       .app-shell {
@@ -94,6 +94,10 @@
         background: var(--surface);
         color: var(--text);
         box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+      }
+
+      .tab-button:hover:not(:disabled) {
+        color: #fff;
       }
 
       label {
@@ -443,20 +447,101 @@
       #exceptionDescriptionInput {
         resize: none;
       }
+
+      .launch-shell {
+        min-height: calc(100vh - 28px);
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 32px;
+        background: var(--bg);
+        transform: none;
+      }
+
+      .launch-card {
+        width: min(100%, 520px);
+        padding: 24px 18px;
+        text-align: center;
+      }
+
+      .launch-logo {
+        width: 96px;
+        height: 96px;
+        object-fit: contain;
+        margin: 0 auto 4px;
+        display: block;
+      }
+
+      .launch-title {
+        margin: 0;
+        font-size: 22px;
+        letter-spacing: -0.01em;
+      }
+
+      .launch-subtitle {
+        margin: 8px 0 0;
+        font-size: 13px;
+        color: var(--text-muted);
+      }
+
+      .launch-action {
+        margin-top: 16px;
+        width: 80%;
+        max-width: 300px;
+        display: inline-block;
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      .launch-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        margin-top: 32px;
+      }
+
+      .launch-actions .launch-action {
+        margin-top: 0;
+      }
+
+      .launch-terms {
+        margin: 18px 0 0;
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--text-muted);
+      }
+
+      .hidden {
+        display: none !important;
+      }
     </style>
   </head>
   <body>
-    <div class="app-shell">
+    <div id="launchScreen" class="launch-shell">
+      <div class="launch-card">
+        <img id="launchLogo" class="launch-logo" src="./assets/axios.png" alt="Axios logo" />
+        <h1 id="launchTitle" class="launch-title">Loading...</h1>
+        <p id="launchSubtitle" class="launch-subtitle"></p>
+        <div class="launch-actions">
+          <button id="launchGetStarted" class="launch-action hidden" type="button">Start</button>
+          <button id="launchSupportButton" class="launch-action btn-secondary" type="button" onclick="window.location.href='./support.html'">Help</button>
+        </div>
+        <p class="launch-terms">Terms and Conditions</p>
+      </div>
+    </div>
+
+    <div id="mainAppShell" class="app-shell hidden">
       <div class="brand-header">
-        <img src="./AXIOS.png" alt="Axios logo" />
+        <img src="./assets/axios.png" alt="Axios logo" />
         <h2>Bordereaux Validator</h2>
       </div>
       <div class="hint">Identify data issues faster with intelligent bordereaux validation and reporting.</div>
 
       <div class="tabs" role="tablist" aria-label="Validator sections">
-        <button id="tabConfiguration" class="tab-button" role="tab" aria-selected="true" aria-controls="panelConfiguration">Configure</button>
-        <button id="tabControl" class="tab-button" role="tab" aria-selected="false" aria-controls="panelControl">Control</button>
-        <button id="tabAnalysis" class="tab-button" role="tab" aria-selected="false" aria-controls="panelAnalysis">Analyse</button>
+        <button id="tabConfiguration" class="tab-button" role="tab" aria-selected="true" aria-controls="panelConfiguration" title="Configure validation settings, territory, and schema options.">Configure</button>
+        <button id="tabControl" class="tab-button" role="tab" aria-selected="false" aria-controls="panelControl" title="View and manage validation controls and settings.">Control</button>
+        <button id="tabAnalysis" class="tab-button" role="tab" aria-selected="false" aria-controls="panelAnalysis" title="Analyse validation results and data quality trends.">Analyse</button>
       </div>
 
       <section id="panelConfiguration" class="tab-panel active panel-card" role="tabpanel" aria-labelledby="tabConfiguration">
@@ -473,20 +558,20 @@
         <details class="collapsible-section">
           <summary>Validation Configuration</summary>
           <div class="collapsible-content">
-              <button id="estimateFieldMapping" class="btn-secondary" style="width: 100%; margin-bottom: 8px;">Field Mapping Estimation</button>
+              <button id="estimateFieldMapping" class="btn-secondary" style="width: 100%; margin-bottom: 8px;" title="Automatically suggest field mappings using fuzzy matching.">Field Mapping Estimation</button>
               <textarea id="packConfigs"></textarea>
           </div>
         </details>
 
         <div class="actions-grid">
-          <button id="generateTemplate" class="btn-secondary">Generate Template</button>
+          <button id="generateTemplate" class="btn-secondary" title="Create a template workbook based on the selected schema.">Generate Template</button>
         </div>
       </section>
 
       <section id="panelControl" class="tab-panel panel-card" role="tabpanel" aria-labelledby="tabControl">
         <div class="actions-grid">
-          <button id="runValidation">Validate</button>
-          <button id="clearTable" class="btn-secondary">Clear</button>
+          <button id="runValidation" title="Run validation checks against the loaded dataset.">Validate</button>
+          <button id="clearTable" class="btn-secondary" title="Clear current results, selections, and validation outputs.">Clear</button>
         </div>
 
         <details class="collapsible-section">
@@ -497,8 +582,8 @@
             </select>
 
             <div class="actions-grid">
-              <button id="applyException" class="btn-secondary">Apply Exception</button>
-              <button id="manageExceptions" class="btn-secondary">Manage Exceptions</button>
+              <button id="applyException" class="btn-secondary" title="Apply an existing exception to the selected issue.">Apply Exception</button>
+              <button id="manageExceptions" class="btn-secondary" title="View, create, update, and track exceptions.">Manage Exceptions</button>
             </div>
           </div>
         </details>
@@ -507,12 +592,12 @@
           <summary>Report Management</summary>
           <div class="collapsible-content">
             <div class="actions-grid">
-              <button id="viewSavedVersion" class="btn-secondary">View</button>
+              <button id="viewSavedVersion" class="btn-secondary" title="View detailed information and validation results.">View</button>
               <select id="savedVersions">
                 <option value="">No saved reports</option>
               </select>
-              <button id="saveResultsVersion" class="btn-secondary">Save Report</button>
-              <button id="deleteResultsVersion" class="btn-secondary">Delete Report</button>
+              <button id="saveResultsVersion" class="btn-secondary" title="Save the current validation report for future review.">Save Report</button>
+              <button id="deleteResultsVersion" class="btn-secondary" title="Permanently delete the selected report.">Delete Report</button>
             </div>
           </div>
         </details>
@@ -520,12 +605,12 @@
 
       <section id="panelAnalysis" class="tab-panel panel-card" role="tabpanel" aria-labelledby="tabAnalysis">
         <div class="actions-grid">
-          <button id="visualiseResults" class="btn-secondary">Visualise</button>
+          <button id="visualiseResults" class="btn-secondary" title="Explore results through dashboards and heat maps.">Visualise</button>
           <div class="coming-soon-wrap" data-tooltip="Coming soon">
             <button id="benchmarking" class="btn-secondary" disabled>Benchmarking</button>
           </div>
-          <button id="rulesEngine" class="btn-secondary">Rules Engine</button>
-          <button id="extractResults" class="btn-secondary">Extract</button>
+          <button id="rulesEngine" class="btn-secondary" title="View validation rules and failure explanations.">Rules Engine</button>
+          <button id="extractResults" class="btn-secondary" title="Export validation results and issue details.">Extract</button>
         </div>
       </section>
 
@@ -580,7 +665,7 @@
             </select>
           </div>
           <div class="modal-actions">
-            <button id="createExceptionBtn">Create</button>
+            <button id="createExceptionBtn" title="Create a new exception record.">Create</button>
             <button id="closeExceptionModalBtn" class="btn-secondary">Close</button>
           </div>
         </div>
@@ -589,6 +674,20 @@
 
     <script src="./taskpane.packs.js"></script>
     <script src="./taskpane.storage.js"></script>
+    <script src="./modules/taskpane/address.js"></script>
+    <script src="./modules/taskpane/errors.js"></script>
+    <script src="./modules/taskpane/debug.js"></script>
+    <script src="./modules/taskpane/sheet-range.js"></script>
+    <script src="./modules/taskpane/scope.js"></script>
+    <script src="./modules/taskpane/tagged-cells.js"></script>
+    <script src="./modules/taskpane/versions.js"></script>
+    <script src="./modules/taskpane/exception-helpers.js"></script>
+    <script src="./modules/taskpane/exception-actions.js"></script>
+    <script src="./modules/taskpane/version-actions.js"></script>
+    <script src="./modules/taskpane/validation-actions.js"></script>
+    <script src="./modules/taskpane/rules-engine.js"></script>
+    <script src="./modules/taskpane/extraction.js"></script>
+    <script src="./modules/taskpane/visualisation.js"></script>
     <script src="./taskpane.js"></script>
   </body>
 </html>
