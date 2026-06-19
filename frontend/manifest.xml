@@ -10,8 +10,8 @@
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Reporting Validator"/>
   <Description DefaultValue="Validate reporting data with a Python backend and subscribed test packs."/>
-  <IconUrl DefaultValue="https://localhost:3000/assets/AXIOS.png"/>
-  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/AXIOS.png"/>
+  <IconUrl DefaultValue="https://localhost:3000/assets/axios.png"/>
+  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/axios.png"/>
   <SupportUrl DefaultValue="https://localhost"/>
   <AppDomains>
     <AppDomain>https://localhost:3000</AppDomain>
@@ -67,9 +67,9 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16" DefaultValue="https://localhost:3000/assets/AXIOS.png"/>
-        <bt:Image id="Icon.32" DefaultValue="https://localhost:3000/assets/AXIOS.png"/>
-        <bt:Image id="Icon.80" DefaultValue="https://localhost:3000/assets/AXIOS.png"/>
+        <bt:Image id="Icon.16" DefaultValue="https://localhost:3000/assets/axios.png"/>
+        <bt:Image id="Icon.32" DefaultValue="https://localhost:3000/assets/axios.png"/>
+        <bt:Image id="Icon.80" DefaultValue="https://localhost:3000/assets/axios.png"/>
       </bt:Images>
       <bt:Urls>
         <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://learn.microsoft.com/office/dev/add-ins/"/>

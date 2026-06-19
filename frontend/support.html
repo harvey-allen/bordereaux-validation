@@ -212,9 +212,9 @@
       async function loadSupportContent() {
         const container = document.getElementById("supportContent");
         try {
-          const response = await fetch("./support.md", { cache: "no-store" });
+          const response = await fetch("./assets/support.md", { cache: "no-store" });
           if (!response.ok) {
-            throw new Error(`Failed to load support.md (${response.status})`);
+            throw new Error(`Failed to load assets/support.md (${response.status})`);
           }
 
           const markdown = await response.text();
