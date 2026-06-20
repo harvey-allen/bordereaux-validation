@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - develop
+  push:
+    branches:
+      - main
+      - develop
 
 permissions:
   contents: read
@@ -12,7 +16,6 @@ permissions:
 jobs:
   backend-lint-test-coverage:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.full_name == github.repository
 
     steps:
       - name: Checkout repository
@@ -49,7 +52,6 @@ jobs:
 
   frontend-lint-test-coverage:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.full_name == github.repository
 
     steps:
       - name: Checkout repository
@@ -90,7 +92,6 @@ jobs:
 
   coverage-summary:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.full_name == github.repository
     needs:
       - backend-lint-test-coverage
       - frontend-lint-test-coverage
