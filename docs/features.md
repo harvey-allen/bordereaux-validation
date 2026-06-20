@@ -30,6 +30,12 @@
 - Exception tagging attaches exception IDs to stored cells and supports cleanup when exceptions are removed.
 - The exception management modal includes a "New Exception" action that exits edit mode and resets the form back to create mode.
 
+### Database administration
+- Shell scripts in `scripts/db-admin/` provide CRUD operations for users and organisations.
+- Organisation management: list, get, create, update, and delete organisations.
+- User management: list, get, create, update, delete, activate, deactivate, and regenerate API keys.
+- See `scripts/db-admin/README.md` for detailed usage examples.
+
 ## Testing and coverage policy
 
 - Unit tests are required for core business logic, service orchestration, utility helpers, and critical API/frontend flows.
