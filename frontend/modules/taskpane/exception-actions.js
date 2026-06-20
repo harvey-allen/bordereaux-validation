@@ -166,34 +166,8 @@
         status.className = "exception-status";
         status.textContent = (exc.status || "").replace(/\b\w/g, (c) => c.toUpperCase());
 
-        const descNode = document.createElement("div");
-        descNode.className = "exception-desc";
-        const fullDescription = String(exc.description || "");
-        descNode.title = fullDescription;
-        const firstDescriptionLine = fullDescription.split(/\r?\n/, 1)[0].trim();
-        descNode.textContent = deps.truncateText(firstDescriptionLine, 16);
-
         info.appendChild(idNode);
         info.appendChild(status);
-        info.appendChild(descNode);
-
-        const linkedField = String(exc.linked_field || exc.test_id || "").trim();
-        if (linkedField) {
-          const fieldNode = document.createElement("div");
-          fieldNode.style.fontSize = "11px";
-          fieldNode.style.color = "#666";
-          fieldNode.textContent = `Field: ${linkedField}`;
-          info.appendChild(fieldNode);
-        }
-
-        const linkedUmr = String(exc.linked_umr || "").trim();
-        if (linkedUmr) {
-          const umrNode = document.createElement("div");
-          umrNode.style.fontSize = "11px";
-          umrNode.style.color = "#666";
-          umrNode.textContent = `UMR: ${linkedUmr}`;
-          info.appendChild(umrNode);
-        }
 
         const actions = document.createElement("div");
         actions.className = "exception-actions";

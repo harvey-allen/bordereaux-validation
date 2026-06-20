@@ -7,6 +7,7 @@ function loadBrowserScript(relativeScriptPath, initialWindow = {}) {
   const code = fs.readFileSync(filePath, "utf8");
 
   const context = {
+    ...initialWindow,
     window: initialWindow,
     console,
     Error,
