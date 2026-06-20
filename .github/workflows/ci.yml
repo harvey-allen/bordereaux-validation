@@ -54,7 +54,12 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Run frontend linting
         working-directory: frontend
@@ -170,8 +175,12 @@ jobs:
 
           (
             cd "${tmp_dir}/frontend"
-            npm ci
-            npx c8 --reporter=json-summary node --test tests/**/*.test.js
+            if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+              npm ci
+            else
+              npm install
+            fi
+            npx --yes c8 --reporter=json-summary node --test tests/**/*.test.js
           )
 
           python - <<'PY'
