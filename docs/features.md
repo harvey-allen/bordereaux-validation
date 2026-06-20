@@ -28,6 +28,7 @@
 ### Exceptions
 - Exceptions are organisation-scoped records with status and linkage metadata.
 - Exception tagging attaches exception IDs to stored cells and supports cleanup when exceptions are removed.
+- The exception management modal includes a "New Exception" action that exits edit mode and resets the form back to create mode.
 
 ## Testing and coverage policy
 

@@ -1437,6 +1437,10 @@ function openExceptionModal() {
   taskpaneExceptionActionHelpers.openExceptionModal(buildExceptionActionDeps());
 }
 
+function resetExceptionFormToCreateMode() {
+  taskpaneExceptionActionHelpers.resetExceptionFormToCreateMode(buildExceptionActionDeps(), { clearFields: true });
+}
+
 function closeExceptionModal() {
   taskpaneExceptionActionHelpers.closeExceptionModal(buildExceptionActionDeps());
 }
@@ -1799,6 +1803,7 @@ async function initializeTaskpaneApp() {
   document.getElementById("applyException")?.addEventListener("click", applyExceptionToCell);
   document.getElementById("manageExceptions")?.addEventListener("click", openExceptionModal);
   document.getElementById("createExceptionBtn")?.addEventListener("click", createException);
+  document.getElementById("newExceptionBtn")?.addEventListener("click", resetExceptionFormToCreateMode);
   document.getElementById("closeExceptionModalBtn")?.addEventListener("click", closeExceptionModal);
 
   document.getElementById("exceptionModal")?.addEventListener("click", (event) => {
