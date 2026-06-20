@@ -76,8 +76,8 @@ try:
         ValidationResultVersion,
         UserSubscription,
     )
-    from app.subscription_service import subscription_service
-    from app.results_service import (
+    from app.services.subscription.subscription_service import subscription_service
+    from app.services.results.results_persistence_service import (
         delete_results_version_by_id,
         delete_results_version,
         get_results_version_payload_by_id,
@@ -93,8 +93,8 @@ try:
         update_results_version_by_id,
         upsert_validation_run_tagged_cells,
     )
-    from app.pack_config_service import pack_config_service
-    from app.exceptions_service import exception_service
+    from app.services.configuration.pack_config_service import pack_config_service
+    from app.services.exceptions.exception_management_service import exception_service
     DB_AVAILABLE = True
 except ImportError:
     DB_AVAILABLE = False

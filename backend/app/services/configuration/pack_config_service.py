@@ -69,4 +69,3 @@ async def estimate_field_mapping(
         headers=headers,
         mandatory_fields=mandatory_fields,
     )
-

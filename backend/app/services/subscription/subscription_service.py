@@ -50,7 +50,7 @@ def generate_api_key(tier: SubscriptionTier) -> str:
 class SubscriptionService:
     """
     Service for managing subscriptions in PostgreSQL.
-    
+
     Combines database persistence with in-memory rate limiting for performance.
     """
 
@@ -102,7 +102,7 @@ class SubscriptionService:
     ) -> tuple[Subscription, str]:
         """
         Get existing subscription or create a new one for an Excel user.
-        
+
         Returns:
             (Subscription, api_key) - api_key is only returned for new subscriptions
         """
@@ -152,7 +152,7 @@ class SubscriptionService:
 
         subscription = self._db_to_subscription(db_sub)
         self._cache_subscription(subscription)
-        
+
         return subscription, api_key
 
     async def get_subscription_by_api_key(
@@ -182,7 +182,7 @@ class SubscriptionService:
 
         subscription = self._db_to_subscription(db_sub)
         self._cache_subscription(subscription)
-        
+
         return subscription
 
     async def get_subscription_by_excel_user(
@@ -201,7 +201,7 @@ class SubscriptionService:
 
         subscription = self._db_to_subscription(db_sub)
         self._cache_subscription(subscription)
-        
+
         return subscription
 
     async def get_subscription_by_email(
@@ -286,7 +286,7 @@ class SubscriptionService:
 
         subscription = self._db_to_subscription(db_sub)
         self._cache_subscription(subscription)
-        
+
         return subscription
 
     async def regenerate_api_key(
@@ -313,9 +313,9 @@ class SubscriptionService:
         new_api_key = generate_api_key(coerce_subscription_tier(db_sub.tier))
         db_sub.api_key_hash = hash_api_key(new_api_key)
         db_sub.api_key_prefix = new_api_key[:12] + "..."
-        
+
         await db.commit()
-        
+
         return new_api_key
 
     async def record_request(
@@ -354,7 +354,7 @@ class SubscriptionService:
     ) -> tuple[bool, str | None]:
         """
         Check if a request is within rate limits.
-        
+
         Uses in-memory tracking for fast checks, with database as backup.
         """
         state = self._rate_limits[subscription.api_key_hash]
@@ -367,7 +367,7 @@ class SubscriptionService:
 
         # Check daily limit (use database for accuracy after restart)
         daily_count = state.requests_today
-        
+
         # If in-memory count is low, verify against database
         if daily_count < config.requests_per_day // 2:
             # Check database for today's requests

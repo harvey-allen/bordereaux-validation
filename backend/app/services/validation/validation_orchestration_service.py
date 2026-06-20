@@ -5,7 +5,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import Subscription, check_pack_access
-from app.pack_config_service import pack_config_service
+from app.services.configuration.pack_config_service import pack_config_service
 from app.testpacks.core import TEST_PACKS, get_pack_name_variants, normalize_pack_name
 from app.schemas.validation import ValidateRequest
 

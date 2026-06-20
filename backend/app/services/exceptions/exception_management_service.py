@@ -181,7 +181,7 @@ class ExceptionService:
             exception.linked_umr = linked_umr
         if status is not None:
             exception.status = status
-        
+
         exception.updated_at = datetime.now(timezone.utc)
         session.add(exception)
         await session.flush()

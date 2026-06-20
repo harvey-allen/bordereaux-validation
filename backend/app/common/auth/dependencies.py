@@ -14,7 +14,7 @@ from app.auth import Subscription, subscription_store
 try:
     from sqlalchemy.ext.asyncio import AsyncSession
     from app.database import get_db
-    from app.subscription_service import subscription_service
+    from app.services.subscription.subscription_service import subscription_service
 
     DB_AVAILABLE = True
 except ImportError:

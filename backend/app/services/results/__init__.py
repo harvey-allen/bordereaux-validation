@@ -1,3 +1,40 @@
 from app.services.results.results_service import ResultsDomainService, results_domain_service
+from app.services.results.results_persistence_service import (
+	RunSummary,
+	SavedVersionWithScope,
+	delete_results_version,
+	delete_results_version_by_id,
+	get_or_create_sheet_key,
+	get_results_version,
+	get_results_version_payload_by_id,
+	get_test_statistics,
+	get_validation_history,
+	get_validation_run,
+	list_results_versions_for_pack,
+	remove_exception_tags_from_results,
+	save_results_version,
+	store_validation_results,
+	update_results_version_by_id,
+	upsert_validation_run_tagged_cells,
+)
 
-__all__ = ["ResultsDomainService", "results_domain_service"]
+__all__ = [
+	"ResultsDomainService",
+	"results_domain_service",
+	"RunSummary",
+	"SavedVersionWithScope",
+	"delete_results_version",
+	"delete_results_version_by_id",
+	"get_or_create_sheet_key",
+	"get_results_version",
+	"get_results_version_payload_by_id",
+	"get_test_statistics",
+	"get_validation_history",
+	"get_validation_run",
+	"list_results_versions_for_pack",
+	"remove_exception_tags_from_results",
+	"save_results_version",
+	"store_validation_results",
+	"update_results_version_by_id",
+	"upsert_validation_run_tagged_cells",
+]
