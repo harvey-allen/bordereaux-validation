@@ -4,29 +4,6 @@
 
 Bordereaux Validation is a split frontend/backend system for validating Excel bordereaux ranges with configurable test packs. The frontend (Office add-in assets) calls backend APIs for validation, configuration, subscriptions, result persistence, and exception workflows.
 
-## Components and responsibilities
-
-```mermaid
-flowchart TB
-    subgraph Frontend
-        UI[Taskpane + Commands]
-        Modules[Workflow Modules]
-    end
-
-    subgraph Backend
-        API[FastAPI Routers + Handlers]
-        Services[Domain Services]
-        Repos[Repository Layer]
-        Validation[Validation Engine + Test Packs]
-    end
-
-    DB[(PostgreSQL)]
-
-    UI --> Modules --> API
-    API --> Services --> Repos --> DB
-    Services --> Validation
-```
-
 - Frontend ([frontend](../frontend)): UI actions, range extraction, workflow orchestration, and rendering results.
 - API layer ([backend/app/api](../backend/app/api)): endpoint routing, request/response contracts, and auth-bound request handling.
 - Service layer ([backend/app/services](../backend/app/services)): orchestration for validation, results versioning, exceptions, subscription logic, and configuration.

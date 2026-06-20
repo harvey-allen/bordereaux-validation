@@ -9,20 +9,6 @@
 - Exception management lifecycle (create, update, delete, list, analytics) with tagged-cell application.
 - Rules engine payload support for frontend rule exploration.
 
-## User workflows
-
-```mermaid
-flowchart TD
-    Start[Open workbook] --> Auth[Authenticate with API key]
-    Auth --> SelectPack[Select test pack(s)]
-    SelectPack --> Configure[Load or edit pack config]
-    Configure --> Validate[Run range validation]
-    Validate --> Review[Review failures/coverage]
-    Review --> Tag[Apply exception tags if needed]
-    Tag --> Save[Save result version]
-    Save --> Compare[Compare against prior versions]
-```
-
 ## Feature descriptions
 
 ### Validation execution
