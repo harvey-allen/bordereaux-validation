@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession

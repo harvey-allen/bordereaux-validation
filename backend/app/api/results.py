@@ -15,7 +15,6 @@ from app.schemas.results import (
     SavedResultsVersionItem,
     SavedResultsVersionListResponse,
     SavedResultsVersionPayloadResponse,
-    SaveResultsVersionRequest,
     VersionComparisonResponse,
 )
 

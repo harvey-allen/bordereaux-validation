@@ -1185,7 +1185,7 @@ async function bootstrapTaskpaneLaunchExperience() {
 
   if (!identity.isRecognized) {
     launchTitle.textContent = "Account not identified";
-    launchSubtitle.textContent = "please contact Axios to for support";
+    launchSubtitle.textContent = "Please contact Axios for support";
     return;
   }
 

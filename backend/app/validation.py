@@ -3,12 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from functools import lru_cache
+import re
 from typing import Any
 
 import pandas as pd
 
 from app.testpacks import Severity, get_pack_class
-from app.testpacks.core import get_pack_name_variants, normalize_pack_name
+from app.testpacks.core import normalize_pack_name
 from app.common.utilities.field_configuration import (
     load_pack_field_configuration,
     normalize_field_name,

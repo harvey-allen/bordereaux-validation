@@ -18,7 +18,6 @@ from sqlalchemy import delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import (
-    PackConfiguration,
     SheetKey,
     UserSubscription,
     ValidationResultPayload,
