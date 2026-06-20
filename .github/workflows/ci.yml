@@ -50,7 +50,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Install frontend dependencies
         working-directory: frontend
@@ -82,6 +82,8 @@ jobs:
     needs:
       - backend-lint-test-coverage
       - frontend-lint-test-coverage
+    permissions:
+      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -109,7 +111,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Compute current combined coverage
         id: coverage
