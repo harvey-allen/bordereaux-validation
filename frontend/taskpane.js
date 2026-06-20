@@ -691,6 +691,42 @@ async function launchSavedReportSheet({ versionName, savedData, mappedHeaders })
   });
 }
 
+async function launchSavedWorkbookSheetFromBase64({ versionName, workbookBase64, sourceSheetName }) {
+  return taskpaneVersionHelpers.launchSavedWorkbookSheetFromBase64({
+    versionName,
+    workbookBase64,
+    sourceSheetName,
+    maxSheetNameLength: MAX_EXCEL_SHEET_NAME_LENGTH,
+    appendDebugLog,
+  });
+}
+
+function buildWorksheetSnapshotForSave({
+  workbookName,
+  sheetName,
+  selectedPack,
+  packConfig,
+  mappedHeaders,
+  savedData,
+  taggedCells,
+}) {
+  return {
+    workbook_name: String(workbookName || "").trim() || "__unknown_workbook__",
+    sheet_name: String(sheetName || "").trim() || "__unknown_sheet__",
+    source_sheet_name: String(lastValidationSourceSheetName || sheetName || "").trim() || null,
+    test_pack: String(selectedPack || "").trim().toLowerCase(),
+    pack_config: packConfig && typeof packConfig === "object" && !Array.isArray(packConfig)
+      ? { ...packConfig }
+      : {},
+    mapped_headers: mappedHeaders && typeof mappedHeaders === "object" && !Array.isArray(mappedHeaders)
+      ? { ...mappedHeaders }
+      : {},
+    saved_data: Array.isArray(savedData) ? savedData : [],
+    validation_results: Array.isArray(lastValidationResults) ? lastValidationResults : [],
+    tagged_cells: Array.isArray(taggedCells) ? taggedCells : [],
+  };
+}
+
 async function persistPackConfigurationForSheet(testPack, packConfig, sheetName) {
   const normalizedPack = String(testPack || "").trim().toLowerCase();
   const normalizedSheetName = String(sheetName || "").trim();
@@ -1401,6 +1437,10 @@ function openExceptionModal() {
   taskpaneExceptionActionHelpers.openExceptionModal(buildExceptionActionDeps());
 }
 
+function resetExceptionFormToCreateMode() {
+  taskpaneExceptionActionHelpers.resetExceptionFormToCreateMode(buildExceptionActionDeps(), { clearFields: true });
+}
+
 function closeExceptionModal() {
   taskpaneExceptionActionHelpers.closeExceptionModal(buildExceptionActionDeps());
 }
@@ -1763,6 +1803,7 @@ async function initializeTaskpaneApp() {
   document.getElementById("applyException")?.addEventListener("click", applyExceptionToCell);
   document.getElementById("manageExceptions")?.addEventListener("click", openExceptionModal);
   document.getElementById("createExceptionBtn")?.addEventListener("click", createException);
+  document.getElementById("newExceptionBtn")?.addEventListener("click", resetExceptionFormToCreateMode);
   document.getElementById("closeExceptionModalBtn")?.addEventListener("click", closeExceptionModal);
 
   document.getElementById("exceptionModal")?.addEventListener("click", (event) => {
@@ -1916,6 +1957,8 @@ function buildVersionActionDeps() {
     appendDebugLog,
     getSelectedSavedVersionItem,
     launchSavedReportSheet,
+    launchSavedWorkbookSheetFromBase64,
+    buildWorksheetSnapshotForSave,
     applySavedVersionPackConfiguration,
     persistPackConfigurationForSheet,
     setViewedVersionContextForSheet,

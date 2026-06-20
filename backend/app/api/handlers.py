@@ -93,6 +93,12 @@ try:
         update_results_version_by_id,
         upsert_validation_run_tagged_cells,
     )
+    from app.services.results.report_storage_service import (
+        ReportObjectNotFoundError,
+        ReportPayloadFormatError,
+        ReportStorageConfigurationError,
+        ReportStorageError,
+    )
     from app.services.configuration.pack_config_service import pack_config_service
     from app.services.exceptions.exception_management_service import exception_service
     DB_AVAILABLE = True
@@ -640,22 +646,31 @@ async def save_results(
         raise HTTPException(status_code=400, detail="test_pack is required")
 
     async with async_session_maker() as session:
-        saved = await save_results_version(
-            session,
-            organisation_id=organisation_id,
-            user_id=user_id,
-            workbook_name=payload.workbook_name,
-            sheet_name=payload.sheet_name,
-            test_pack=normalized_pack,
-            failed_tests=[{"umr": item.umr_or_id, "id": item.umr_or_id, "test_id": item.test_id} for item in payload.failed_tests],
-            passed_tests=payload.passed_tests,
-            passed_umrs=payload.passed_umrs,
-            mapped_headers=payload.mapped_headers,
-            saved_data=payload.saved_data,
-            tagged_cells=payload.tagged_cells,
-            version_name=payload.version_name,
-            kpis=dict(payload.kpis or payload.summary_metrics or {}),
-        )
+        try:
+            saved = await save_results_version(
+                session,
+                organisation_id=organisation_id,
+                user_id=user_id,
+                workbook_name=payload.workbook_name,
+                sheet_name=payload.sheet_name,
+                test_pack=normalized_pack,
+                failed_tests=[{"umr": item.umr_or_id, "id": item.umr_or_id, "test_id": item.test_id} for item in payload.failed_tests],
+                passed_tests=payload.passed_tests,
+                passed_umrs=payload.passed_umrs,
+                mapped_headers=payload.mapped_headers,
+                saved_data=payload.saved_data,
+                worksheet_snapshot=payload.worksheet_snapshot,
+                excel_file_base64=payload.excel_file_base64,
+                excel_source_sheet_name=payload.excel_source_sheet_name,
+                tagged_cells=payload.tagged_cells,
+                version_name=payload.version_name,
+                kpis=dict(payload.kpis or payload.summary_metrics or {}),
+            )
+        except ReportStorageConfigurationError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        except ReportStorageError as exc:
+            raise HTTPException(status_code=502, detail="Failed to store saved report payload") from exc
+
         saved_version_name = str(getattr(saved, "version_name", "") or "").strip() or None
         if saved_version_name is None and isinstance(saved.results_json, dict):
             saved_version_name = str(saved.results_json.get("version_name") or "").strip() or None
@@ -811,12 +826,22 @@ async def get_result_version_payload(
     user_id, organisation_id = _require_db_backed_user(subscription)
 
     async with async_session_maker() as session:
-        payload = await get_results_version_payload_by_id(
-            session,
-            organisation_id=organisation_id,
-            user_id=user_id,
-            version_id=version_id,
-        )
+        try:
+            payload = await get_results_version_payload_by_id(
+                session,
+                organisation_id=organisation_id,
+                user_id=user_id,
+                version_id=version_id,
+            )
+        except ReportObjectNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ReportPayloadFormatError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        except ReportStorageConfigurationError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        except ReportStorageError as exc:
+            raise HTTPException(status_code=502, detail="Failed to load saved report payload") from exc
+
         if payload is None:
             raise HTTPException(status_code=404, detail="Saved result version not found")
         return SavedResultsVersionPayloadResponse(**payload)
@@ -885,12 +910,19 @@ async def update_result_version_by_id_endpoint(
                 passed_umrs=payload.passed_umrs,
                 mapped_headers=payload.mapped_headers,
                 saved_data=payload.saved_data,
+                worksheet_snapshot=payload.worksheet_snapshot,
+                excel_file_base64=payload.excel_file_base64,
+                excel_source_sheet_name=payload.excel_source_sheet_name,
                 tagged_cells=payload.tagged_cells,
                 version_name=payload.version_name,
                 kpis=dict(payload.kpis or payload.summary_metrics or {}),
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except ReportStorageConfigurationError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        except ReportStorageError as exc:
+            raise HTTPException(status_code=502, detail="Failed to update saved report payload") from exc
 
         if saved is None:
             raise HTTPException(status_code=404, detail="Saved result version not found")

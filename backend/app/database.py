@@ -302,7 +302,7 @@ class ValidationResultVersion(Base):
 
 
 class ValidationResultPayload(Base):
-    """Mapped headers and saved row payload for each saved result version."""
+    """Worksheet payload location metadata for each saved result version."""
     __tablename__ = "validation_result_payloads"
     __table_args__ = (
         UniqueConstraint("validation_result_version_id", name="uq_result_payload_version"),
@@ -316,8 +316,7 @@ class ValidationResultPayload(Base):
         index=True,
     )
     version_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    mapped_headers_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    saved_data_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    s3_location: Mapped[str] = mapped_column(String(1024), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -451,11 +450,51 @@ async def init_db() -> None:
                     id SERIAL PRIMARY KEY,
                     validation_result_version_id INTEGER NOT NULL UNIQUE REFERENCES validation_result_versions(id) ON DELETE CASCADE,
                     version_name VARCHAR(255),
-                    mapped_headers_json JSON NOT NULL DEFAULT '{}'::json,
-                    saved_data_json JSON NOT NULL DEFAULT '[]'::json,
+                    s3_location VARCHAR(1024) NOT NULL,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                ALTER TABLE validation_result_payloads
+                ADD COLUMN IF NOT EXISTS s3_location VARCHAR(1024)
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                UPDATE validation_result_payloads
+                SET s3_location = CONCAT('legacy/', validation_result_version_id::text, '/', id::text, '.json')
+                WHERE s3_location IS NULL OR btrim(s3_location) = ''
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                ALTER TABLE validation_result_payloads
+                ALTER COLUMN s3_location SET NOT NULL
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                ALTER TABLE validation_result_payloads
+                DROP COLUMN IF EXISTS mapped_headers_json
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                ALTER TABLE validation_result_payloads
+                DROP COLUMN IF EXISTS saved_data_json
                 """
             )
         )
@@ -503,10 +542,10 @@ async def init_db() -> None:
             await conn.execute(
                 text(
                     """
-                    INSERT INTO validation_result_payloads (validation_result_version_id, mapped_headers_json, saved_data_json, created_at, updated_at)
+                    INSERT INTO validation_result_payloads (validation_result_version_id, version_name, s3_location, created_at, updated_at)
                     SELECT v.id,
-                           COALESCE(v.mapped_headers_json, '{}'::json),
-                           COALESCE(v.saved_data_json, '[]'::json),
+                           v.version_name,
+                           CONCAT('legacy/', v.id::text, '.json'),
                            COALESCE(v.created_at, NOW()),
                            COALESCE(v.updated_at, NOW())
                     FROM validation_result_versions v

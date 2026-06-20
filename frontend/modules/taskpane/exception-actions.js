@@ -102,17 +102,27 @@
     }
   }
 
-  function closeExceptionModal(deps) {
+  function setNewExceptionButtonVisibility(isVisible) {
+    const container = document.getElementById("newExceptionBtnContainer");
+    if (!container) return;
+    container.style.display = isVisible ? "block" : "none";
+  }
+
+  function resetExceptionFormToCreateMode(deps, options = {}) {
     void deps;
-    const modal = document.getElementById("exceptionModal");
-    if (modal) modal.classList.remove("active");
-    document.getElementById("exceptionIdInput").value = "";
-    document.getElementById("exceptionFieldInput").value = "";
-    document.getElementById("exceptionUmrInput").value = "";
-    document.getElementById("exceptionDescriptionInput").value = "";
-    document.getElementById("exceptionStatusInput").value = "to do";
+    const shouldClearForm = options.clearFields !== false;
+
+    if (shouldClearForm) {
+      document.getElementById("exceptionIdInput").value = "";
+      document.getElementById("exceptionFieldInput").value = "";
+      document.getElementById("exceptionUmrInput").value = "";
+      document.getElementById("exceptionDescriptionInput").value = "";
+      document.getElementById("exceptionStatusInput").value = "to do";
+    }
+
     const formTitle = document.getElementById("exceptionFormTitle");
     if (formTitle) formTitle.textContent = "Create New Exception";
+
     const createBtn = document.getElementById("createExceptionBtn");
     if (createBtn) {
       createBtn.textContent = "Create";
@@ -120,6 +130,19 @@
       createBtn.dataset.editMode = "false";
       delete createBtn.dataset.originalExceptionId;
     }
+
+    setNewExceptionButtonVisibility(false);
+
+    if (shouldClearForm) {
+      document.getElementById("exceptionIdInput")?.focus();
+    }
+  }
+
+  function closeExceptionModal(deps) {
+    void deps;
+    const modal = document.getElementById("exceptionModal");
+    if (modal) modal.classList.remove("active");
+    resetExceptionFormToCreateMode(deps, { clearFields: true });
   }
 
   async function renderExceptionList(deps) {
@@ -414,14 +437,7 @@
         deps.setStatus("Exception created successfully.");
       }
 
-      document.getElementById("exceptionIdInput").value = "";
-      document.getElementById("exceptionFieldInput").value = "";
-      document.getElementById("exceptionUmrInput").value = "";
-      document.getElementById("exceptionDescriptionInput").value = "";
-      document.getElementById("exceptionStatusInput").value = "to do";
-      createBtn.textContent = "Create";
-      createBtn.dataset.editMode = "false";
-      createBtn.dataset.originalExceptionId = "";
+      resetExceptionFormToCreateMode(deps, { clearFields: true });
 
       await renderExceptionList(deps);
       await loadExceptions(deps);
@@ -520,6 +536,8 @@
       createBtn.dataset.editMode = "true";
       createBtn.dataset.originalExceptionId = exceptionId;
 
+      setNewExceptionButtonVisibility(true);
+
       const formTitle = document.getElementById("exceptionFormTitle");
       if (formTitle) formTitle.textContent = "Edit Exception";
 
@@ -591,6 +609,7 @@
     fetchStoredExceptionsForAutoTagging,
     loadLinkedFieldsForExceptionModal,
     openExceptionModal,
+    resetExceptionFormToCreateMode,
     closeExceptionModal,
     renderExceptionList,
     splitTaggedCellsByException,

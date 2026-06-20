@@ -5,6 +5,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import (
+    Organisation,
     PackConfiguration,
     SheetKey,
     ValidationResultPayload,
@@ -92,6 +93,18 @@ class ResultsRepository:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def get_organisation_name_by_id(
+        session: AsyncSession,
+        *,
+        organisation_id: int,
+    ) -> str | None:
+        result = await session.execute(
+            select(Organisation.name)
+            .where(Organisation.id == organisation_id)
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
     async def get_pack_config_for_user_sheet_pack(
         session: AsyncSession,
         *,
@@ -104,6 +117,22 @@ class ResultsRepository:
             .where(PackConfiguration.user_id == user_id)
             .where(PackConfiguration.sheet_key_id == sheet_key_id)
             .where(PackConfiguration.test_pack == test_pack)
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_latest_pack_config_for_sheet_pack(
+        session: AsyncSession,
+        *,
+        sheet_key_id: int,
+        test_pack: str,
+    ) -> PackConfiguration | None:
+        result = await session.execute(
+            select(PackConfiguration)
+            .where(PackConfiguration.sheet_key_id == sheet_key_id)
+            .where(PackConfiguration.test_pack == test_pack)
+            .order_by(desc(PackConfiguration.updated_at), desc(PackConfiguration.id))
+            .limit(1)
         )
         return result.scalar_one_or_none()
 

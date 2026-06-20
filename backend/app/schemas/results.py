@@ -62,6 +62,9 @@ class SaveResultsVersionRequest(BaseModel):
     passed_umrs: list[str] = Field(default_factory=list)
     mapped_headers: dict[str, str] = Field(default_factory=dict)
     saved_data: list[dict[str, Any]] = Field(default_factory=list)
+    worksheet_snapshot: Optional[dict[str, Any]] = None
+    excel_file_base64: Optional[str] = None
+    excel_source_sheet_name: Optional[str] = None
     tagged_cells: list[dict[str, Any]] = Field(default_factory=list)
     version_name: Optional[str] = Field(default=None, max_length=32)
     kpis: dict[str, Any] = Field(default_factory=dict)
@@ -93,6 +96,9 @@ class SavedResultsVersionPayloadResponse(BaseModel):
     sheet_name: str
     mapped_headers: dict[str, str] = Field(default_factory=dict)
     saved_data: list[dict[str, Any]] = Field(default_factory=list)
+    worksheet_snapshot: Optional[dict[str, Any]] = None
+    excel_file_base64: Optional[str] = None
+    excel_source_sheet_name: Optional[str] = None
     tagged_cells: list[dict[str, Any]] = Field(default_factory=list)
     pack_config: dict[str, Any] = Field(default_factory=dict)
 
