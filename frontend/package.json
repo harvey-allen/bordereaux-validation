@@ -6,9 +6,12 @@
     "start": "npx office-addin-dev-certs install && npx http-server . -p 3000 -c-1 -S -C ~/.office-addin-dev-certs/localhost.crt -K ~/.office-addin-dev-certs/localhost.key",
     "start:web": "npx http-server . -p 3000 -c-1 -S -C ~/.office-addin-dev-certs/localhost.crt -K ~/.office-addin-dev-certs/localhost.key",
     "certs:install": "npx office-addin-dev-certs install",
-    "manifest:validate": "npx office-addin-manifest validate manifest.xml"
+    "manifest:validate": "npx office-addin-manifest validate manifest.xml",
+    "lint": "eslint . --ext .js",
+    "test": "node --test tests/**/*.test.js"
   },
   "devDependencies": {
+    "eslint": "^8.57.1",
     "http-server": "^14.1.1",
     "office-addin-dev-certs": "^1.13.0",
     "office-addin-manifest": "^1.13.4"
