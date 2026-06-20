@@ -1,4 +1,96 @@
 (function initTaskpaneVersionActions(global) {
+  function columnToA1(colIndexZeroBased) {
+    let dividend = Number(colIndexZeroBased || 0) + 1;
+    let columnName = "";
+
+    while (dividend > 0) {
+      const modulo = (dividend - 1) % 26;
+      columnName = String.fromCharCode(65 + modulo) + columnName;
+      dividend = Math.floor((dividend - modulo) / 26);
+    }
+
+    return columnName;
+  }
+
+  function heatmapColorForSnapshot(score) {
+    const startRed = 255;
+    const startGreen = 235;
+    const startBlue = 238;
+    const endRed = 139;
+    const endGreen = 0;
+    const endBlue = 0;
+    const scaleCap = 10;
+
+    const numericScore = Number(score) || 0;
+    if (numericScore <= 0) {
+      return "#ffffff";
+    }
+
+    const level = Math.max(1, Math.min(scaleCap, Math.floor(numericScore)));
+    const ratio = (level - 1) / (scaleCap - 1);
+
+    const red = Math.round(startRed + (endRed - startRed) * ratio);
+    const green = Math.round(startGreen + (endGreen - startGreen) * ratio);
+    const blue = Math.round(startBlue + (endBlue - startBlue) * ratio);
+    return `#${red.toString(16).padStart(2, "0")}${green.toString(16).padStart(2, "0")}${blue.toString(16).padStart(2, "0")}`;
+  }
+
+  function getSnapshotResultAddress(result) {
+    const rowIndex = Number(result?.rowIndex);
+    const columnIndex = Number(result?.columnIndex);
+    if (Number.isInteger(rowIndex) && Number.isInteger(columnIndex) && rowIndex >= 0 && columnIndex >= 0) {
+      return `${columnToA1(columnIndex)}${rowIndex + 1}`;
+    }
+
+    const fallbackAddress = String(result?.address || "")
+      .split("!")
+      .pop()
+      .replace(/\$/g, "")
+      .trim()
+      .toUpperCase();
+    return fallbackAddress || null;
+  }
+
+  async function applyWorksheetSnapshotResults(validationResults) {
+    const results = Array.isArray(validationResults) ? validationResults : [];
+    if (results.length === 0) {
+      return;
+    }
+
+    await Excel.run(async (context) => {
+      const worksheet = context.workbook.worksheets.getActiveWorksheet();
+
+      for (const result of results) {
+        const address = getSnapshotResultAddress(result);
+        if (!address) {
+          continue;
+        }
+
+        const cell = worksheet.getRange(address);
+        const severityScore = result?.severityScore !== undefined ? result.severityScore : result?.failCount;
+        cell.format.fill.color = heatmapColorForSnapshot(severityScore);
+
+        if (Number(result?.failCount || 0) > 0 && Number(result?.rowIndex || 0) > 0) {
+          const rawComment = String(result?.comment || "Validation failure").trim() || "Validation failure";
+          const maxCommentLength = 4000;
+          const safeComment = rawComment.length > maxCommentLength
+            ? `${rawComment.slice(0, maxCommentLength - 1)}…`
+            : rawComment;
+          worksheet.comments.add(address, safeComment, Excel.ContentType.plain);
+        }
+      }
+
+      await context.sync();
+    });
+  }
+
+  function isUnsupportedWorkbookImportError(error) {
+    const message = String(error?.message || error || "").toLowerCase();
+    return message.includes("unsupported features")
+      || message.includes("unsupported on this platform")
+      || message.includes("source contains one or more unsupported features");
+  }
+
   async function checkSavedResultsVersion(deps) {
     const excelUserEmail = deps.getExcelUserEmail();
     if (!excelUserEmail) {
@@ -103,6 +195,7 @@
       deps.appendDebugLog("Fetched saved version payload", {
         versionId: Number(selectedVersion.id),
         testPack: payload?.test_pack,
+        hasWorkbookPayload: Boolean(payload?.excel_file_base64),
         savedDataRows: Array.isArray(payload?.saved_data) ? payload.saved_data.length : 0,
         mappedHeaderCount: payload?.mapped_headers && typeof payload.mapped_headers === "object"
           ? Object.keys(payload.mapped_headers).length : 0,
@@ -115,36 +208,96 @@
       ).trim();
 
       deps.setStatus("Launching saved report in a new worksheet...");
-      const launchedSheetName = await deps.launchSavedReportSheet({
-        versionName,
-        savedData: payload?.saved_data,
-        mappedHeaders: payload?.mapped_headers,
-      });
 
-      const normalizedConfig = await deps.applySavedVersionPackConfiguration(payload?.test_pack, payload?.pack_config);
-      await deps.persistPackConfigurationForSheet(payload?.test_pack, normalizedConfig, launchedSheetName);
+      let launchedSheetName = null;
+      let usedTabularFallback = false;
+      const worksheetSnapshot = payload?.worksheet_snapshot && typeof payload.worksheet_snapshot === "object"
+        ? payload.worksheet_snapshot
+        : null;
+      const restoredTestPack = String(payload?.test_pack || worksheetSnapshot?.test_pack || "").trim().toLowerCase();
+      const restoredPackConfig = payload?.pack_config && typeof payload.pack_config === "object"
+        ? payload.pack_config
+        : (worksheetSnapshot?.pack_config && typeof worksheetSnapshot.pack_config === "object" ? worksheetSnapshot.pack_config : {});
+
+      if (worksheetSnapshot) {
+        launchedSheetName = await deps.launchSavedReportSheet({
+          versionName,
+          savedData: worksheetSnapshot?.saved_data || payload?.saved_data,
+          mappedHeaders: worksheetSnapshot?.mapped_headers || payload?.mapped_headers,
+        });
+        await applyWorksheetSnapshotResults(worksheetSnapshot?.validation_results);
+      } else if (payload?.excel_file_base64) {
+        try {
+          launchedSheetName = await deps.launchSavedWorkbookSheetFromBase64({
+            versionName,
+            workbookBase64: payload?.excel_file_base64,
+            sourceSheetName: payload?.excel_source_sheet_name || payload?.sheet_name,
+          });
+        } catch (workbookImportError) {
+          const savedData = Array.isArray(payload?.saved_data) ? payload.saved_data : [];
+          const mappedHeaders = payload?.mapped_headers && typeof payload.mapped_headers === "object"
+            ? payload.mapped_headers
+            : {};
+          const derivedHeaders = deps.versionHelpers.deriveSavedReportHeaders(savedData, mappedHeaders);
+          const hasMeaningfulTabularPayload = savedData.length > 0 || derivedHeaders.length > 0;
+
+          if (!isUnsupportedWorkbookImportError(workbookImportError)) {
+            throw workbookImportError;
+          }
+
+          deps.appendDebugLog("Workbook import not supported on this platform; falling back to tabular launch", {
+            versionId: Number(selectedVersion.id),
+            message: String(workbookImportError?.message || "unsupported workbook import"),
+            hasMeaningfulTabularPayload,
+          });
+
+          const fallbackSavedData = hasMeaningfulTabularPayload
+            ? savedData
+            : [{
+                Notice: "This saved report contains workbook features not supported on this platform. Open it on a fully supported Excel platform to preserve comments/charts/pivots.",
+              }];
+          const fallbackMappedHeaders = hasMeaningfulTabularPayload
+            ? mappedHeaders
+            : { Notice: "Notice" };
+
+          launchedSheetName = await deps.launchSavedReportSheet({
+            versionName,
+            savedData: fallbackSavedData,
+            mappedHeaders: fallbackMappedHeaders,
+          });
+          await applyWorksheetSnapshotResults(payload?.worksheet_snapshot?.validation_results);
+          usedTabularFallback = true;
+        }
+      } else {
+        launchedSheetName = await deps.launchSavedReportSheet({
+          versionName,
+          savedData: payload?.saved_data,
+          mappedHeaders: payload?.mapped_headers,
+        });
+      }
+
+      const normalizedConfig = await deps.applySavedVersionPackConfiguration(restoredTestPack, restoredPackConfig);
+      await deps.persistPackConfigurationForSheet(restoredTestPack, normalizedConfig, launchedSheetName);
       deps.setViewedVersionContextForSheet({
         workbookName: deps.getWorkbookName() || "__unknown_workbook__",
         sheetName: launchedSheetName,
         versionId: Number(payload?.id || selectedVersion?.id || 0),
         sheetKeyId: Number(payload?.sheet_key_id || 0),
-        testPack: payload?.test_pack,
+        testPack: restoredTestPack,
         versionName,
       });
       await deps.refreshActiveViewedVersionContext();
       deps.appendDebugLog("Saved version config restored and persisted", {
         versionId: Number(selectedVersion.id),
         launchedSheetName,
-        testPack: payload?.test_pack,
+        testPack: restoredTestPack,
       });
       await refreshVersionStateForActiveSheet(deps);
-
-      deps.setStatus(`Saved report launched in '${launchedSheetName}'. Running validation...`);
-      await deps.runValidation();
-      deps.appendDebugLog("Validation run completed for launched saved version", {
-        launchedSheetName,
-        versionId: Number(selectedVersion.id),
-      });
+      if (usedTabularFallback) {
+        deps.setStatus(`Saved report launched in '${launchedSheetName}' (fallback mode: workbook import unsupported on this platform).`);
+      } else {
+        deps.setStatus(`Saved report launched in '${launchedSheetName}'.`);
+      }
     } catch (error) {
       deps.appendDebugLog("View saved version failed", {
         message: String(error?.message || "Unexpected error"),
@@ -224,6 +377,15 @@
 
       const savedData = await deps.buildCurrentSheetDataPayload();
       const taggedCells = deps.getTaggedCellsForScope(workbookName, sheetName);
+      const worksheetSnapshot = deps.buildWorksheetSnapshotForSave({
+        workbookName,
+        sheetName,
+        selectedPack,
+        packConfig: currentPackConfig,
+        mappedHeaders,
+        savedData,
+        taggedCells,
+      });
       const exportRows = await deps.buildFailureExportRows();
       const computedKpis = await deps.computeVisualisationKpisFromCurrentRun(exportRows);
       const kpisForSave = {
@@ -264,6 +426,7 @@
           passed_umrs: passedUmrs,
           mapped_headers: mappedHeaders,
           saved_data: savedData,
+          worksheet_snapshot: worksheetSnapshot,
           tagged_cells: taggedCells,
           version_name: versionName,
           kpis: kpisForSave,

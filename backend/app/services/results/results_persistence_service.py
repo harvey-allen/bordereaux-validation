@@ -3,17 +3,25 @@ Service for storing and retrieving validation test results.
 
 Run history is stored as one ValidationRun row per validation call.
 Saved snapshots (pass/fail summaries chosen by the user) continue to use
-ValidationResultVersion, with mapped_headers + saved_data in the companion
-ValidationResultPayload table.
+ValidationResultVersion, with worksheet payloads stored in S3 and only
+location metadata stored in ValidationResultPayload.
 """
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
+import io
+import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from openpyxl import Workbook
+from openpyxl.comments import Comment
+from openpyxl.styles import Font, PatternFill
 from sqlalchemy import delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +40,158 @@ from app.common.utilities.normalization import (
 )
 from app.repositories.results.results_repository import ResultsRepository
 from app.repositories.shared.sheet_key_repository import SheetKeyRepository
+from app.services.results.report_storage_service import (
+    ReportObjectNotFoundError,
+    ReportPayloadFormatError,
+    ReportStorageError,
+    report_storage_service,
+)
+
+
+logger = logging.getLogger(__name__)
+
+
+def _column_to_a1(col_index_zero_based: int) -> str:
+    dividend = int(col_index_zero_based) + 1
+    column_name = ""
+    while dividend > 0:
+        modulo = (dividend - 1) % 26
+        column_name = chr(65 + modulo) + column_name
+        dividend = (dividend - modulo) // 26
+    return column_name
+
+
+def _excel_heatmap_hex(score: Any) -> str:
+    start_red, start_green, start_blue = 255, 235, 238
+    end_red, end_green, end_blue = 139, 0, 0
+    scale_cap = 10
+
+    try:
+        numeric_score = int(float(score or 0))
+    except Exception:
+        numeric_score = 0
+
+    if numeric_score <= 0:
+        return "FFFFFF"
+
+    level = max(1, min(scale_cap, numeric_score))
+    ratio = (level - 1) / (scale_cap - 1)
+    red = round(start_red + (end_red - start_red) * ratio)
+    green = round(start_green + (end_green - start_green) * ratio)
+    blue = round(start_blue + (end_blue - start_blue) * ratio)
+    return f"{red:02X}{green:02X}{blue:02X}"
+
+
+def _safe_sheet_title(raw_name: str | None) -> str:
+    value = str(raw_name or "").strip() or "Saved Report"
+    value = re.sub(r"[\\/*\[\]:?]", " ", value)
+    value = re.sub(r"\s+", " ", value).strip()
+    return value[:31] or "Saved Report"
+
+
+def _address_from_result_item(item: dict[str, Any]) -> str | None:
+    raw_address = str(item.get("address") or "").strip()
+    if raw_address:
+        cell_address = raw_address.split("!")[-1].replace("$", "").strip().upper()
+        if cell_address:
+            return cell_address
+
+    try:
+        row_index = int(item.get("rowIndex"))
+        col_index = int(item.get("columnIndex"))
+    except Exception:
+        return None
+
+    if row_index < 0 or col_index < 0:
+        return None
+    return f"{_column_to_a1(col_index)}{row_index + 1}"
+
+
+def _build_workbook_bytes_from_snapshot(snapshot: dict[str, Any]) -> bytes:
+    mapped_headers = snapshot.get("mapped_headers") if isinstance(snapshot.get("mapped_headers"), dict) else {}
+    saved_data = snapshot.get("saved_data") if isinstance(snapshot.get("saved_data"), list) else []
+    validation_results = (
+        snapshot.get("validation_results") if isinstance(snapshot.get("validation_results"), list) else []
+    )
+    tagged_cells = snapshot.get("tagged_cells") if isinstance(snapshot.get("tagged_cells"), list) else []
+
+    headers: list[str] = []
+    header_set: set[str] = set()
+
+    for row in saved_data:
+        if not isinstance(row, dict):
+            continue
+        for key in row.keys():
+            normalized_key = str(key or "").strip()
+            if normalized_key and normalized_key not in header_set:
+                header_set.add(normalized_key)
+                headers.append(normalized_key)
+
+    if not headers:
+        for source_key, mapped_value in mapped_headers.items():
+            value = str(mapped_value or "").strip() or str(source_key or "").strip()
+            if value and value not in header_set:
+                header_set.add(value)
+                headers.append(value)
+
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = _safe_sheet_title(snapshot.get("source_sheet_name") or snapshot.get("sheet_name"))
+
+    if headers:
+        for col_idx, header in enumerate(headers, start=1):
+            cell = worksheet.cell(row=1, column=col_idx, value=header)
+            cell.font = Font(bold=True)
+
+    for row_idx, row in enumerate(saved_data, start=2):
+        row_dict = row if isinstance(row, dict) else {}
+        for col_idx, header in enumerate(headers, start=1):
+            worksheet.cell(row=row_idx, column=col_idx, value=row_dict.get(header))
+
+    for item in validation_results:
+        if not isinstance(item, dict):
+            continue
+        address = _address_from_result_item(item)
+        if not address:
+            continue
+        cell = worksheet[address]
+
+        severity_score = item.get("severityScore")
+        if severity_score is None:
+            severity_score = item.get("failCount")
+        fill_hex = _excel_heatmap_hex(severity_score)
+        cell.fill = PatternFill(fill_type="solid", fgColor=fill_hex)
+
+        try:
+            fail_count = int(item.get("failCount") or 0)
+            row_index = int(item.get("rowIndex") or 0)
+        except Exception:
+            fail_count, row_index = 0, 0
+
+        if fail_count > 0 and row_index > 0:
+            comment_text = str(item.get("comment") or "Validation failure").strip() or "Validation failure"
+            if len(comment_text) > 4000:
+                comment_text = f"{comment_text[:3999]}…"
+            cell.comment = Comment(text=comment_text, author="Bordereaux Validator")
+
+    for tagged in tagged_cells:
+        if not isinstance(tagged, dict):
+            continue
+        address = str(tagged.get("address") or "").replace("$", "").strip().upper()
+        if not address:
+            continue
+        cell = worksheet[address]
+        fill_color = str(tagged.get("fill_color") or tagged.get("fillColor") or "#dbeafe").strip()
+        fill_hex = fill_color.lstrip("#")
+        if len(fill_hex) == 6:
+            cell.fill = PatternFill(fill_type="solid", fgColor=fill_hex.upper())
+        comment_text = str(tagged.get("comment") or "").strip()
+        if comment_text:
+            cell.comment = Comment(text=comment_text[:4000], author="Bordereaux Validator")
+
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()
 
 
 async def _get_or_create_sheet_key(
@@ -67,6 +227,22 @@ async def _find_sheet_key(
         sheet_name=sheet_name,
         test_pack=test_pack,
     )
+
+
+async def _get_organisation_storage_prefix(
+    session: AsyncSession,
+    *,
+    organisation_id: int,
+) -> str:
+    """Return organisation storage prefix for report S3 keys."""
+    organisation_name = await ResultsRepository.get_organisation_name_by_id(
+        session,
+        organisation_id=organisation_id,
+    )
+    normalized_name = str(organisation_name or "").strip()
+    if normalized_name:
+        return normalized_name
+    return str(int(organisation_id))
 
 
 # ---------------------------------------------------------------------------
@@ -269,6 +445,9 @@ async def save_results_version(
     passed_umrs: list[str] | None = None,
     mapped_headers: dict[str, str] | None = None,
     saved_data: list[dict[str, Any]] | None = None,
+    worksheet_snapshot: dict[str, Any] | None = None,
+    excel_file_base64: str | None = None,
+    excel_source_sheet_name: str | None = None,
     tagged_cells: list[dict[str, Any]] | None = None,
     version_name: str | None = None,
     kpis: dict[str, Any] | None = None,
@@ -277,8 +456,8 @@ async def save_results_version(
     Upsert one saved result per (sheet_key, test_pack).
 
     Pass/fail UMR lists are written to ValidationResultVersion.results_json.
-    mapped_headers and saved_data are written to a companion
-    ValidationResultPayload row (one-to-one with the version row).
+    mapped_headers and saved_data are written to S3 via the companion
+    ValidationResultPayload row location metadata (one-to-one).
     """
     normalized_test_pack = normalize_pack_storage_value(test_pack)
 
@@ -351,30 +530,77 @@ async def save_results_version(
         version.updated_at = now
         await session.flush()
 
-    # Upsert ValidationResultPayload (mapped_headers + saved_data)
+    worksheet_payload: dict[str, Any] = {
+        "mapped_headers": dict(mapped_headers or {}),
+        "saved_data": list(saved_data or []),
+    }
+    if isinstance(worksheet_snapshot, dict):
+        worksheet_payload["worksheet_snapshot"] = dict(worksheet_snapshot)
+    excel_payload_base64 = str(excel_file_base64 or "").strip() or None
+
     payload = await ResultsRepository.get_payload_for_version(
         session,
         version_id=int(version.id),
     )
 
-    if payload is None:
-        session.add(
-            ValidationResultPayload(
+    try:
+        if payload is None:
+            payload = ValidationResultPayload(
                 validation_result_version_id=int(version.id),
                 version_name=effective_version_name,
-                mapped_headers_json=dict(mapped_headers or {}),
-                saved_data_json=list(saved_data or []),
+                s3_location="__pending__",
                 created_at=now,
                 updated_at=now,
             )
-        )
-    else:
-        payload.version_name = effective_version_name
-        payload.mapped_headers_json = dict(mapped_headers or {})
-        payload.saved_data_json = list(saved_data or [])
-        payload.updated_at = now
+            session.add(payload)
+            await session.flush()
 
-    await session.commit()
+        if not str(payload.s3_location or "").strip() or payload.s3_location == "__pending__":
+            organisation_storage_prefix = await _get_organisation_storage_prefix(
+                session,
+                organisation_id=organisation_id,
+            )
+            file_extension = "xlsx" if excel_payload_base64 or isinstance(worksheet_snapshot, dict) else "json"
+            payload.s3_location = report_storage_service.generate_s3_key(
+                organisation_name=organisation_storage_prefix,
+                report_id=int(payload.id),
+                file_extension=file_extension,
+            )
+
+        if excel_payload_base64:
+            try:
+                excel_payload_bytes = base64.b64decode(excel_payload_base64, validate=True)
+            except (binascii.Error, ValueError) as exc:
+                raise ReportPayloadFormatError("Invalid Excel payload: expected base64-encoded workbook") from exc
+
+            if not excel_payload_bytes:
+                raise ReportPayloadFormatError("Invalid Excel payload: workbook is empty")
+
+            await report_storage_service.upload_report_bytes(
+                s3_key=payload.s3_location,
+                body=excel_payload_bytes,
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        elif isinstance(worksheet_snapshot, dict):
+            workbook_bytes = _build_workbook_bytes_from_snapshot(worksheet_snapshot)
+            await report_storage_service.upload_report_bytes(
+                s3_key=payload.s3_location,
+                body=workbook_bytes,
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        else:
+            await report_storage_service.upload_report(
+                s3_key=payload.s3_location,
+                payload=worksheet_payload,
+            )
+
+        payload.version_name = effective_version_name
+        payload.updated_at = now
+        await session.commit()
+    except ReportStorageError:
+        await session.rollback()
+        raise
+
     await session.refresh(version)
     return version
 
@@ -449,6 +675,33 @@ async def delete_results_version(
     )
     if version is None:
         return False
+
+    payload = await ResultsRepository.get_payload_for_version(
+        session,
+        version_id=int(version.id),
+    )
+    if payload is not None and str(payload.s3_location or "").strip():
+        try:
+            await report_storage_service.delete_report(s3_key=str(payload.s3_location))
+        except ReportObjectNotFoundError:
+            logger.warning(
+                "S3 report object already missing during delete",
+                extra={
+                    "organisation_id": organisation_id,
+                    "version_id": int(version.id),
+                    "s3_location": payload.s3_location,
+                },
+            )
+        except ReportStorageError:
+            logger.exception(
+                "Failed deleting S3 report object",
+                extra={
+                    "organisation_id": organisation_id,
+                    "version_id": int(version.id),
+                    "s3_location": payload.s3_location,
+                },
+            )
+
     await session.delete(version)
     await session.commit()
     return True
@@ -469,6 +722,33 @@ async def delete_results_version_by_id(
     version = version_with_scope[0] if version_with_scope is not None else None
     if version is None:
         return False
+
+    payload = await ResultsRepository.get_payload_for_version(
+        session,
+        version_id=int(version.id),
+    )
+    if payload is not None and str(payload.s3_location or "").strip():
+        try:
+            await report_storage_service.delete_report(s3_key=str(payload.s3_location))
+        except ReportObjectNotFoundError:
+            logger.warning(
+                "S3 report object already missing during delete by id",
+                extra={
+                    "organisation_id": organisation_id,
+                    "version_id": int(version.id),
+                    "s3_location": payload.s3_location,
+                },
+            )
+        except ReportStorageError:
+            logger.exception(
+                "Failed deleting S3 report object during delete by id",
+                extra={
+                    "organisation_id": organisation_id,
+                    "version_id": int(version.id),
+                    "s3_location": payload.s3_location,
+                },
+            )
+
     await session.delete(version)
     await session.commit()
     return True
@@ -486,6 +766,9 @@ async def update_results_version_by_id(
     passed_umrs: list[str] | None = None,
     mapped_headers: dict[str, str] | None = None,
     saved_data: list[dict[str, Any]] | None = None,
+    worksheet_snapshot: dict[str, Any] | None = None,
+    excel_file_base64: str | None = None,
+    excel_source_sheet_name: str | None = None,
     tagged_cells: list[dict[str, Any]] | None = None,
     version_name: str | None = None,
     kpis: dict[str, Any] | None = None,
@@ -544,29 +827,77 @@ async def update_results_version_by_id(
     version.updated_at = now
     await session.flush()
 
+    worksheet_payload: dict[str, Any] = {
+        "mapped_headers": dict(mapped_headers or {}),
+        "saved_data": list(saved_data or []),
+    }
+    if isinstance(worksheet_snapshot, dict):
+        worksheet_payload["worksheet_snapshot"] = dict(worksheet_snapshot)
+    excel_payload_base64 = str(excel_file_base64 or "").strip() or None
+
     payload = await ResultsRepository.get_payload_for_version(
         session,
         version_id=int(version.id),
     )
 
-    if payload is None:
-        session.add(
-            ValidationResultPayload(
+    try:
+        if payload is None:
+            payload = ValidationResultPayload(
                 validation_result_version_id=int(version.id),
                 version_name=effective_version_name,
-                mapped_headers_json=dict(mapped_headers or {}),
-                saved_data_json=list(saved_data or []),
+                s3_location="__pending__",
                 created_at=now,
                 updated_at=now,
             )
-        )
-    else:
-        payload.version_name = effective_version_name
-        payload.mapped_headers_json = dict(mapped_headers or {})
-        payload.saved_data_json = list(saved_data or [])
-        payload.updated_at = now
+            session.add(payload)
+            await session.flush()
 
-    await session.commit()
+        if not str(payload.s3_location or "").strip() or payload.s3_location == "__pending__":
+            organisation_storage_prefix = await _get_organisation_storage_prefix(
+                session,
+                organisation_id=organisation_id,
+            )
+            file_extension = "xlsx" if excel_payload_base64 or isinstance(worksheet_snapshot, dict) else "json"
+            payload.s3_location = report_storage_service.generate_s3_key(
+                organisation_name=organisation_storage_prefix,
+                report_id=int(payload.id),
+                file_extension=file_extension,
+            )
+
+        if excel_payload_base64:
+            try:
+                excel_payload_bytes = base64.b64decode(excel_payload_base64, validate=True)
+            except (binascii.Error, ValueError) as exc:
+                raise ReportPayloadFormatError("Invalid Excel payload: expected base64-encoded workbook") from exc
+
+            if not excel_payload_bytes:
+                raise ReportPayloadFormatError("Invalid Excel payload: workbook is empty")
+
+            await report_storage_service.upload_report_bytes(
+                s3_key=payload.s3_location,
+                body=excel_payload_bytes,
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        elif isinstance(worksheet_snapshot, dict):
+            workbook_bytes = _build_workbook_bytes_from_snapshot(worksheet_snapshot)
+            await report_storage_service.upload_report_bytes(
+                s3_key=payload.s3_location,
+                body=workbook_bytes,
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        else:
+            await report_storage_service.upload_report(
+                s3_key=payload.s3_location,
+                payload=worksheet_payload,
+            )
+
+        payload.version_name = effective_version_name
+        payload.updated_at = now
+        await session.commit()
+    except ReportStorageError:
+        await session.rollback()
+        raise
+
     await session.refresh(version)
     return version
 
@@ -594,18 +925,74 @@ async def get_results_version_payload_by_id(
         version_id=int(version.id),
     )
 
-    pack_config = await ResultsRepository.get_pack_config_for_user_sheet_pack(
-        session,
-        user_id=user_id,
-        sheet_key_id=int(sheet_key.id),
-        test_pack=version.test_pack,
-    )
+    pack_config = None
+    version_owner_user_id = int(version.user_id) if getattr(version, "user_id", None) is not None else None
+
+    if version_owner_user_id is not None:
+        pack_config = await ResultsRepository.get_pack_config_for_user_sheet_pack(
+            session,
+            user_id=version_owner_user_id,
+            sheet_key_id=int(sheet_key.id),
+            test_pack=version.test_pack,
+        )
+
+    if pack_config is None and (version_owner_user_id is None or version_owner_user_id != user_id):
+        pack_config = await ResultsRepository.get_pack_config_for_user_sheet_pack(
+            session,
+            user_id=user_id,
+            sheet_key_id=int(sheet_key.id),
+            test_pack=version.test_pack,
+        )
+
+    if pack_config is None:
+        pack_config = await ResultsRepository.get_latest_pack_config_for_sheet_pack(
+            session,
+            sheet_key_id=int(sheet_key.id),
+            test_pack=version.test_pack,
+        )
 
     version_name = str(getattr(version, "version_name", "") or "").strip() or None
     if version_name is None and isinstance(version.results_json, dict):
         version_name = str(version.results_json.get("version_name") or "").strip() or None
     if version_name is None and payload is not None:
         version_name = str(getattr(payload, "version_name", "") or "").strip() or None
+
+    if payload is None:
+        raise ReportObjectNotFoundError(f"Saved report payload not found for version id {version_id}")
+
+    s3_location = str(payload.s3_location or "").strip()
+    if not s3_location:
+        raise ReportObjectNotFoundError(f"Saved report payload location missing for version id {version_id}")
+
+    mapped_headers: dict[str, Any] = {}
+    saved_data: list[Any] = []
+    worksheet_snapshot: dict[str, Any] | None = None
+    excel_file_base64: str | None = None
+
+    if s3_location.lower().endswith(".xlsx"):
+        workbook_bytes = await report_storage_service.download_report_bytes(s3_key=s3_location)
+        if not workbook_bytes:
+            raise ReportPayloadFormatError(f"Saved workbook payload is empty for version id {version_id}")
+        excel_file_base64 = base64.b64encode(workbook_bytes).decode("ascii")
+    else:
+        worksheet_payload = await report_storage_service.download_report(s3_key=s3_location)
+        mapped_headers = worksheet_payload.get("mapped_headers", {})
+        saved_data = worksheet_payload.get("saved_data", [])
+        snapshot_value = worksheet_payload.get("worksheet_snapshot")
+        if snapshot_value is not None:
+            if not isinstance(snapshot_value, dict):
+                raise ReportPayloadFormatError(
+                    f"Invalid worksheet_snapshot payload type for version id {version_id}: expected object"
+                )
+            worksheet_snapshot = dict(snapshot_value)
+        if not isinstance(mapped_headers, dict):
+            raise ReportPayloadFormatError(
+                f"Invalid mapped_headers payload type for version id {version_id}: expected object"
+            )
+        if not isinstance(saved_data, list):
+            raise ReportPayloadFormatError(
+                f"Invalid saved_data payload type for version id {version_id}: expected array"
+            )
 
     return {
         "id": int(version.id),
@@ -616,8 +1003,11 @@ async def get_results_version_payload_by_id(
         "sheet_name": str(sheet_key.sheet_name or "").strip(),
         "created_at": version.created_at.isoformat(),
         "updated_at": version.updated_at.isoformat(),
-        "mapped_headers": dict(payload.mapped_headers_json or {}) if payload is not None else {},
-        "saved_data": list(payload.saved_data_json or []) if payload is not None else [],
+        "mapped_headers": mapped_headers,
+        "saved_data": saved_data,
+        "worksheet_snapshot": worksheet_snapshot,
+        "excel_file_base64": excel_file_base64,
+        "excel_source_sheet_name": str(sheet_key.sheet_name or "").strip(),
         "tagged_cells": list(version.tagged_cells_json or []),
         "pack_config": dict(pack_config.config_json or {}) if pack_config is not None else {},
     }

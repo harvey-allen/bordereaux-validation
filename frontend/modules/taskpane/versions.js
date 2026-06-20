@@ -197,6 +197,58 @@
     return sheetName;
   }
 
+  async function launchSavedWorkbookSheetFromBase64({
+    versionName,
+    workbookBase64,
+    sourceSheetName,
+    maxSheetNameLength,
+    appendDebugLog,
+  }) {
+    const normalizedWorkbookBase64 = String(workbookBase64 || "").trim();
+    if (!normalizedWorkbookBase64) {
+      throw new Error("Saved report workbook payload is empty.");
+    }
+
+    const desiredSheetName = await createUniqueWorksheetName(versionName, maxSheetNameLength);
+    const normalizedSourceSheetName = String(sourceSheetName || "").trim();
+
+    if (typeof appendDebugLog === "function") {
+      appendDebugLog("Launching saved workbook sheet from base64", {
+        desiredSheetName,
+        sourceSheetName: normalizedSourceSheetName || null,
+      });
+    }
+
+    await Excel.run(async (context) => {
+      const workbook = context.workbook;
+      const insertOptions = {
+        positionType: Excel.WorksheetPositionType.after,
+        relativeTo: workbook.worksheets.getActiveWorksheet(),
+      };
+
+      if (normalizedSourceSheetName) {
+        insertOptions.sheetNamesToInsert = [normalizedSourceSheetName];
+      }
+
+      const insertedSheetsResult = workbook.insertWorksheetsFromBase64(normalizedWorkbookBase64, insertOptions);
+      await context.sync();
+
+      const insertedSheetNames = Array.isArray(insertedSheetsResult?.value)
+        ? insertedSheetsResult.value
+        : [];
+      if (insertedSheetNames.length === 0) {
+        throw new Error("Saved report workbook did not contain any importable worksheets.");
+      }
+
+      const insertedWorksheet = workbook.worksheets.getItem(insertedSheetNames[0]);
+      insertedWorksheet.name = desiredSheetName;
+      insertedWorksheet.activate();
+      await context.sync();
+    });
+
+    return desiredSheetName;
+  }
+
   function computeCurrentScopeVersionState(versions) {
     const currentScopeVersion = (versions || []).find(
       (item) => Boolean(item?.current_scope || item?.currentScope)
@@ -223,6 +275,7 @@
     toExcelCellValue,
     deriveSavedReportHeaders,
     launchSavedReportSheet,
+    launchSavedWorkbookSheetFromBase64,
     computeCurrentScopeVersionState,
   };
 }(window));

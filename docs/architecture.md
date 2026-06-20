@@ -18,12 +18,14 @@ sequenceDiagram
     participant API as FastAPI
     participant VAL as Validation Orchestration
     participant DB as PostgreSQL
+    participant S3 as AWS S3 (bordereaux-report)
 
     FE->>API: POST /validate-range (values, addresses, packs)
     API->>VAL: Build effective pack config + enforce limits
     VAL->>API: Normalized packs + effective config
     API->>API: Validate grid and build report
-    API->>DB: Persist run/results (when enabled and available)
+    API->>DB: Persist run/result metadata (when enabled and available)
+    API->>S3: Persist saved worksheet payload JSON
     API-->>FE: Results + coverage + usage + optional run id
 ```
 
@@ -38,6 +40,7 @@ Additional flows:
 - Backend quality gates: Ruff + pytest via [scripts/ci.sh](../scripts/ci.sh).
 - Frontend runtime/tooling: Node.js, Office add-in tooling, http-server, ESLint, Node test runner.
 - Platform services: PostgreSQL database; optional Nginx TLS reverse proxy in containerized setup.
+- Platform services: PostgreSQL database, AWS S3 for saved report worksheet payloads, optional Nginx TLS reverse proxy in containerized setup.
 
 ## Deployment architecture
 

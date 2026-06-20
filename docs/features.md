@@ -23,6 +23,7 @@
 - History endpoints expose prior validation runs and detailed run payloads.
 - Version endpoints support create/read/update/delete, latest retrieval, and comparison views.
 - Statistics endpoint provides aggregated pass/fail trends by period and optional pack filter.
+- Saved report versions persist an individual worksheet as a single-sheet Excel file in AWS S3 (`bordereaux-report`) with validation highlighting/comments preserved, restore the matching saved pack configuration for that sheet, and can be launched directly into a new worksheet tab without re-validation.
 
 ### Exceptions
 - Exceptions are organisation-scoped records with status and linkage metadata.

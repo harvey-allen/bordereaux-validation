@@ -691,6 +691,42 @@ async function launchSavedReportSheet({ versionName, savedData, mappedHeaders })
   });
 }
 
+async function launchSavedWorkbookSheetFromBase64({ versionName, workbookBase64, sourceSheetName }) {
+  return taskpaneVersionHelpers.launchSavedWorkbookSheetFromBase64({
+    versionName,
+    workbookBase64,
+    sourceSheetName,
+    maxSheetNameLength: MAX_EXCEL_SHEET_NAME_LENGTH,
+    appendDebugLog,
+  });
+}
+
+function buildWorksheetSnapshotForSave({
+  workbookName,
+  sheetName,
+  selectedPack,
+  packConfig,
+  mappedHeaders,
+  savedData,
+  taggedCells,
+}) {
+  return {
+    workbook_name: String(workbookName || "").trim() || "__unknown_workbook__",
+    sheet_name: String(sheetName || "").trim() || "__unknown_sheet__",
+    source_sheet_name: String(lastValidationSourceSheetName || sheetName || "").trim() || null,
+    test_pack: String(selectedPack || "").trim().toLowerCase(),
+    pack_config: packConfig && typeof packConfig === "object" && !Array.isArray(packConfig)
+      ? { ...packConfig }
+      : {},
+    mapped_headers: mappedHeaders && typeof mappedHeaders === "object" && !Array.isArray(mappedHeaders)
+      ? { ...mappedHeaders }
+      : {},
+    saved_data: Array.isArray(savedData) ? savedData : [],
+    validation_results: Array.isArray(lastValidationResults) ? lastValidationResults : [],
+    tagged_cells: Array.isArray(taggedCells) ? taggedCells : [],
+  };
+}
+
 async function persistPackConfigurationForSheet(testPack, packConfig, sheetName) {
   const normalizedPack = String(testPack || "").trim().toLowerCase();
   const normalizedSheetName = String(sheetName || "").trim();
@@ -1916,6 +1952,8 @@ function buildVersionActionDeps() {
     appendDebugLog,
     getSelectedSavedVersionItem,
     launchSavedReportSheet,
+    launchSavedWorkbookSheetFromBase64,
+    buildWorksheetSnapshotForSave,
     applySavedVersionPackConfiguration,
     persistPackConfigurationForSheet,
     setViewedVersionContextForSheet,
