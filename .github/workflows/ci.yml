@@ -246,7 +246,6 @@ jobs:
           - Coverage delta vs target branch: **{sign}{delta:.2f}%** (target branch: {baseline:.2f}%)
           - Coverage threshold: **75%**
 
-          ✅ Coverage checks passed.
           """.strip()
 
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
