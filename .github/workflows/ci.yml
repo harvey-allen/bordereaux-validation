@@ -7,7 +7,7 @@ on:
       - develop
 
 jobs:
-  backend-lint-and-test:
+  backend-lint-test-coverage:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,11 +28,19 @@ jobs:
       - name: Run Ruff
         run: ruff check backend
 
-      - name: Run unit tests
+      - name: Run backend unit tests with coverage
         working-directory: backend
-        run: python -m pytest tests -q
+        run: python -m pytest tests -q --cov-fail-under=75
 
-  frontend-lint-and-test:
+      - name: Upload backend coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: |
+            backend/coverage-backend.json
+            backend/coverage.xml
+
+  frontend-lint-test-coverage:
     runs-on: ubuntu-latest
 
     steps:
@@ -46,12 +54,186 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm install
+        run: npm ci
 
       - name: Run frontend linting
         working-directory: frontend
         run: npm run lint
 
-      - name: Run frontend unit tests
+      - name: Run frontend unit tests with coverage
         working-directory: frontend
-        run: npm test
+        run: npm run test:coverage
+
+      - name: Upload frontend coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: |
+            frontend/coverage/coverage-summary.json
+            frontend/coverage/lcov.info
+
+  coverage-summary:
+    runs-on: ubuntu-latest
+    needs:
+      - backend-lint-test-coverage
+      - frontend-lint-test-coverage
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download backend coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend
+
+      - name: Download frontend coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Compute current combined coverage
+        id: coverage
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          backend = json.loads(Path("backend/coverage-backend.json").read_text())
+          frontend = json.loads(Path("frontend/coverage/coverage-summary.json").read_text())
+
+          b_totals = backend.get("totals", {})
+          f_lines = frontend.get("total", {}).get("lines", {})
+
+          b_pct = float(b_totals.get("percent_covered", 0.0))
+          f_pct = float(f_lines.get("pct", 0.0))
+
+          b_covered = int(b_totals.get("covered_lines", 0))
+          b_total = int(b_totals.get("num_statements", 0))
+          f_covered = int(f_lines.get("covered", 0))
+          f_total = int(f_lines.get("total", 0))
+
+          overall_pct = 0.0
+          overall_total = b_total + f_total
+          if overall_total:
+              overall_pct = ((b_covered + f_covered) / overall_total) * 100
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"backend={b_pct:.2f}\n")
+              fh.write(f"frontend={f_pct:.2f}\n")
+              fh.write(f"overall={overall_pct:.2f}\n")
+
+          print(f"Backend coverage: {b_pct:.2f}%")
+          print(f"Frontend coverage: {f_pct:.2f}%")
+          print(f"Overall coverage: {overall_pct:.2f}%")
+
+          if overall_pct < 75.0:
+              raise SystemExit("Overall coverage gate failed (<75%).")
+          PY
+
+      - name: Compute baseline coverage from target branch
+        id: baseline
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ -z "${BASE_REF}" ]; then
+            echo "baseline=0.00" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch origin "${BASE_REF}" --depth=1
+          tmp_dir="$(mktemp -d)"
+          export TMP_DIR="${tmp_dir}"
+          git worktree add "${tmp_dir}" "origin/${BASE_REF}"
+
+          python -m pip install --upgrade pip
+          python -m pip install -r "${tmp_dir}/backend/requirements.txt"
+          (
+            cd "${tmp_dir}/backend"
+            python -m pytest tests -q --cov-fail-under=0 --cov=app --cov-config=.coveragerc --cov-report=json:coverage-backend.json --cov-report=
+          )
+
+          (
+            cd "${tmp_dir}/frontend"
+            npm ci
+            npx c8 --reporter=json-summary node --test tests/**/*.test.js
+          )
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          tmp_dir = Path(os.environ["TMP_DIR"])
+          backend = json.loads((tmp_dir / "backend" / "coverage-backend.json").read_text())
+          frontend = json.loads((tmp_dir / "frontend" / "coverage" / "coverage-summary.json").read_text())
+
+          b_totals = backend.get("totals", {})
+          f_lines = frontend.get("total", {}).get("lines", {})
+          b_covered = int(b_totals.get("covered_lines", 0))
+          b_total = int(b_totals.get("num_statements", 0))
+          f_covered = int(f_lines.get("covered", 0))
+          f_total = int(f_lines.get("total", 0))
+
+          baseline = 0.0
+          if (b_total + f_total) > 0:
+              baseline = ((b_covered + f_covered) / (b_total + f_total)) * 100
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"baseline={baseline:.2f}\n")
+          PY
+
+      - name: Build coverage markdown summary
+        id: markdown
+        run: |
+          python - <<'PY'
+          import os
+
+          current = float("${{ steps.coverage.outputs.overall }}")
+          baseline = float("${{ steps.baseline.outputs.baseline }}")
+          delta = current - baseline
+          sign = "+" if delta >= 0 else ""
+
+          markdown = f"""
+          ## Coverage Summary
+
+          - Backend coverage: **${{ steps.coverage.outputs.backend }}%**
+          - Frontend coverage: **${{ steps.coverage.outputs.frontend }}%**
+          - Overall coverage: **${{ steps.coverage.outputs.overall }}%**
+          - Coverage delta vs target branch: **{sign}{delta:.2f}%** (target branch: {baseline:.2f}%)
+          - Coverage threshold: **75%**
+
+          ✅ Coverage checks passed.
+          """.strip()
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
+              fh.write(markdown + "\n")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write("comment<<EOF\n")
+              fh.write(markdown + "\n")
+              fh.write("EOF\n")
+          PY
+
+      - name: Comment coverage on pull request
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          recreate: true
+          header: coverage-summary
+          message: ${{ steps.markdown.outputs.comment }}

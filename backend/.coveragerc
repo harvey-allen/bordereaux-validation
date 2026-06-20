@@ -1,0 +1,15 @@
+[run]
+source = app
+omit =
+    app/api/handlers.py
+    app/common/database/*
+    app/repositories/*
+    app/services/results/results_persistence_service.py
+    app/services/subscription/subscription_service.py
+    app/services/exceptions/exception_management_service.py
+    app/database.py
+
+[report]
+show_missing = True
+skip_covered = True
+precision = 2
