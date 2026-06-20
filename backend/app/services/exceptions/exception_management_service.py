@@ -9,10 +9,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import Exception as ExceptionModel, ExceptionStatus
+from app.repositories.exceptions.exception_repository import ExceptionRepository
 
 
 class ExceptionService:
@@ -47,20 +47,17 @@ class ExceptionService:
         Returns:
             Created Exception model
         """
-        exception = ExceptionModel(
+        return await ExceptionRepository.create(
+            session,
             organisation_id=organisation_id,
             exception_id=exception_id,
             description=description,
-            linked_field=linked_field or test_id,
+            linked_field=linked_field,
             linked_umr=linked_umr,
+            test_id=test_id,
             status=status,
             author_id=author_id,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
         )
-        session.add(exception)
-        await session.flush()
-        return exception
 
     @staticmethod
     async def get_exceptions(
@@ -83,18 +80,13 @@ class ExceptionService:
         Returns:
             List of Exception models
         """
-        query = select(ExceptionModel).where(
-            ExceptionModel.organisation_id == organisation_id
+        return await ExceptionRepository.list(
+            session,
+            organisation_id=organisation_id,
+            linked_field=linked_field,
+            linked_umr=linked_umr,
+            test_id=test_id,
         )
-        if linked_field:
-            query = query.where(ExceptionModel.linked_field == linked_field)
-        elif test_id:
-            query = query.where(ExceptionModel.linked_field == test_id)
-        if linked_umr:
-            query = query.where(ExceptionModel.linked_umr == linked_umr)
-        
-        result = await session.execute(query.order_by(ExceptionModel.created_at.desc()))
-        return result.scalars().all()
 
     @staticmethod
     async def get_exception_by_id(
@@ -113,14 +105,11 @@ class ExceptionService:
         Returns:
             Exception model or None if not found
         """
-        query = select(ExceptionModel).where(
-            and_(
-                ExceptionModel.organisation_id == organisation_id,
-                ExceptionModel.exception_id == exception_id,
-            )
+        return await ExceptionRepository.get_by_exception_id(
+            session,
+            organisation_id=organisation_id,
+            exception_id=exception_id,
         )
-        result = await session.execute(query)
-        return result.scalar_one_or_none()
 
     @staticmethod
     async def get_exception_by_db_id(
@@ -139,14 +128,11 @@ class ExceptionService:
         Returns:
             Exception model or None if not found
         """
-        query = select(ExceptionModel).where(
-            and_(
-                ExceptionModel.id == db_id,
-                ExceptionModel.organisation_id == organisation_id,
-            )
+        return await ExceptionRepository.get_by_db_id(
+            session,
+            db_id=db_id,
+            organisation_id=organisation_id,
         )
-        result = await session.execute(query)
-        return result.scalar_one_or_none()
 
     @staticmethod
     async def update_exception(
@@ -179,8 +165,10 @@ class ExceptionService:
         Returns:
             Updated Exception model or None if not found
         """
-        exception = await ExceptionService.get_exception_by_id(
-            session, organisation_id, exception_id
+        exception = await ExceptionRepository.get_by_exception_id(
+            session,
+            organisation_id=organisation_id,
+            exception_id=exception_id,
         )
         if not exception:
             return None
@@ -193,7 +181,7 @@ class ExceptionService:
             exception.linked_umr = linked_umr
         if status is not None:
             exception.status = status
-        
+
         exception.updated_at = datetime.now(timezone.utc)
         session.add(exception)
         await session.flush()
@@ -216,15 +204,11 @@ class ExceptionService:
         Returns:
             True if deleted, False if not found
         """
-        exception = await ExceptionService.get_exception_by_id(
-            session, organisation_id, exception_id
+        return await ExceptionRepository.delete_by_exception_id(
+            session,
+            organisation_id=organisation_id,
+            exception_id=exception_id,
         )
-        if not exception:
-            return False
-
-        await session.delete(exception)
-        await session.flush()
-        return True
 
 
 # Singleton instance

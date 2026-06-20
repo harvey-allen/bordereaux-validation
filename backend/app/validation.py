@@ -3,39 +3,26 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from functools import lru_cache
-import json
-from pathlib import Path
 import re
 from typing import Any
 
 import pandas as pd
 
 from app.testpacks import Severity, get_pack_class
-from app.testpacks.core import get_pack_name_variants, normalize_pack_name
-
-FIELD_CONFIG_DIR = Path(__file__).parent / "testpacks" / "field_configurations"
+from app.testpacks.core import normalize_pack_name
+from app.common.utilities.field_configuration import (
+    load_pack_field_configuration,
+    normalize_field_name,
+)
 
 
 def _normalize_field_name(value: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", str(value or "").strip().lower())
+    return normalize_field_name(value)
 
 
 @lru_cache(maxsize=16)
 def _load_pack_field_configuration(pack_name: str) -> dict[str, Any]:
-    for candidate_pack in get_pack_name_variants(pack_name):
-        config_path = FIELD_CONFIG_DIR / f"{candidate_pack}.json"
-        if not config_path.exists():
-            continue
-
-        try:
-            raw = json.loads(config_path.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-
-        if isinstance(raw, dict):
-            return raw
-
-    return {}
+    return load_pack_field_configuration(pack_name)
 
 
 def get_pack_territories(pack_name: str) -> list[str]:

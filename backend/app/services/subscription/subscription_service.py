@@ -19,11 +19,11 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import RateLimitState, Subscription, SubscriptionTier, coerce_subscription_tier
-from app.database import Organisation, RequestLog, UserSubscription
+from app.database import UserSubscription
+from app.repositories.subscription.subscription_repository import SubscriptionRepository
 
 
 # Get default tier from environment
@@ -50,7 +50,7 @@ def generate_api_key(tier: SubscriptionTier) -> str:
 class SubscriptionService:
     """
     Service for managing subscriptions in PostgreSQL.
-    
+
     Combines database persistence with in-memory rate limiting for performance.
     """
 
@@ -87,14 +87,9 @@ class SubscriptionService:
             domain = email.strip().lower().split("@")[-1] if "@" in email else "default"
             normalized = domain or "default"
 
-        result = await db.execute(
-            select(Organisation).where(func.lower(Organisation.name) == normalized)
-        )
-        organisation = result.scalar_one_or_none()
+        organisation = await SubscriptionRepository.get_organisation_by_name(db, name=normalized)
         if organisation is None:
-            organisation = Organisation(name=normalized, created_at=datetime.now(timezone.utc))
-            db.add(organisation)
-            await db.flush()
+            organisation = await SubscriptionRepository.create_organisation(db, name=normalized)
         return int(organisation.id)
 
     async def get_or_create_subscription(
@@ -107,15 +102,15 @@ class SubscriptionService:
     ) -> tuple[Subscription, str]:
         """
         Get existing subscription or create a new one for an Excel user.
-        
+
         Returns:
             (Subscription, api_key) - api_key is only returned for new subscriptions
         """
         # Check for existing subscription
-        result = await db.execute(
-            select(UserSubscription).where(UserSubscription.excel_user_id == excel_user_id)
+        db_sub = await SubscriptionRepository.get_user_by_excel_user_id(
+            db,
+            excel_user_id=excel_user_id,
         )
-        db_sub = result.scalar_one_or_none()
 
         if db_sub:
             if db_sub.organisation_id is None:
@@ -141,7 +136,8 @@ class SubscriptionService:
             organisation_name=organisation_name,
         )
 
-        db_sub = UserSubscription(
+        db_sub = await SubscriptionRepository.create_user_subscription(
+            db,
             organisation_id=organisation_id,
             excel_user_id=excel_user_id,
             email=email,
@@ -150,15 +146,13 @@ class SubscriptionService:
             api_key_prefix=api_key[:12] + "...",
             tier=DEFAULT_TIER,
             is_active=True,
-            created_at=datetime.now(timezone.utc),
         )
-        db.add(db_sub)
         await db.commit()
         await db.refresh(db_sub)
 
         subscription = self._db_to_subscription(db_sub)
         self._cache_subscription(subscription)
-        
+
         return subscription, api_key
 
     async def get_subscription_by_api_key(
@@ -174,10 +168,10 @@ class SubscriptionService:
             return self._subscription_cache.get(key_hash)
 
         # Query database
-        result = await db.execute(
-            select(UserSubscription).where(UserSubscription.api_key_hash == key_hash)
+        db_sub = await SubscriptionRepository.get_user_by_api_key_hash(
+            db,
+            api_key_hash=key_hash,
         )
-        db_sub = result.scalar_one_or_none()
 
         if not db_sub:
             return None
@@ -188,7 +182,7 @@ class SubscriptionService:
 
         subscription = self._db_to_subscription(db_sub)
         self._cache_subscription(subscription)
-        
+
         return subscription
 
     async def get_subscription_by_excel_user(
@@ -197,17 +191,17 @@ class SubscriptionService:
         excel_user_id: str,
     ) -> Subscription | None:
         """Look up a subscription by Excel user ID."""
-        result = await db.execute(
-            select(UserSubscription).where(UserSubscription.excel_user_id == excel_user_id)
+        db_sub = await SubscriptionRepository.get_user_by_excel_user_id(
+            db,
+            excel_user_id=excel_user_id,
         )
-        db_sub = result.scalar_one_or_none()
 
         if not db_sub:
             return None
 
         subscription = self._db_to_subscription(db_sub)
         self._cache_subscription(subscription)
-        
+
         return subscription
 
     async def get_subscription_by_email(
@@ -220,13 +214,10 @@ class SubscriptionService:
         if not normalized_email:
             return None
 
-        result = await db.execute(
-            select(UserSubscription)
-            .where(func.lower(UserSubscription.email) == normalized_email)
-            .where(UserSubscription.is_active.is_(True))
-            .order_by(UserSubscription.created_at.desc())
+        db_sub = await SubscriptionRepository.get_user_by_email_active_latest(
+            db,
+            email=normalized_email,
         )
-        db_sub = result.scalars().first()
 
         if not db_sub and normalized_email in ADMIN_EMAILS:
             api_key = generate_api_key(DEFAULT_TIER)
@@ -237,7 +228,8 @@ class SubscriptionService:
                 email=normalized_email,
                 organisation_name=None,
             )
-            db_sub = UserSubscription(
+            db_sub = await SubscriptionRepository.create_user_subscription(
+                db,
                 organisation_id=organisation_id,
                 excel_user_id=excel_user_id,
                 email=normalized_email,
@@ -246,9 +238,7 @@ class SubscriptionService:
                 api_key_prefix=api_key[:12] + "...",
                 tier=SubscriptionTier.DEVELOPER,
                 is_active=True,
-                created_at=datetime.now(timezone.utc),
             )
-            db.add(db_sub)
             await db.commit()
             await db.refresh(db_sub)
 
@@ -277,10 +267,10 @@ class SubscriptionService:
         new_tier: SubscriptionTier,
     ) -> Subscription | None:
         """Update a user's subscription tier."""
-        result = await db.execute(
-            select(UserSubscription).where(UserSubscription.excel_user_id == excel_user_id)
+        db_sub = await SubscriptionRepository.get_user_by_excel_user_id(
+            db,
+            excel_user_id=excel_user_id,
         )
-        db_sub = result.scalar_one_or_none()
 
         if not db_sub:
             return None
@@ -296,7 +286,7 @@ class SubscriptionService:
 
         subscription = self._db_to_subscription(db_sub)
         self._cache_subscription(subscription)
-        
+
         return subscription
 
     async def regenerate_api_key(
@@ -305,10 +295,10 @@ class SubscriptionService:
         excel_user_id: str,
     ) -> str | None:
         """Generate a new API key for a user (invalidates old key)."""
-        result = await db.execute(
-            select(UserSubscription).where(UserSubscription.excel_user_id == excel_user_id)
+        db_sub = await SubscriptionRepository.get_user_by_excel_user_id(
+            db,
+            excel_user_id=excel_user_id,
         )
-        db_sub = result.scalar_one_or_none()
 
         if not db_sub:
             return None
@@ -323,9 +313,9 @@ class SubscriptionService:
         new_api_key = generate_api_key(coerce_subscription_tier(db_sub.tier))
         db_sub.api_key_hash = hash_api_key(new_api_key)
         db_sub.api_key_prefix = new_api_key[:12] + "..."
-        
+
         await db.commit()
-        
+
         return new_api_key
 
     async def record_request(
@@ -341,22 +331,19 @@ class SubscriptionService:
         state.record_request()
 
         # Async database logging (for persistence/analytics)
-        log = RequestLog(
+        await SubscriptionRepository.insert_request_log(
+            db,
             api_key_hash=subscription.api_key_hash,
-            timestamp=datetime.now(timezone.utc),
             endpoint=endpoint,
             cell_count=cell_count,
         )
-        db.add(log)
 
         # On the first request of each new UTC day, purge logs older than yesterday.
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         if self._last_purge_date != today:
             self._last_purge_date = today
             day_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-            await db.execute(
-                delete(RequestLog).where(RequestLog.timestamp < day_start)
-            )
+            await SubscriptionRepository.purge_request_logs_before(db, cutoff=day_start)
 
         await db.commit()
 
@@ -367,7 +354,7 @@ class SubscriptionService:
     ) -> tuple[bool, str | None]:
         """
         Check if a request is within rate limits.
-        
+
         Uses in-memory tracking for fast checks, with database as backup.
         """
         state = self._rate_limits[subscription.api_key_hash]
@@ -380,17 +367,16 @@ class SubscriptionService:
 
         # Check daily limit (use database for accuracy after restart)
         daily_count = state.requests_today
-        
+
         # If in-memory count is low, verify against database
         if daily_count < config.requests_per_day // 2:
             # Check database for today's requests
             today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-            result = await db.execute(
-                select(func.count(RequestLog.id))
-                .where(RequestLog.api_key_hash == subscription.api_key_hash)
-                .where(RequestLog.timestamp >= today_start)
+            db_count = await SubscriptionRepository.count_logs_since(
+                db,
+                api_key_hash=subscription.api_key_hash,
+                start_time=today_start,
             )
-            db_count = result.scalar() or 0
             daily_count = max(daily_count, db_count)
 
         if daily_count >= config.requests_per_day:
@@ -419,11 +405,12 @@ class SubscriptionService:
     async def cleanup_old_logs(self, db: AsyncSession, days: int = 7) -> int:
         """Clean up request logs older than specified days."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        result = await db.execute(
-            delete(RequestLog).where(RequestLog.timestamp < cutoff)
+        deleted_count = await SubscriptionRepository.delete_request_logs_before(
+            db,
+            cutoff=cutoff,
         )
         await db.commit()
-        return result.rowcount or 0
+        return deleted_count
 
     def _db_to_subscription(self, db_sub: UserSubscription) -> Subscription:
         """Convert database model to Subscription dataclass."""
