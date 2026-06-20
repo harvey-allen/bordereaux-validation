@@ -31,7 +31,37 @@ Run full repository checks with:
 
 - `scripts/ci.sh`
 
-This runs backend lint + tests and frontend lint + tests.
+This runs backend lint + tests and frontend lint + tests with coverage gates.
+
+### Coverage expectations
+
+- Minimum required combined coverage (frontend + backend): **75%**.
+- Backend coverage command:
+	- `cd backend && python -m pytest tests -q --cov-fail-under=75`
+- Frontend coverage command:
+	- `cd frontend && npm run test:coverage`
+- Combined coverage is computed by `scripts/ci.sh` and in CI.
+
+### Coverage reports
+
+- Backend reports:
+	- `backend/coverage-backend.json`
+	- `backend/coverage.xml`
+- Frontend reports:
+	- `frontend/coverage/coverage-summary.json`
+	- `frontend/coverage/lcov.info`
+
+### Notes on intentionally excluded areas
+
+Some highly integration-centric backend modules are omitted from line-coverage gates because they are validated primarily via integration/E2E workflows (database orchestration and runtime-only API plumbing):
+
+- `app/api/handlers.py`
+- `app/common/database/*`
+- `app/repositories/*`
+- `app/database.py`
+- `app/services/results/results_persistence_service.py`
+- `app/services/subscription/subscription_service.py`
+- `app/services/exceptions/exception_management_service.py`
 
 ## Further documentation
 

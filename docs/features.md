@@ -27,3 +27,10 @@
 ### Exceptions
 - Exceptions are organisation-scoped records with status and linkage metadata.
 - Exception tagging attaches exception IDs to stored cells and supports cleanup when exceptions are removed.
+
+## Testing and coverage policy
+
+- Unit tests are required for core business logic, service orchestration, utility helpers, and critical API/frontend flows.
+- Coverage is enforced in CI for both backend and frontend test suites.
+- Combined coverage across frontend + backend must remain at or above **75%**.
+- Pull requests receive an automated coverage summary comment, including delta vs the target branch.
