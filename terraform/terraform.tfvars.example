@@ -1,0 +1,51 @@
+# terraform/terraform.tfvars.example
+# Copy this file to terraform.tfvars and fill in your values
+
+environment = "staging"  # or "production", "development"
+aws_region  = "eu-west-2"
+
+# Database
+database_password         = "ChangeMe!Secure1234567890"  # Min 16 chars: uppercase, lowercase, number, special
+database_allocated_storage = 20  # Start small, auto-scale later
+
+# For staging: smaller instance
+database_instance_class = "db.t4g.micro"
+
+# For production: larger instance (uncomment one)
+# database_instance_class = "db.t4g.small"
+# database_multi_az = true
+
+# API Keys and Configuration
+dev_api_key = "your-dev-api-key-here"
+admin_emails = "admin@company.com,devops@company.com"
+cors_allowed_origins = "https://your-domain.com"
+
+# Frontend
+frontend_bucket_name = "bordereaux-frontend-staging"  # Must be globally unique
+enable_cloudfront = true
+
+# ECS
+ecs_desired_count = 1
+
+# For staging: smaller resources
+backend_task_cpu    = 512
+backend_task_memory = 1024
+frontend_task_cpu   = 256
+frontend_task_memory = 512
+
+# For production: larger resources (uncomment)
+# backend_task_cpu    = 1024
+# backend_task_memory = 2048
+# frontend_task_cpu   = 512
+# frontend_task_memory = 1024
+# enable_autoscaling = true
+# autoscaling_min_capacity = 2
+# autoscaling_max_capacity = 5
+
+# SSL/TLS Certificate (optional)
+# certificate_arn = "arn:aws:acm:eu-west-2:123456789012:certificate/12345678-1234-1234-1234-123456789012"
+# domain_name = "api.your-domain.com"
+
+# VPC Configuration
+# vpc_cidr = "10.0.0.0/16"
+# availability_zones = ["eu-west-2a", "eu-west-2b"]

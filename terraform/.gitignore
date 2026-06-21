@@ -1,0 +1,46 @@
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all .tfvars files (user-provided configuration)
+*.tfvars
+*.tfvars.json
+
+# Ignore override files (used to override resources locally)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Include override files you do wish to add to version control
+!example_override.tf
+
+# Include tfplan files to ignore the plan output of command
+*tfplan*
+
+# Ignore Mac .DS_Store files
+.DS_Store
+
+# Ignore IDE files
+*.swp
+*.swo
+*~
+.idea
+*.iml
+*.sublime-workspace
+
+# Ignore OS-specific files
+Thumbs.db
+.vscode/
+
+# Local TLS certificates
+*.pem
+*.key
+*.crt
