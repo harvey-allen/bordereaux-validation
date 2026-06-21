@@ -1,0 +1,61 @@
+# Production Docker Compose (not recommended - for reference only)
+# In production, use ECS/Fargate instead of Docker Compose
+# This file is for documentation and local testing of production configuration
+# Run: ENVIRONMENT=production docker-compose -f docker-compose.yml -f docker-compose.production.yml up
+
+services:
+  # Disable local database in production (use RDS)
+  db:
+    deploy:
+      resources:
+        limits:
+          cpus: '0'
+          memory: 1B
+    # Dummy service, not used
+
+  backend:
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: ${PRODUCTION_DATABASE_URL}
+      DEFAULT_SUBSCRIPTION_TIER: bordereaux
+      DEV_API_KEY: ${PRODUCTION_DEV_API_KEY}
+      AWS_ACCESS_KEY: ${PRODUCTION_AWS_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${PRODUCTION_AWS_SECRET_ACCESS_KEY}
+      REPORT_STORAGE_BUCKET: bordereaux-report-production
+    # Remove hot-reload mounts
+    volumes: []
+    # Scale for production
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1024M
+
+  frontend:
+    build:
+      args:
+        ENVIRONMENT: production
+    environment:
+      ENVIRONMENT: production
+    # Remove hot-reload mounts
+    volumes: []
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  nginx:
+    # Production should use AWS ALB or similar, not Nginx in Docker
+    # This is kept for reference only
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+volumes:
+  postgres_data:

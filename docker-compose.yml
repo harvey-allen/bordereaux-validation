@@ -25,6 +25,7 @@ services:
       dockerfile: Dockerfile
     container_name: bordereaux-backend
     environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
       DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-postgres}@db:5432/bordereaux
       DEFAULT_SUBSCRIPTION_TIER: ${DEFAULT_SUBSCRIPTION_TIER:-trial}
       DEV_API_KEY: ${DEV_API_KEY:-dev_bordereaux_key_12345}
@@ -50,13 +51,15 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: bordereaux-frontend
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
     volumes:
       # Mount frontend files for live updates
       - ./frontend/taskpane.html:/app/taskpane.html:ro
       - ./frontend/taskpane.js:/app/taskpane.js:ro
       - ./frontend/taskpane.packs.js:/app/taskpane.packs.js:ro
       - ./frontend/taskpane.storage.js:/app/taskpane.storage.js:ro
-      - ./frontend/config.js:/app/config.js:ro
+      - ./frontend/config.factory.js:/app/config.factory.js:ro
       - ./frontend/commands.html:/app/commands.html:ro
       - ./frontend/commands.js:/app/commands.js:ro
     ports:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
 from botocore.exceptions import ClientError
 
 from app.services.results.report_storage_service import (
@@ -9,6 +10,15 @@ from app.services.results.report_storage_service import (
     ReportPayloadFormatError,
     ReportStorageService,
 )
+
+
+@pytest.fixture
+def s3_service_with_mock_client(monkeypatch):
+    """Create a ReportStorageService with mocking enabled for testing."""
+    service = ReportStorageService()
+    # Force S3 to be enabled for testing (override development default)
+    service._s3_enabled = True
+    return service
 
 
 class _FakeBody:
@@ -57,9 +67,9 @@ def test_generate_s3_key_supports_custom_extension():
     assert key == "acme/11.json"
 
 
-def test_upload_report_writes_json_payload(monkeypatch):
+def test_upload_report_writes_json_payload(monkeypatch, s3_service_with_mock_client):
     fake_client = _FakeClient()
-    service = ReportStorageService()
+    service = s3_service_with_mock_client
     monkeypatch.setattr(service, "_get_client", lambda: fake_client)
 
     asyncio.run(
@@ -76,9 +86,9 @@ def test_upload_report_writes_json_payload(monkeypatch):
     assert call["ContentType"] == "application/json"
 
 
-def test_upload_report_bytes_writes_binary_payload(monkeypatch):
+def test_upload_report_bytes_writes_binary_payload(monkeypatch, s3_service_with_mock_client):
     fake_client = _FakeClient()
-    service = ReportStorageService()
+    service = s3_service_with_mock_client
     monkeypatch.setattr(service, "_get_client", lambda: fake_client)
 
     asyncio.run(
@@ -95,10 +105,10 @@ def test_upload_report_bytes_writes_binary_payload(monkeypatch):
     assert call["ContentType"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
-def test_download_report_bytes_returns_raw_payload(monkeypatch):
+def test_download_report_bytes_returns_raw_payload(monkeypatch, s3_service_with_mock_client):
     fake_client = _FakeClient()
     fake_client.get_payload = b"excel-binary"
-    service = ReportStorageService()
+    service = s3_service_with_mock_client
     monkeypatch.setattr(service, "_get_client", lambda: fake_client)
 
     payload = asyncio.run(service.download_report_bytes(s3_key="acme/101.xlsx"))
@@ -106,8 +116,8 @@ def test_download_report_bytes_returns_raw_payload(monkeypatch):
     assert payload == b"excel-binary"
 
 
-def test_download_report_raises_for_missing_object(monkeypatch):
-    service = ReportStorageService()
+def test_download_report_raises_for_missing_object(monkeypatch, s3_service_with_mock_client):
+    service = s3_service_with_mock_client
 
     class _MissingObjectClient:
         def get_object(self, **_kwargs):
@@ -125,10 +135,10 @@ def test_download_report_raises_for_missing_object(monkeypatch):
         pass
 
 
-def test_download_report_raises_for_invalid_json(monkeypatch):
+def test_download_report_raises_for_invalid_json(monkeypatch, s3_service_with_mock_client):
     fake_client = _FakeClient()
     fake_client.get_payload = b"not json"
-    service = ReportStorageService()
+    service = s3_service_with_mock_client
     monkeypatch.setattr(service, "_get_client", lambda: fake_client)
 
     try:

@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reporting Validator</title>
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-    <script src="./config.js"></script>
+    <!-- Load config factory (selects appropriate config based on ENVIRONMENT) -->
+    <script src="./config.factory.js"></script>
     <style>
       :root {
         --bg: #f5f8fc;

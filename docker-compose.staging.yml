@@ -1,0 +1,29 @@
+# Staging Docker Compose Override
+# Used for pre-production testing with production-like setup
+# Run: ENVIRONMENT=staging docker-compose -f docker-compose.yml -f docker-compose.staging.yml up
+
+services:
+  backend:
+    environment:
+      ENVIRONMENT: staging
+      DATABASE_URL: ${STAGING_DATABASE_URL:-postgresql://postgres:password@rds-staging:5432/bordereaux}
+      DEFAULT_SUBSCRIPTION_TIER: bordereaux
+      DEV_API_KEY: ${STAGING_DEV_API_KEY:-dev_key_staging}
+      AWS_ACCESS_KEY: ${STAGING_AWS_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${STAGING_AWS_SECRET_ACCESS_KEY}
+      REPORT_STORAGE_BUCKET: bordereaux-report-staging
+    # Remove hot-reload mounts for staging
+    volumes:
+      - ./backend/tests:/app/tests:ro
+
+  frontend:
+    build:
+      args:
+        ENVIRONMENT: staging
+    environment:
+      ENVIRONMENT: staging
+    # Remove hot-reload mounts for staging
+    volumes: []
+
+volumes:
+  postgres_data:

@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import include_api_routers
 from app.api.handlers import lifespan
+from app.config import config
 
 
 def create_app() -> FastAPI:
@@ -15,15 +16,25 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Configure CORS based on environment
+    # In production, restrict to specific origins; in development, allow all
+    cors_origins = ["*"] if config.is_development else [
+        "https://your-production-domain.com",  # Update with actual production domain
+    ]
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
     include_api_routers(app)
+
+    # Log configuration on startup (non-sensitive data only)
+    app.debug = config.is_development
+
     return app
 
 

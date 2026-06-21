@@ -5,11 +5,15 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+# Set environment to development for CI testing
+export ENVIRONMENT="${ENVIRONMENT:-development}"
+
 PYTHON_BIN="python3"
 if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
   PYTHON_BIN="python"
 fi
 
+echo "==> Environment: $ENVIRONMENT"
 echo "==> Backend: install dependencies"
 "$PYTHON_BIN" -m pip install --upgrade pip
 "$PYTHON_BIN" -m pip install -r backend/requirements.txt
@@ -21,7 +25,7 @@ ruff check backend
 echo "==> Backend: unit tests"
 (
   cd backend
-  "$PYTHON_BIN" -m pytest tests -q --cov-fail-under=75
+  ENVIRONMENT="$ENVIRONMENT" "$PYTHON_BIN" -m pytest tests -q --cov-fail-under=75
 )
 
 echo "==> Frontend: install dependencies"
