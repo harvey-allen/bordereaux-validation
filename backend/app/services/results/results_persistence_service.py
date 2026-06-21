@@ -547,6 +547,7 @@ async def save_results_version(
         if payload is None:
             payload = ValidationResultPayload(
                 validation_result_version_id=int(version.id),
+                sheet_key_id=int(sheet_key.id),
                 version_name=effective_version_name,
                 s3_location="__pending__",
                 created_at=now,
@@ -554,6 +555,8 @@ async def save_results_version(
             )
             session.add(payload)
             await session.flush()
+
+        payload.sheet_key_id = int(sheet_key.id)
 
         if not str(payload.s3_location or "").strip() or payload.s3_location == "__pending__":
             organisation_storage_prefix = await _get_organisation_storage_prefix(
@@ -844,6 +847,7 @@ async def update_results_version_by_id(
         if payload is None:
             payload = ValidationResultPayload(
                 validation_result_version_id=int(version.id),
+                sheet_key_id=int(_sheet_key.id),
                 version_name=effective_version_name,
                 s3_location="__pending__",
                 created_at=now,
@@ -851,6 +855,8 @@ async def update_results_version_by_id(
             )
             session.add(payload)
             await session.flush()
+
+        payload.sheet_key_id = int(_sheet_key.id)
 
         if not str(payload.s3_location or "").strip() or payload.s3_location == "__pending__":
             organisation_storage_prefix = await _get_organisation_storage_prefix(

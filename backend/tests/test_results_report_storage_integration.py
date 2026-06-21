@@ -117,6 +117,7 @@ def test_save_results_version_uploads_report_payload_to_s3(monkeypatch):
     ]
     payload_row = next(item for item in session.added if isinstance(item, ValidationResultPayload))
     assert payload_row.s3_location == "acme/101.json"
+    assert payload_row.sheet_key_id == 12
 
 
 def test_save_results_version_rolls_back_on_upload_failure(monkeypatch):

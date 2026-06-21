@@ -91,6 +91,36 @@
       || message.includes("source contains one or more unsupported features");
   }
 
+  async function withTimeout(promise, timeoutMs, timeoutMessage) {
+    const normalizedTimeoutMs = Math.max(1, Number(timeoutMs) || 15000);
+    const scheduleTimeout = typeof global.setTimeout === "function"
+      ? global.setTimeout.bind(global)
+      : (typeof setTimeout === "function" ? setTimeout : null);
+    const cancelTimeout = typeof global.clearTimeout === "function"
+      ? global.clearTimeout.bind(global)
+      : (typeof clearTimeout === "function" ? clearTimeout : null);
+
+    if (!scheduleTimeout || !cancelTimeout) {
+      return await promise;
+    }
+
+    let timeoutId = null;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise((_, reject) => {
+          timeoutId = scheduleTimeout(() => {
+            reject(new Error(String(timeoutMessage || "Operation timed out")));
+          }, normalizedTimeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timeoutId !== null) {
+        cancelTimeout(timeoutId);
+      }
+    }
+  }
+
   async function checkSavedResultsVersion(deps) {
     const excelUserEmail = deps.getExcelUserEmail();
     if (!excelUserEmail) {
@@ -153,6 +183,11 @@
   async function viewSelectedSavedVersion(deps) {
     const button = document.getElementById("viewSavedVersion");
     const selectedVersion = deps.getSelectedSavedVersionItem();
+    let stage = "initializing";
+
+    if (typeof deps.ensureTaskpaneShellVisible === "function") {
+      deps.ensureTaskpaneShellVisible("view-start");
+    }
 
     if (!selectedVersion) {
       deps.setStatus("Select a saved version to view.", true);
@@ -174,6 +209,7 @@
     if (button) button.disabled = true;
 
     try {
+      stage = "requesting-saved-version";
       deps.appendDebugLog("View saved version clicked", {
         versionId: Number(selectedVersion.id),
         currentScope: Boolean(selectedVersion.current_scope || selectedVersion.currentScope),
@@ -192,6 +228,7 @@
       }
 
       const payload = await response.json().catch(() => ({}));
+      stage = "processing-payload";
       deps.appendDebugLog("Fetched saved version payload", {
         versionId: Number(selectedVersion.id),
         testPack: payload?.test_pack,
@@ -220,19 +257,27 @@
         : (worksheetSnapshot?.pack_config && typeof worksheetSnapshot.pack_config === "object" ? worksheetSnapshot.pack_config : {});
 
       if (worksheetSnapshot) {
+        stage = "launching-tabular-snapshot";
         launchedSheetName = await deps.launchSavedReportSheet({
           versionName,
           savedData: worksheetSnapshot?.saved_data || payload?.saved_data,
           mappedHeaders: worksheetSnapshot?.mapped_headers || payload?.mapped_headers,
         });
+        stage = "applying-snapshot-formatting";
         await applyWorksheetSnapshotResults(worksheetSnapshot?.validation_results);
       } else if (payload?.excel_file_base64) {
         try {
-          launchedSheetName = await deps.launchSavedWorkbookSheetFromBase64({
-            versionName,
-            workbookBase64: payload?.excel_file_base64,
-            sourceSheetName: payload?.excel_source_sheet_name || payload?.sheet_name,
-          });
+          stage = "launching-workbook-base64";
+          const workbookLaunchTimeoutMs = Math.max(1, Number(deps.savedWorkbookLaunchTimeoutMs) || 15000);
+          launchedSheetName = await withTimeout(
+            deps.launchSavedWorkbookSheetFromBase64({
+              versionName,
+              workbookBase64: payload?.excel_file_base64,
+              sourceSheetName: payload?.excel_source_sheet_name || payload?.sheet_name,
+            }),
+            workbookLaunchTimeoutMs,
+            "Timed out while launching workbook sheet"
+          );
         } catch (workbookImportError) {
           const savedData = Array.isArray(payload?.saved_data) ? payload.saved_data : [];
           const mappedHeaders = payload?.mapped_headers && typeof payload.mapped_headers === "object"
@@ -260,15 +305,18 @@
             ? mappedHeaders
             : { Notice: "Notice" };
 
+          stage = "launching-tabular-fallback";
           launchedSheetName = await deps.launchSavedReportSheet({
             versionName,
             savedData: fallbackSavedData,
             mappedHeaders: fallbackMappedHeaders,
           });
+          stage = "applying-fallback-formatting";
           await applyWorksheetSnapshotResults(payload?.worksheet_snapshot?.validation_results);
           usedTabularFallback = true;
         }
       } else {
+        stage = "launching-tabular-payload";
         launchedSheetName = await deps.launchSavedReportSheet({
           versionName,
           savedData: payload?.saved_data,
@@ -276,8 +324,11 @@
         });
       }
 
+      stage = "restoring-pack-config";
       const normalizedConfig = await deps.applySavedVersionPackConfiguration(restoredTestPack, restoredPackConfig);
+      stage = "persisting-pack-config";
       await deps.persistPackConfigurationForSheet(restoredTestPack, normalizedConfig, launchedSheetName);
+      stage = "updating-viewed-context";
       deps.setViewedVersionContextForSheet({
         workbookName: deps.getWorkbookName() || "__unknown_workbook__",
         sheetName: launchedSheetName,
@@ -286,6 +337,7 @@
         testPack: restoredTestPack,
         versionName,
       });
+      stage = "refreshing-view-state";
       await deps.refreshActiveViewedVersionContext();
       deps.appendDebugLog("Saved version config restored and persisted", {
         versionId: Number(selectedVersion.id),
@@ -293,20 +345,34 @@
         testPack: restoredTestPack,
       });
       await refreshVersionStateForActiveSheet(deps);
+      stage = "complete";
       if (usedTabularFallback) {
         deps.setStatus(`Saved report launched in '${launchedSheetName}' (fallback mode: workbook import unsupported on this platform).`);
       } else {
         deps.setStatus(`Saved report launched in '${launchedSheetName}'.`);
       }
+
+      if (typeof deps.ensureTaskpaneShellVisible === "function") {
+        deps.ensureTaskpaneShellVisible("view-success");
+      }
     } catch (error) {
       deps.appendDebugLog("View saved version failed", {
+        stage,
         message: String(error?.message || "Unexpected error"),
         stack: String(error?.stack || ""),
       });
-      deps.setStatus(`View failed: ${error?.message || "Unexpected error"}`, true);
+      deps.setStatus(`View failed at ${stage}: ${error?.message || "Unexpected error"}`, true);
+
+      if (typeof deps.ensureTaskpaneShellVisible === "function") {
+        deps.ensureTaskpaneShellVisible("view-failed");
+      }
     } finally {
       if (button) button.disabled = false;
       deps.updateActionButtons();
+
+      if (typeof deps.ensureTaskpaneShellVisible === "function") {
+        deps.ensureTaskpaneShellVisible("view-finally");
+      }
     }
   }
 

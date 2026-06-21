@@ -254,3 +254,156 @@ test("viewSelectedSavedVersion restores matching sheet-key pack configuration fr
   });
   assert.equal(button.disabled, false);
 });
+
+test("viewSelectedSavedVersion reports failure stage and invokes shell visibility recovery", async () => {
+  const button = { disabled: false };
+  const document = {
+    getElementById(id) {
+      if (id === "viewSavedVersion") {
+        return button;
+      }
+      return null;
+    },
+  };
+
+  const fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      id: 45,
+      sheet_key_id: 18,
+      test_pack: "bordereaux",
+      version_name: "Snapshot 4",
+      mapped_headers: { A: "field_a" },
+      saved_data: [{ A: "value" }],
+      pack_config: {},
+    }),
+  });
+
+  const win = loadBrowserScript("modules/taskpane/version-actions.js", {
+    document,
+    fetch,
+  });
+
+  const statuses = [];
+  const shellRecoveryCalls = [];
+
+  const deps = {
+    CONFIG: { BACKEND_URL: "https://example.test" },
+    versionHelpers: {
+      computeCurrentScopeVersionState: () => ({ exists: false, createdAt: null }),
+      deriveSavedReportHeaders: () => ["A"],
+    },
+    getSelectedSavedVersionItem: () => ({ id: 45, current_scope: false }),
+    getExcelUserEmail: () => "user@example.com",
+    getCurrentResultsScope: async () => ({ workbookName: "Book.xlsx", sheetName: "Sheet1" }),
+    getSelectedPack: () => "bordereaux",
+    appendDebugLog() {},
+    formatBackendErrorDetail: () => null,
+    setSavedResultsVersionState: () => {},
+    renderSavedVersionsDropdown: () => {},
+    updateSavedResultsInfo: () => {},
+    updateSaveButtonLabel: () => {},
+    setStatus: (message) => {
+      statuses.push(String(message || ""));
+    },
+    launchSavedReportSheet: async () => {
+      throw new Error("Launch failed");
+    },
+    applySavedVersionPackConfiguration: async () => ({}),
+    persistPackConfigurationForSheet: async () => {},
+    setViewedVersionContextForSheet: () => {},
+    refreshActiveViewedVersionContext: async () => {},
+    refreshVersionStateForActiveSheet: async () => {},
+    getWorkbookName: () => "Book.xlsx",
+    updateActionButtons: () => {},
+    ensureTaskpaneShellVisible: (reason) => {
+      shellRecoveryCalls.push(reason);
+      return false;
+    },
+  };
+
+  await win.TaskpaneVersionActions.viewSelectedSavedVersion(deps);
+
+  assert.equal(button.disabled, false);
+  assert.equal(shellRecoveryCalls.includes("view-start"), true);
+  assert.equal(shellRecoveryCalls.includes("view-failed"), true);
+  assert.equal(shellRecoveryCalls.includes("view-finally"), true);
+  assert.equal(statuses.some((message) => message.includes("View failed at launching-tabular-payload: Launch failed")), true);
+});
+
+test("viewSelectedSavedVersion times out stalled workbook launch and reports stage", async () => {
+  const button = { disabled: false };
+  const document = {
+    getElementById(id) {
+      if (id === "viewSavedVersion") {
+        return button;
+      }
+      return null;
+    },
+  };
+
+  const fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      id: 46,
+      sheet_key_id: 19,
+      test_pack: "risk_and_premium",
+      version_name: "Snapshot Timeout",
+      excel_file_base64: "ZmFrZS14bHN4",
+      excel_source_sheet_name: "rp3",
+      mapped_headers: {},
+      saved_data: [],
+      pack_config: {},
+    }),
+  });
+
+  const win = loadBrowserScript("modules/taskpane/version-actions.js", {
+    document,
+    fetch,
+    setTimeout,
+    clearTimeout,
+  });
+
+  const statuses = [];
+  let workbookLaunchCalls = 0;
+
+  const deps = {
+    CONFIG: { BACKEND_URL: "https://example.test" },
+    versionHelpers: {
+      computeCurrentScopeVersionState: () => ({ exists: false, createdAt: null }),
+      deriveSavedReportHeaders: () => [],
+    },
+    getSelectedSavedVersionItem: () => ({ id: 46, current_scope: false }),
+    getExcelUserEmail: () => "user@example.com",
+    getCurrentResultsScope: async () => ({ workbookName: "Book.xlsx", sheetName: "Sheet1" }),
+    getSelectedPack: () => "risk_and_premium",
+    appendDebugLog() {},
+    formatBackendErrorDetail: () => null,
+    setSavedResultsVersionState: () => {},
+    renderSavedVersionsDropdown: () => {},
+    updateSavedResultsInfo: () => {},
+    updateSaveButtonLabel: () => {},
+    setStatus: (message) => {
+      statuses.push(String(message || ""));
+    },
+    launchSavedWorkbookSheetFromBase64: async () => {
+      workbookLaunchCalls += 1;
+      return await new Promise(() => {});
+    },
+    launchSavedReportSheet: async () => "Should not be called",
+    applySavedVersionPackConfiguration: async () => ({}),
+    persistPackConfigurationForSheet: async () => {},
+    setViewedVersionContextForSheet: () => {},
+    refreshActiveViewedVersionContext: async () => {},
+    refreshVersionStateForActiveSheet: async () => {},
+    getWorkbookName: () => "Book.xlsx",
+    updateActionButtons: () => {},
+    savedWorkbookLaunchTimeoutMs: 10,
+  };
+
+  await win.TaskpaneVersionActions.viewSelectedSavedVersion(deps);
+
+  assert.equal(workbookLaunchCalls, 1);
+  assert.equal(button.disabled, false);
+  assert.equal(statuses.some((message) => message.includes("View failed at launching-workbook-base64: Timed out while launching workbook sheet")), true);
+});

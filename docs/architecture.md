@@ -32,6 +32,7 @@ sequenceDiagram
 Additional flows:
 - Configuration endpoints provide template generation, territory lookup, and field mapping estimation.
 - Results endpoints manage version history, latest version retrieval, updates, deletion, and cross-version comparisons.
+- Saved worksheet payload metadata is persisted per result version with explicit `sheet_key_id` ownership in `validation_result_payloads`.
 - Exceptions endpoints manage exception records and tag propagation/removal across stored artifacts.
 
 ## External dependencies

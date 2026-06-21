@@ -87,6 +87,13 @@ function buildFrontendErrorMessage(prefix, error) {
   return taskpaneErrorHelpers.buildFrontendErrorMessage(prefix, error);
 }
 
+function recoverBlankTaskpane(message) {
+  if (typeof taskpaneErrorHelpers.recoverBlankTaskpane !== "function") {
+    return false;
+  }
+  return taskpaneErrorHelpers.recoverBlankTaskpane(message);
+}
+
 function shouldSuppressFrontendError(error) {
   return taskpaneErrorHelpers.shouldSuppressFrontendError(error);
 }
@@ -105,7 +112,26 @@ function reportFrontendError(prefix, error, options = {}) {
     return;
   }
 
-  setStatus(buildFrontendErrorMessage(prefix, error), true);
+  const message = buildFrontendErrorMessage(prefix, error);
+  recoverBlankTaskpane(message);
+  setStatus(message, true);
+}
+
+function installBlankScreenGuard() {
+  if (window.__bvBlankScreenGuardInstalled) {
+    return;
+  }
+  window.__bvBlankScreenGuardInstalled = true;
+
+  const guardMessage = "The UI recovered from a blank screen caused by an unexpected error.";
+  const runGuard = () => {
+    if (recoverBlankTaskpane(guardMessage)) {
+      setStatus(guardMessage, true);
+    }
+  };
+
+  runGuard();
+  window.setInterval(runGuard, 1000);
 }
 
 function installGlobalFrontendErrorHandlers() {
@@ -692,13 +718,33 @@ async function launchSavedReportSheet({ versionName, savedData, mappedHeaders })
 }
 
 async function launchSavedWorkbookSheetFromBase64({ versionName, workbookBase64, sourceSheetName }) {
-  return taskpaneVersionHelpers.launchSavedWorkbookSheetFromBase64({
-    versionName,
-    workbookBase64,
-    sourceSheetName,
-    maxSheetNameLength: MAX_EXCEL_SHEET_NAME_LENGTH,
-    appendDebugLog,
+  appendDebugLog("Workbook launch begin", {
+    versionName: String(versionName || "").trim() || null,
+    sourceSheetName: String(sourceSheetName || "").trim() || null,
+    payloadLength: String(workbookBase64 || "").length,
   });
+
+  try {
+    const launchedSheetName = await taskpaneVersionHelpers.launchSavedWorkbookSheetFromBase64({
+      versionName,
+      workbookBase64,
+      sourceSheetName,
+      maxSheetNameLength: MAX_EXCEL_SHEET_NAME_LENGTH,
+      appendDebugLog,
+    });
+    appendDebugLog("Workbook launch success", {
+      launchedSheetName,
+    });
+    return launchedSheetName;
+  } catch (error) {
+    appendDebugLog("Workbook launch error", {
+      message: String(error?.message || "Unexpected error"),
+      stack: String(error?.stack || ""),
+    });
+    throw error;
+  } finally {
+    ensureTaskpaneShellVisible("workbook-launch-finally");
+  }
 }
 
 function buildWorksheetSnapshotForSave({
@@ -1195,6 +1241,37 @@ function showMainTaskpane() {
   launchScreen?.classList.add("hidden");
   mainAppShell?.classList.remove("hidden");
   activateConfigurationTab();
+}
+
+function ensureTaskpaneShellVisible(reason = "unknown") {
+  const launchScreen = document.getElementById("launchScreen");
+  const mainAppShell = document.getElementById("mainAppShell");
+  const launchHidden = Boolean(launchScreen?.classList.contains("hidden"));
+  const mainHidden = Boolean(mainAppShell?.classList.contains("hidden"));
+
+  if (!launchHidden || !mainHidden) {
+    return false;
+  }
+
+  if (hasInitializedMainApp && mainAppShell) {
+    mainAppShell.classList.remove("hidden");
+    if (launchScreen) {
+      launchScreen.classList.add("hidden");
+    }
+    setStatus(`Recovered hidden taskpane shell during ${reason}.`, true);
+    appendDebugLog("Recovered hidden taskpane shell", { reason, target: "main" });
+    return true;
+  }
+
+  if (launchScreen) {
+    launchScreen.classList.remove("hidden");
+  }
+  if (mainAppShell) {
+    mainAppShell.classList.add("hidden");
+  }
+  setStatus(`Recovered hidden taskpane shell during ${reason}.`, true);
+  appendDebugLog("Recovered hidden taskpane shell", { reason, target: "launch" });
+  return true;
 }
 
 async function bootstrapTaskpaneLaunchExperience() {
@@ -1847,6 +1924,7 @@ async function initializeTaskpaneApp() {
 
 Office.onReady(() => {
   installGlobalFrontendErrorHandlers();
+  installBlankScreenGuard();
   bootstrapTaskpaneLaunchExperience().catch((error) => {
     reportFrontendError("Taskpane initialization failed", error);
   });
@@ -1964,6 +2042,7 @@ function buildVersionActionDeps() {
     setViewedVersionContextForSheet,
     runValidation,
     removeViewedVersionContextByVersionId,
+    ensureTaskpaneShellVisible,
   };
 }
 

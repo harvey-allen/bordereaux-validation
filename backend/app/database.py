@@ -315,6 +315,12 @@ class ValidationResultPayload(Base):
         nullable=False,
         index=True,
     )
+    sheet_key_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("sheet_keys.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     version_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     s3_location: Mapped[str] = mapped_column(String(1024), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -442,59 +448,20 @@ async def init_db() -> None:
             )
         )
 
-        # Keep saved result versions, and move payload to dedicated table if legacy columns exist.
+        # Rebuild payload table so every payload row stores sheet_key ownership explicitly.
+        await conn.execute(text("DROP TABLE IF EXISTS validation_result_payloads"))
         await conn.execute(
             text(
                 """
-                CREATE TABLE IF NOT EXISTS validation_result_payloads (
+                CREATE TABLE validation_result_payloads (
                     id SERIAL PRIMARY KEY,
                     validation_result_version_id INTEGER NOT NULL UNIQUE REFERENCES validation_result_versions(id) ON DELETE CASCADE,
+                    sheet_key_id INTEGER NOT NULL REFERENCES sheet_keys(id) ON DELETE CASCADE,
                     version_name VARCHAR(255),
                     s3_location VARCHAR(1024) NOT NULL,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
-                """
-            )
-        )
-        await conn.execute(
-            text(
-                """
-                ALTER TABLE validation_result_payloads
-                ADD COLUMN IF NOT EXISTS s3_location VARCHAR(1024)
-                """
-            )
-        )
-        await conn.execute(
-            text(
-                """
-                UPDATE validation_result_payloads
-                SET s3_location = CONCAT('legacy/', validation_result_version_id::text, '/', id::text, '.json')
-                WHERE s3_location IS NULL OR btrim(s3_location) = ''
-                """
-            )
-        )
-        await conn.execute(
-            text(
-                """
-                ALTER TABLE validation_result_payloads
-                ALTER COLUMN s3_location SET NOT NULL
-                """
-            )
-        )
-        await conn.execute(
-            text(
-                """
-                ALTER TABLE validation_result_payloads
-                DROP COLUMN IF EXISTS mapped_headers_json
-                """
-            )
-        )
-        await conn.execute(
-            text(
-                """
-                ALTER TABLE validation_result_payloads
-                DROP COLUMN IF EXISTS saved_data_json
                 """
             )
         )
@@ -542,8 +509,9 @@ async def init_db() -> None:
             await conn.execute(
                 text(
                     """
-                    INSERT INTO validation_result_payloads (validation_result_version_id, version_name, s3_location, created_at, updated_at)
+                      INSERT INTO validation_result_payloads (validation_result_version_id, sheet_key_id, version_name, s3_location, created_at, updated_at)
                     SELECT v.id,
+                          v.sheet_key_id,
                            v.version_name,
                            CONCAT('legacy/', v.id::text, '.json'),
                            COALESCE(v.created_at, NOW()),
