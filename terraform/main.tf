@@ -124,3 +124,28 @@ module "ecs" {
     module.alb,
   ]
 }
+
+module "cloudwatch" {
+  source = "./modules/cloudwatch"
+
+  environment                = var.environment
+  backend_log_group_name     = module.ecs.backend_log_group_name
+  frontend_log_group_name    = module.ecs.frontend_log_group_name
+  alarm_email                = var.alarm_email
+  log_retention_days         = var.log_retention_days
+  enable_dashboards          = var.enable_dashboards
+  enable_alarms              = var.enable_alarms
+  error_threshold            = var.error_threshold
+  warning_threshold          = var.warning_threshold
+  database_error_threshold   = var.database_error_threshold
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+
+  depends_on = [
+    module.ecs,
+  ]
+}

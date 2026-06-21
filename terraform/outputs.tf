@@ -79,6 +79,40 @@ output "cloudwatch_frontend_log_group" {
   value       = module.ecs.frontend_log_group
 }
 
+# CloudWatch Outputs
+output "cloudwatch_sns_topic_arn" {
+  description = "SNS topic ARN for CloudWatch alarms"
+  value       = module.cloudwatch.sns_topic_arn
+}
+
+output "cloudwatch_alarms" {
+  description = "CloudWatch alarm ARNs"
+  value       = module.cloudwatch.alarms
+}
+
+output "cloudwatch_metrics" {
+  description = "CloudWatch custom metrics created"
+  value = {
+    backend_errors    = module.cloudwatch.backend_error_metric
+    backend_warnings  = module.cloudwatch.backend_warning_metric
+    database_errors   = module.cloudwatch.database_error_metric
+    validation_failures = module.cloudwatch.validation_failure_metric
+    frontend_errors   = module.cloudwatch.frontend_error_metric
+    frontend_warnings = module.cloudwatch.frontend_warning_metric
+  }
+}
+
+output "cloudwatch_dashboards" {
+  description = "CloudWatch dashboard URLs"
+  value       = module.cloudwatch.dashboard_urls
+}
+
+output "log_insights_queries" {
+  description = "Pre-built CloudWatch Logs Insights queries for monitoring"
+  value       = module.cloudwatch.log_insights_queries
+  sensitive   = false
+}
+
 output "secrets_manager_database_url" {
   description = "Secrets Manager secret name for DATABASE_URL"
   value       = module.secrets.database_url_secret_name

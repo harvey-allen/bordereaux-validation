@@ -199,3 +199,65 @@ variable "frontend_image_tag" {
   type        = string
   default     = "latest"
 }
+
+# CloudWatch Monitoring
+variable "alarm_email" {
+  description = "Email address to receive CloudWatch alarm notifications"
+  type        = string
+}
+
+variable "log_retention_days" {
+  description = "Number of days to retain CloudWatch logs"
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.log_retention_days > 0
+    error_message = "Log retention days must be greater than 0."
+  }
+}
+
+variable "enable_dashboards" {
+  description = "Whether to create CloudWatch dashboards for monitoring"
+  type        = bool
+  default     = true
+}
+
+variable "enable_alarms" {
+  description = "Whether to create CloudWatch alarms with SNS notifications"
+  type        = bool
+  default     = true
+}
+
+variable "error_threshold" {
+  description = "Number of errors in 5 minutes to trigger alarm"
+  type        = number
+  default     = 10
+
+  validation {
+    condition     = var.error_threshold > 0
+    error_message = "Error threshold must be greater than 0."
+  }
+}
+
+variable "warning_threshold" {
+  description = "Number of warnings in 5 minutes to trigger alarm"
+  type        = number
+  default     = 50
+
+  validation {
+    condition     = var.warning_threshold > 0
+    error_message = "Warning threshold must be greater than 0."
+  }
+}
+
+variable "database_error_threshold" {
+  description = "Number of database errors in 5 minutes to trigger alarm"
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.database_error_threshold > 0
+    error_message = "Database error threshold must be greater than 0."
+  }
+}
