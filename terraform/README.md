@@ -69,6 +69,24 @@ terraform plan
 terraform apply
 ```
 
+## Free-tier Smoke Deployment (Go-live capability test)
+
+If you want to validate your ability to go live with minimal spend, use the lightweight profile in [terraform/free-tier](free-tier).
+
+This profile provisions a single EC2 host and intentionally excludes high-cost managed services (NAT Gateway, ALB, ECS/Fargate, RDS, CloudFront).
+
+```bash
+cd terraform/free-tier
+cp terraform.tfvars.example terraform.tfvars
+# edit terraform.tfvars (set ssh_allowed_cidr and optional key_name)
+terraform init
+terraform validate
+terraform plan
+terraform apply
+```
+
+Outputs include a public URL and SSH command template.
+
 ## Configuration Variables
 
 ### Environment
