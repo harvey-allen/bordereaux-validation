@@ -46,18 +46,8 @@ frontend_task_memory = 512
 # certificate_arn = "arn:aws:acm:eu-west-2:123456789012:certificate/12345678-1234-1234-1234-123456789012"
 # domain_name = "api.your-domain.com"
 
-# CloudWatch Monitoring
-alarm_email = "devops@company.com"  # Email to receive alarm notifications
-log_retention_days = 30  # Keep logs for 30 days
-
-# Alarms (set to false to disable in non-production)
-enable_alarms = true
-enable_dashboards = true
-
-# Alert thresholds (adjust based on normal traffic patterns)
-error_threshold = 10  # Alert if 10+ errors in 5 minutes
-warning_threshold = 50  # Alert if 50+ warnings in 5 minutes
-database_error_threshold = 5  # Alert on any database errors
+# CloudWatch Logs (staging/production only)
+log_retention_days = 7  # Keep logs for 7 days (increase for production)
 
 # VPC Configuration
 # vpc_cidr = "10.0.0.0/16"

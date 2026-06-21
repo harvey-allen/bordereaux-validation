@@ -128,16 +128,9 @@ module "ecs" {
 module "cloudwatch" {
   source = "./modules/cloudwatch"
 
-  environment                = var.environment
-  backend_log_group_name     = module.ecs.backend_log_group_name
-  frontend_log_group_name    = module.ecs.frontend_log_group_name
-  alarm_email                = var.alarm_email
-  log_retention_days         = var.log_retention_days
-  enable_dashboards          = var.enable_dashboards
-  enable_alarms              = var.enable_alarms
-  error_threshold            = var.error_threshold
-  warning_threshold          = var.warning_threshold
-  database_error_threshold   = var.database_error_threshold
+  environment        = var.environment
+  project_name       = var.project_name
+  log_retention_days = var.log_retention_days
 
   tags = {
     Project     = var.project_name
