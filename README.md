@@ -2,6 +2,8 @@
 
 Bordereaux Validation is an Excel-oriented validation platform that checks bordereaux data against configurable test packs, stores validation outcomes, and supports exception-aware review workflows.
 
+[![Demo video](https://img.youtube.com/vi/vDhp3bsDl9E/maxresdefault.jpg)](https://youtu.be/vDhp3bsDl9E)
+
 ## Key capabilities
 
 - Validate worksheet ranges against one or more test packs.
@@ -10,6 +12,7 @@ Bordereaux Validation is an Excel-oriented validation platform that checks borde
 - Persist validation history, KPIs, and versioned result snapshots.
 - Manage exception records and apply exception tags to result cells.
 - Enforce API-key authentication, subscription-based access, and rate limits.
+
 
 ## High-level architecture
 
